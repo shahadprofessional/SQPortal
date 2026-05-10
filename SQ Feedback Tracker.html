@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>SQ Feedback Tracker</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Arial,sans-serif;background:#F0F3F9;color:#1B2B4B;font-size:14px}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:3px}
+input,select,textarea{font-family:inherit;font-size:13px;color:#1B2B4B;border:1.5px solid #D8E0EC;border-radius:8px;padding:9px 12px;background:#FAFBFD;width:100%;outline:none;transition:border .15s}
+input:focus,select:focus,textarea:focus{border-color:#1B3060}
+textarea{resize:vertical;min-height:70px}
+select{cursor:pointer}
+button{cursor:pointer;font-family:inherit;border:none;border-radius:8px;font-weight:700;transition:opacity .15s}
+button:hover{opacity:.85}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:9px 12px;background:#F5F7FF;color:#374151;font-weight:700;font-size:11px;text-align:left;border-bottom:2px solid #E4EAF4;white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid #F0F4FA;vertical-align:middle;font-size:12px}
+.card{background:#fff;border-radius:14px;padding:22px;box-shadow:0 1px 8px rgba(17,30,56,.07);margin-bottom:16px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.lbl{display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px}
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.btn-gold{background:linear-gradient(135deg,#D4A843,#C08A1E);color:#fff;padding:10px 22px;font-size:13px}
+.btn-navy{background:linear-gradient(135deg,#111E38,#1B3060);color:#fff;padding:10px 22px;font-size:13px}
+.btn-ghost{background:#F1F5F9;color:#475569;padding:8px 14px;font-size:12px;font-weight:600}
+.btn-se{background:#EEF2FF;color:#3730A3;padding:5px 11px;font-size:11px;font-weight:600;border-radius:7px}
+.btn-sg{background:#ECFDF5;color:#065F46;padding:5px 11px;font-size:11px;font-weight:600;border-radius:7px}
+.btn-sr{background:#FEE2E2;color:#991B1B;padding:5px 9px;font-size:11px;font-weight:600;border-radius:7px}
+.tab-btn{padding:12px 17px;background:none;border:none;border-bottom:3px solid transparent;font-size:13px;font-weight:400;color:#6B7280;margin-bottom:-2px;white-space:nowrap;cursor:pointer}
+.tab-btn.active{font-weight:700;color:#111E38;border-bottom-color:#D4A843}
+.modal-ov{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(10,18,40,.55);display:flex;align-items:center;justify-content:center;z-index:999;padding:18px}
+.modal-box{background:#fff;border-radius:16px;width:100%;max-width:700px;max-height:92vh;overflow:auto;padding:26px;box-shadow:0 24px 60px rgba(10,18,40,.3)}
+.toast{position:fixed;top:70px;right:20px;background:#111E38;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:600;z-index:2000;border-left:4px solid #D4A843;max-width:320px}
+.stat-card{background:#fff;border-radius:14px;padding:16px 18px;flex:1;min-width:110px;box-shadow:0 1px 8px rgba(17,30,56,.07)}
+.box-b{border:1.5px solid rgba(154,52,18,.13);background:rgba(154,52,18,.04);border-radius:12px;padding:18px;margin-bottom:14px}
+.box-s{border:1.5px solid rgba(159,18,57,.13);background:rgba(159,18,57,.04);border-radius:12px;padding:18px;margin-bottom:16px}
+.stars span{font-size:28px;cursor:pointer;line-height:1;user-select:none}
+.info-box{background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:9px;padding:10px 15px;margin-bottom:16px;display:flex;align-items:center;gap:9px}
+.err-box{background:#FEE2E2;color:#991B1B;padding:9px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;font-weight:600}
+.dup{font-size:11px;color:#D97706;font-weight:600;margin-top:4px}
+.fr{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ox{overflow-x:auto}
+.sm{font-size:11px}.gray{color:#6B7280}.bold{font-weight:600}
+@media(max-width:700px){.g2,.g3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+var BRANCHES = ["Northgate","Eastfield","Westbridge","Southport","Central Plaza","Harbor","Riverside","Lakeshore","Parkview","Highland","Meadowbrook","Bayside","Crossroads","Summit","Greenfield","Stonebridge","Oakwood","Ridgefield","Sunset","Fairmount","Brookline","Hilltop","Glenwood","Maplewood","Crestview","Cedarfield","Pinegrove"];
+var BP_DEFAULT = {};
+BRANCHES.forEach(function(b,i){ BP_DEFAULT[b] = ["Nora","Ethan","Elena","Diana"][i%4]; });
+var PARTNERS = {Nora:{email:"nora@example.com",full:"Nora Davies"},Ethan:{email:"ethan@example.com",full:"Ethan Hill"},Elena:{email:"elena@example.com",full:"Elena Grant"},Diana:{email:"diana@example.com",full:"Diana Shaw"}};
+var CHECKER = "approver@example.com";
+var STORAGE_KEY = "sq_demo_v1";
+var BP_KEY = "sq_demo_bp";
+var ROOT_CAUSES = ["Staff Behavior","Staff Knowledge","Long Waiting Time","Branch Facilities","System / Technical Error","Process Complexity","Communication Issue"];
+var RC = {1:"#DC2626",2:"#EA580C",3:"#D97706",4:"#16A34A",5:"#15803D"};
+var RL = {1:"Very Poor",2:"Poor",3:"Fair",4:"Good",5:"Excellent"};
+var BM = {"Pending":"#FEF3C7|#92400E","Completed":"#D1FAE5|#065F46","Within SLA":"#D1FAE5|#065F46","SLA Breached":"#FEE2E2|#991B1B","Staff Behavior":"#FFE4E6|#9F1239","Staff Knowledge":"#FEE2E2|#991B1B","Long Waiting Time":"#FED7AA|#9A3412","Branch Facilities":"#FFEDD5|#9A3412","System / Technical Error":"#DBEAFE|#1E3A8A","Process Complexity":"#EDE9FE|#4C1D95","Communication Issue":"#D1FAE5|#065F46","Under Review":"#FEF3C7|#92400E","Valid":"#D1FAE5|#065F46","Not Valid":"#FEE2E2|#991B1B"};
+
+function loadBP(){try{var r=localStorage.getItem(BP_KEY);return r?JSON.parse(r):JSON.parse(JSON.stringify(BP_DEFAULT));}catch(e){return JSON.parse(JSON.stringify(BP_DEFAULT));}}
+function saveBP(m){try{localStorage.setItem(BP_KEY,JSON.stringify(m));}catch(e){}}
+var BP = loadBP();
+function ldb(){try{var r=localStorage.getItem(STORAGE_KEY);return r?JSON.parse(r):null}catch(e){return null}}
+function sdb(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(S.cases))}catch(e){}}
+
+var S = {tab:"dashboard",cases:[],form:nf(),editCase:null,delCase:null,otpVal:"",otpSent:false,otpErr:"",toast:"",toastT:null,formErr:"",dupWarn:"",search:"",fMonth:"",fStatus:"",fType:"",aMonth:"",aBranch:"",aPartner:"",wkRange:"thisWeek",emailModal:null,exportData:null,exportCount:0,_wkBranches:[],_wkStart:"",_wkEnd:"",_previewTitle:null};
+
+function nf(){return{customerName:"",customerPhone:"",branch:"",ticketNumber:"",date:td(),branchRating:0,branchComment:"",staffName:"",staffRating:0,staffComment:"",businessPartner:""};}
+function td(){return new Date().toISOString().split("T")[0]}
+function ndw(d){var x=new Date(d);x.setDate(x.getDate()+1);while(x.getDay()===5||x.getDay()===6)x.setDate(x.getDate()+1);return x.toISOString().split("T")[0]}
+function mk(d){return String(d).substring(0,7)}
+function fmtM(k){var ms={"01":"Jan","02":"Feb","03":"Mar","04":"Apr","05":"May","06":"Jun","07":"Jul","08":"Aug","09":"Sep","10":"Oct","11":"Nov","12":"Dec"};var p=String(k).split("-");return(ms[p[1]]||p[1])+" "+p[0]}
+function slaBreached(due,st){if(!due||st==="Completed")return false;var day=new Date().getDay();if(day===5||day===6)return false;return new Date()>new Date(due+"T23:59:59");}
+function ageDays(d){return Math.floor((new Date()-new Date(d))/86400000)}
+function genOTP(){try{var b=new Uint32Array(1);crypto.getRandomValues(b);return String((b[0]%900000)+100000);}catch(e){return String(100000+Math.floor(Math.random()*900000));}}
+function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;")}
+function notify(m){S.toast=m;if(S.toastT)clearTimeout(S.toastT);render();S.toastT=setTimeout(function(){S.toast="";render();},3200);}
+function badge(t){if(!t)return"";var p=(BM[t]||"#F1F5F9|#475569").split("|");return'<span class="badge" style="background:'+p[0]+';color:'+p[1]+'">'+esc(t)+'</span>';}
+function starsD(v,sz){sz=sz||13;var h="";for(var i=1;i<=5;i++)h+='<span style="font-size:'+sz+'px;color:'+(i<=v&&v>0?(RC[v]||"#D4A843"):"#E2E8F0")+'">★</span>';return h;}
+function ageChip(c){if(c.followUpStatus==="Completed")return'<span style="font-size:10px;font-weight:700;color:#16A34A">✓ Done</span>';var d=ageDays(c.date);var col=d>=3?"#DC2626":d>=1?"#D97706":"#16A34A";return'<span style="font-size:10px;font-weight:700;color:'+col+'">'+d+'d</span>';}
+function bOpts(sel){return BRANCHES.map(function(b){return'<option value="'+esc(b)+'"'+(b===sel?" selected":"")+">"+esc(b)+"</option>"}).join("");}
+function getMonths(){var seen={};S.cases.forEach(function(c){if(c.month)seen[c.month]=1});return Object.keys(seen).sort().reverse();}
+
+function buildEmail(c){
+  var p = PARTNERS[c.businessPartner] || {};
+  var partnerName = p.full || c.businessPartner || "Partner";
+  var subj = "Low Customer Feedback Notification: " + c.branch;
+  var dataLines = [
+    "Date            : " + c.date,
+    "Branch Name     : " + c.branch,
+    (c.branchRating > 0 ? "Branch Rating   : " + c.branchRating + "/5 (" + (RL[c.branchRating]||"") + ")" : null),
+    (c.branchRating > 0 && c.branchComment ? "Details         : " + c.branchComment : null),
+    (c.staffName ? "Staff Name      : " + c.staffName : null),
+    (c.staffName && c.staffRating > 0 ? "Staff Rating    : " + c.staffRating + "/5 (" + (RL[c.staffRating]||"") + ")" : null),
+    (c.staffName && c.staffComment ? "Details         : " + c.staffComment : null),
+    "Customer Name   : " + (c.customerName || "N/A"),
+    "Customer Number : " + (c.customerPhone || "N/A")
+  ].filter(function(l){return l!==null;}).join("\n");
+  var body = ["Dear "+partnerName+",","","Please find the below low customer feedback notification received on "+c.branch+".","",dataLines,"","Please contact the customer and update us within 1 working day. Deadline: "+c.dueDate,"","","Customer Experience Management Team"].join("\n");
+  return {to:p.email||"",subj:subj,body:body};
+}
+function buildOTPEmail(c,otp){
+  var id=String(c.id).slice(-6).toUpperCase();
+  var b=["Dear Approver,","","Delete request for Case #"+id+":","","Customer : "+(c.customerName||"N/A"),"Branch   : "+c.branch,"Date     : "+c.date,"Time     : "+new Date().toLocaleString(),"","OTP CODE: "+otp,"","Valid 10 minutes."];
+  return{to:CHECKER,subj:"[SQ] Delete OTP | Case #"+id,body:b.join("\n")};
+}
+function buildOneBranchSection(branchName,startDate,endDate,asFullEmail){
+  var p = PARTNERS[BP[branchName]] || {};
+  var allCases = S.cases.filter(function(c){return c.branch===branchName&&c.date>=startDate&&c.date<=endDate&&((c.branchRating>0&&c.branchRating<=2)||(c.staffRating>0&&c.staffRating<=2));});
+  if(!allCases.length) return null;
+  var branchCases = allCases.filter(function(c){return c.branchRating>0&&c.branchRating<=2;});
+  var staffCases = allCases.filter(function(c){return c.staffRating>0&&c.staffRating<=2;});
+  var staffCount = {};
+  staffCases.forEach(function(c){var n=(c.staffName||"").trim();if(n) staffCount[n]=(staffCount[n]||0)+1;});
+  var rcCount = {};
+  allCases.forEach(function(c){var rcs=c.rootCauses&&c.rootCauses.length?c.rootCauses:(c.validityStatus?[c.validityStatus]:[]);rcs.forEach(function(r){rcCount[r]=(rcCount[r]||0)+1;});});
+  var topRC = Object.keys(rcCount).sort(function(a,b){return rcCount[b]-rcCount[a];});
+  var stars = function(n){return n>0?("★").repeat(n)+("☆").repeat(5-n)+" ("+n+"/5)":"—";};
+  var lines = [];
+  if(asFullEmail){
+    lines.push("Dear Branch Manager,","");
+    lines.push("Customers receive a feedback message after each branch visit. Customers giving low ratings (1-2 stars) are contacted directly by the SQ team.");
+    lines.push("","Period : "+startDate+" to "+endDate);
+    lines.push("Note   : Customer details are not included. The SQ team handles all follow-ups.","");
+  }
+  lines.push("=========================================");
+  lines.push("  BRANCH: "+branchName);
+  lines.push("  Total Low-Rated Cases : "+allCases.length);
+  lines.push("  Branch Feedbacks      : "+branchCases.length);
+  lines.push("  Staff Feedbacks       : "+staffCases.length);
+  if(Object.keys(staffCount).length) lines.push("  Staff Mentioned       : "+Object.keys(staffCount).map(function(k){return k+(staffCount[k]>1?" ("+staffCount[k]+"x)":"");}).join(", "));
+  lines.push("=========================================","");
+  if(branchCases.length){
+    lines.push("-----------------------------------------","A. BRANCH FEEDBACK ("+branchCases.length+")","-----------------------------------------");
+    branchCases.forEach(function(c,i){
+      lines.push((i+1)+". Date: "+c.date+"  |  Branch Rating: "+stars(c.branchRating));
+      if(c.branchComment) lines.push("   Issue      : "+c.branchComment);
+      var rcs=c.rootCauses&&c.rootCauses.length?c.rootCauses:(c.validityStatus?[c.validityStatus]:[]);
+      if(rcs.length) lines.push("   Root Cause : "+rcs.join(", "));
+      lines.push("");
+    });
+  }
+  if(staffCases.length){
+    lines.push("-----------------------------------------","B. STAFF FEEDBACK ("+staffCases.length+")","-----------------------------------------");
+    staffCases.forEach(function(c,i){
+      lines.push((i+1)+". Date: "+c.date+"  |  Staff Rating: "+stars(c.staffRating));
+      if(c.staffName) lines.push("   Staff      : "+c.staffName);
+      if(c.staffComment) lines.push("   Issue      : "+c.staffComment);
+      var rcs=c.rootCauses&&c.rootCauses.length?c.rootCauses:(c.validityStatus?[c.validityStatus]:[]);
+      if(rcs.length) lines.push("   Root Cause : "+rcs.join(", "));
+      lines.push("");
+    });
+  }
+  if(topRC.length){
+    lines.push("-----------------------------------------","MAIN ISSUES THIS WEEK","-----------------------------------------");
+    topRC.forEach(function(r){lines.push("  - "+r+": "+rcCount[r]+" case"+(rcCount[r]>1?"s":""));});
+    lines.push("");
+  }
+  if(asFullEmail){
+    lines.push("-----------------------------------------","This report is shared for your awareness.","","SQ Team");
+    return {to:p.email||"",subj:"[SQ] Weekly Service Quality Summary | "+branchName+" | "+startDate+" to "+endDate,body:lines.join("\n")};
+  }
+  return lines.join("\n");
+}
+function buildBranchReport(branchIdx,startDate,endDate){
+  var branchName = S._wkBranches[branchIdx];
+  if(!branchName) return null;
+  return buildOneBranchSection(branchName,startDate,endDate,true);
+}
+function buildCombinedReport(startDate,endDate){
+  var poorCases = S.cases.filter(function(c){return c.date>=startDate&&c.date<=endDate&&((c.branchRating>0&&c.branchRating<=2)||(c.staffRating>0&&c.staffRating<=2));});
+  if(!poorCases.length) return null;
+  var branchMap = {};
+  poorCases.forEach(function(c){if(!branchMap[c.branch])branchMap[c.branch]=[];branchMap[c.branch].push(c);});
+  var branches = Object.keys(branchMap).sort(function(a,b){return branchMap[b].length-branchMap[a].length;});
+  var header = ["Dear Branch Manager,","","Below is a summary of this week's low-rated visits.","Period : "+startDate+" to "+endDate,"Total  : "+poorCases.length+" low-rated visit"+(poorCases.length>1?"s":"")+" across "+branches.length+" branch"+(branches.length>1?"es":""),""];
+  var body = branches.map(function(b){return buildOneBranchSection(b,startDate,endDate,false);}).filter(Boolean);
+  var footer = ["","SQ Team"];
+  return {to:"",subj:"[SQ] Weekly Service Quality Summary | "+startDate+" to "+endDate,body:header.concat(body).concat(footer).join("\n")};
+}
+
+function openEmailModal(data,caseId){if(!data)return;S.emailModal={to:data.to,subj:data.subj,body:data.body,caseId:caseId||null};render();}
+function closeEmailModal(){S.emailModal=null;render();}
+function openOutlook(){if(!S.emailModal)return;window.open("https://outlook.office.com/mail/deeplink/compose?to="+encodeURIComponent(S.emailModal.to)+"&subject="+encodeURIComponent(S.emailModal.subj)+"&body="+encodeURIComponent(S.emailModal.body),"_blank");}
+function copyField(fid,bid){
+  var el=document.getElementById(fid);var btn=document.getElementById(bid);if(!el)return;
+  if(fid==="em-bd"&&S.emailModal)el.value=S.emailModal.body||"";
+  var val=el.value||el.innerText;if(!val)return;
+  function done(ok){if(!btn)return;var o=btn.textContent;btn.textContent=ok?"✅ Copied!":"⚠️ Ctrl+C";setTimeout(function(){btn.textContent=o;},2000);}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(val).then(function(){done(true);}).catch(function(){done(false);});}else{el.select();try{document.execCommand("copy");done(true);}catch(e){done(false);}}
+}
+
+function exportCSV(list){
+  if(!list||!list.length){alert("No cases to export.");return;}
+  var h=["ID","Date","Customer","Phone","Branch","Ticket","Branch Rtg","Branch Comment","Staff Name","Staff Rtg","Staff Comment","Partner","Due Date","Status","Follow-up Date","Follow-up Notes","Validation","Root Causes","Validation Notes","Email Sent"];
+  var rows=list.map(function(c){
+    var rcs=c.rootCauses&&c.rootCauses.length?c.rootCauses.join("; "):(c.validityStatus||"");
+    return[String(c.id).slice(-6),c.date,c.customerName,c.customerPhone,c.branch,c.ticketNumber||"",c.branchRating||"",c.branchComment||"",c.staffName||"",c.staffRating||"",c.staffComment||"",c.businessPartner||"",c.dueDate,c.followUpStatus,c.followUpDate||"",c.followUpNotes||"",c.caseValidation,rcs,c.validationNotes||"",c.emailSent?"Yes":"No"].map(function(v){return'"'+String(v||"").replace(/"/g,'""')+'"';});
+  });
+  S.exportData="\uFEFF"+[h.join(",")].concat(rows.map(function(r){return r.join(",")})).join("\n");
+  S.exportCount=list.length;S._previewTitle=null;render();
+}
+function closeExport(){S.exportData=null;S._previewTitle=null;render();}
+function downloadCSV(){if(!S.exportData)return;try{var blob=new Blob([S.exportData],{type:"text/csv;charset=utf-8;"});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download="SQ_"+td()+".csv";document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url);},2000);}catch(e){alert("Download failed.");}}
+function copyCSV(){var ta=document.getElementById("csv-ta");if(!ta)return;if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(ta.value);}else{ta.select();document.execCommand("copy");}}
+function clearAnalyticsFilters(){S.aMonth="";S.aBranch="";S.aPartner="";render();}
+
+function getFiltered(){
+  var q=(S.search||"").toLowerCase();
+  return S.cases.filter(function(c){
+    if(S.fMonth&&c.month!==S.fMonth)return false;
+    if(S.fStatus&&c.followUpStatus!==S.fStatus)return false;
+    if(S.fType){var rcs=c.rootCauses&&c.rootCauses.length?c.rootCauses:(c.validityStatus?[c.validityStatus]:[]);if(rcs.indexOf(S.fType)===-1)return false;}
+    if(q&&!(String(c.customerName||"")+String(c.customerPhone||"")+String(c.branch||"")+String(c.staffName||"")+String(c.ticketNumber||"")).toLowerCase().includes(q))return false;
+    return true;
+  });
+}
+function getUrgent(){var t=td();return S.cases.filter(function(c){return c.followUpStatus!=="Completed"&&c.dueDate&&c.dueDate<=t;});}
+function getStats(){
+  var t=td(),m=mk(t);
+  return{
+    total:S.cases.length,
+    month:S.cases.filter(function(c){return c.month===m}).length,
+    pending:S.cases.filter(function(c){return c.followUpStatus==="Pending"}).length,
+    breached:S.cases.filter(function(c){return slaBreached(c.dueDate,c.followUpStatus)}).length,
+    done:S.cases.filter(function(c){return c.followUpStatus==="Completed"}).length,
+    staff:S.cases.filter(function(c){return c.rootCauses&&c.rootCauses.indexOf("Staff Behavior")>-1}).length,
+    branch:S.cases.filter(function(c){return c.rootCauses&&c.rootCauses.indexOf("Long Waiting Time")>-1}).length,
+    valid:S.cases.filter(function(c){return c.caseValidation==="Valid";}).length,
+    notValid:S.cases.filter(function(c){return c.caseValidation==="Not Valid";}).length,
+    underReview:S.cases.filter(function(c){return c.caseValidation==="Under Review"||!c.caseValidation;}).length,
+  };
+}
+function getRepeatCustomers(){
+  var now=new Date(),yearAgo=new Date(now.getFullYear()-1,now.getMonth(),now.getDate());
+  var phoneMap={},nameMap={};
+  S.cases.forEach(function(c){
+    try{var d=new Date(c.date);if(isNaN(d)||d<yearAgo)return;
+      var ph=String(c.customerPhone||"").trim();var nm=String(c.customerName||"").trim().toLowerCase();
+      if(ph)phoneMap[ph]=(phoneMap[ph]||0)+1;if(nm)nameMap[nm]=(nameMap[nm]||0)+1;
+    }catch(e){}
+  });
+  var phones={},names={};
+  Object.keys(phoneMap).forEach(function(k){if(phoneMap[k]>=3)phones[k]=phoneMap[k];});
+  Object.keys(nameMap).forEach(function(k){if(nameMap[k]>=3)names[k]=nameMap[k];});
+  return{phones:phones,names:names};
+}
+function isRepeat(c,flagged){try{var ph=String(c.customerPhone||"").trim();var nm=String(c.customerName||"").trim().toLowerCase();return flagged.phones[ph]||flagged.names[nm]||0;}catch(e){return 0;}}
+
+function setTab(t){S.tab=t;render();}
+function tf(k,v){S.form[k]=v;}
+function onBranch(v){syncFromDOM();S.form.branch=v;S.form.businessPartner=BP[v]||"";render();}
+function onPhone(v){
+  S.form.customerPhone=v;var warn="";
+  if(String(v).length>=7){
+    var dup=null;
+    for(var i=0;i<S.cases.length;i++){if(String(S.cases[i].customerPhone||"").trim()===String(v).trim()&&S.cases[i].followUpStatus!=="Completed"){dup=S.cases[i];break;}}
+    if(dup)warn="⚠️ Open case #"+String(dup.id).slice(-6).toUpperCase()+" - "+dup.branch;
+  }
+  if(warn!==S.dupWarn){S.dupWarn=warn;syncFromDOM();render();}
+}
+function onStar(field,n){syncFromDOM();S.form[field]=S.form[field]===n?0:n;render();}
+function editStar(field,n){if(!S.editCase)return;S.editCase[field]=S.editCase[field]===n?0:n;render();}
+function syncFromDOM(){
+  var ids=["fi-name","fi-phone","fi-ticket","fi-bcmt","fi-sname","fi-scmt"];
+  var fields=["customerName","customerPhone","ticketNumber","branchComment","staffName","staffComment"];
+  ids.forEach(function(id,i){var el=document.getElementById(id);if(el)S.form[fields[i]]=el.value;});
+}
+function restoreInputs(){
+  if(S.tab!=="add")return;
+  var ids=["fi-name","fi-phone","fi-ticket","fi-bcmt","fi-sname","fi-scmt"];
+  var fields=["customerName","customerPhone","ticketNumber","branchComment","staffName","staffComment"];
+  ids.forEach(function(id,i){var el=document.getElementById(id);if(!el)return;var nv=S.form[fields[i]]||"";if(el.value!==nv){var ss=el.selectionStart,se=el.selectionEnd;el.value=nv;try{if(document.activeElement===el)el.setSelectionRange(ss,se);}catch(e){}}});
+}
+var _sTimer=null;
+function debounceSearch(v){S.search=v;if(_sTimer)clearTimeout(_sTimer);_sTimer=setTimeout(function(){render();},300);}
+function handleAdd(){
+  syncFromDOM();var f=S.form;
+  if(!f.customerName.trim()){S.formErr="Customer name is required.";return render();}
+  if(!f.customerPhone.trim()){S.formErr="Phone number is required.";return render();}
+  if(!f.branch){S.formErr="Please select a branch.";return render();}
+  if(!f.branchRating&&!f.staffRating){S.formErr="Enter at least a Branch Rating or Staff Rating.";return render();}
+  S.formErr="";
+  var c={id:String(Date.now()),date:f.date,month:mk(f.date),customerName:f.customerName.trim(),customerPhone:f.customerPhone.trim(),branch:f.branch,ticketNumber:f.ticketNumber.trim(),branchRating:f.branchRating,branchComment:f.branchComment.trim(),staffName:f.staffName.trim(),staffRating:f.staffRating,staffComment:f.staffComment.trim(),businessPartner:f.businessPartner,dueDate:ndw(f.date),followUpStatus:"Pending",followUpDate:"",followUpNotes:"",caseValidation:"Under Review",rootCauses:[],validityStatus:"",validationNotes:"",emailSent:false};
+  S.cases.unshift(c);sdb();S.form=nf();S.dupWarn="";notify("✅ Case saved.");S.tab="cases";render();
+}
+function resetForm(){syncFromDOM();S.form=nf();S.formErr="";S.dupWarn="";render();}
+function openEdit(id){var c=null;for(var i=0;i<S.cases.length;i++){if(S.cases[i].id===id){c=S.cases[i];break;}}if(c){S.editCase=JSON.parse(JSON.stringify(c));render();}}
+function closeEdit(){S.editCase=null;render();}
+function syncEdit(){if(!S.editCase)return;var fn=document.getElementById("ei-fn");var vn=document.getElementById("ei-vn");if(fn)S.editCase.followUpNotes=fn.value;if(vn)S.editCase.validationNotes=vn.value;}
+function saveEdit(){syncEdit();if(S.editCase.rootCauses&&S.editCase.rootCauses.length)S.editCase.validityStatus=S.editCase.rootCauses[0];for(var i=0;i<S.cases.length;i++){if(S.cases[i].id===S.editCase.id){S.cases[i]=S.editCase;break;}}sdb();S.editCase=null;notify("✅ Case updated.");render();}
+function toggleRC(idx){
+  if(!S.editCase)return;if(!S.editCase.rootCauses)S.editCase.rootCauses=[];
+  var rc=ROOT_CAUSES[idx];if(!rc)return;
+  var pos=S.editCase.rootCauses.indexOf(rc);
+  if(pos>-1)S.editCase.rootCauses.splice(pos,1);else S.editCase.rootCauses.push(rc);
+  render();
+}
+function toggleOtherRC(cb){
+  if(!S.editCase)return;if(!S.editCase.rootCauses)S.editCase.rootCauses=[];
+  var box=document.getElementById("rc-other-box");
+  if(cb.checked){if(box)box.style.display="block";}else{if(box)box.style.display="none";S.editCase.rootCauses=S.editCase.rootCauses.filter(function(x){return String(x).indexOf("Other:")<0;});}
+}
+function updateOtherRC(val){if(!S.editCase)return;if(!S.editCase.rootCauses)S.editCase.rootCauses=[];S.editCase.rootCauses=S.editCase.rootCauses.filter(function(x){return String(x).indexOf("Other:")<0;});if(val&&val.trim())S.editCase.rootCauses.push("Other: "+val.trim());}
+function doEmail(id){var c=null;for(var i=0;i<S.cases.length;i++){if(S.cases[i].id===id){c=S.cases[i];break;}}if(c)openEmailModal(buildEmail(c),c.id);}
+function markSent(id){for(var i=0;i<S.cases.length;i++){if(S.cases[i].id===id){S.cases[i].emailSent=true;break;}}sdb();}
+function editMarkSent(){if(S.editCase){S.editCase.emailSent=true;markSent(S.editCase.id);}}
+function reqDel(id){var c=null;for(var i=0;i<S.cases.length;i++){if(S.cases[i].id===id){c=S.cases[i];break;}}if(!c)return;S.delCase=c;S.otpVal=genOTP();S.otpSent=false;S.otpErr="";render();}
+function cancelDel(){S.delCase=null;render();}
+function sendOtp(){if(!S.delCase)return;var data=buildOTPEmail(S.delCase,S.otpVal);S.otpSent=true;render();setTimeout(function(){openEmailModal(data,null);},150);}
+function confirmDel(){var el=document.getElementById("otp-inp");if(!el)return;if(el.value.trim()!==S.otpVal){S.otpErr="Incorrect OTP.";render();return;}S.cases=S.cases.filter(function(c){return c.id!==S.delCase.id;});sdb();S.delCase=null;notify("🗑️ Case deleted.");render();}
+function clearFilters(){S.search="";S.fMonth="";S.fStatus="";S.fType="";render();}
+function updateBP(branchIdx,partnerVal){var b=BRANCHES[branchIdx];if(!b)return;BP[b]=partnerVal;saveBP(BP);var emailEl=document.getElementById("bp-email-"+branchIdx);if(emailEl)emailEl.textContent=(PARTNERS[partnerVal]||{}).email||"";var saved=document.getElementById("bp-saved");if(saved){saved.style.display="block";setTimeout(function(){saved.style.display="none";},2000);}}
+function resetBP(){if(!confirm("Reset all assignments to default?"))return;BP=JSON.parse(JSON.stringify(BP_DEFAULT));saveBP(BP);render();}
+function sendBranchReport(idx){var data=buildBranchReport(idx,S._wkStart,S._wkEnd);if(!data){notify("No poor ratings for this branch.");return;}openEmailModal(data,null);}
+function previewBranchReport(idx){var data=buildBranchReport(idx,S._wkStart,S._wkEnd);if(!data){notify("No poor ratings for this branch.");return;}S.exportData=data.body;S.exportCount=0;S._previewTitle="📤 Report: "+S._wkBranches[idx];render();}
+function sendAllReports(){if(!S._wkBranches.length){notify("No poor-rated cases this period.");return;}var data=buildCombinedReport(S._wkStart,S._wkEnd);if(!data){notify("No poor-rated cases found.");return;}openEmailModal(data,null);}
+
+function render(){
+  var sy=window.scrollY||0;
+  var h="";
+  // HEADER
+  h += '<div style="background:linear-gradient(135deg,#111E38,#1B3060);height:62px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;box-shadow:0 2px 16px rgba(17,30,56,.4)">';
+  h += '<div style="display:flex;align-items:center;gap:12px"><div style="width:40px;height:40px;background:#D4A843;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#111E38;font-size:13px;flex-shrink:0">SQ</div>';
+  h += '<div><div style="color:#D4A843;font-weight:800;font-size:15px">SQ Feedback Tracker</div>';
+  h += '<div style="color:rgba(255,255,255,.4);font-size:11px">Service Quality — Feedbacks &amp; Follow-up</div></div></div>';
+  h += '<div style="color:rgba(255,255,255,.35);font-size:11px">'+new Date().toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short",year:"numeric"})+'</div></div>';
+  // NAV
+  h += '<div style="background:#fff;border-bottom:2px solid #E4EAF4;display:flex;padding:0 20px;gap:2px;overflow-x:auto">';
+  [["dashboard","📊 Dashboard"],["add","+ New Case"],["cases","📋 Cases ("+S.cases.length+")"],["analytics","📈 Analytics"],["weekly","💌 Weekly Report"],["settings","⚙ Settings"]].forEach(function(t){
+    h += '<button class="tab-btn'+(S.tab===t[0]?" active":"")+'" onclick="setTab(\''+t[0]+'\')">'+t[1]+'</button>';
+  });
+  h += '</div><div style="padding:20px;max-width:1400px;margin:0 auto">';
+
+  var stats=getStats();var flagged=getRepeatCustomers();
+
+  if(S.tab==="dashboard"){
+    var urgent=getUrgent();
+    h += '<div style="display:flex;gap:11px;margin-bottom:16px;flex-wrap:wrap">';
+    [{l:"This Month",v:stats.month,c:"#1B3060"},{l:"Pending",v:stats.pending,c:"#D97706"},{l:"SLA Breached",v:stats.breached,c:"#DC2626"},{l:"Completed",v:stats.done,c:"#16A34A"},{l:"Valid",v:stats.valid,c:"#16A34A"},{l:"Not Valid",v:stats.notValid,c:"#DC2626"},{l:"Under Review",v:stats.underReview,c:"#D97706"},{l:"Staff Issues",v:stats.staff,c:"#9F1239"},{l:"Branch Issues",v:stats.branch,c:"#9A3412"}].forEach(function(x){
+      h += '<div class="stat-card" style="border-top:4px solid '+x.c+'"><div style="font-size:28px;font-weight:800;color:'+x.c+';line-height:1">'+x.v+'</div><div style="font-size:11px;color:#6B7280;margin-top:4px">'+x.l+'</div></div>';
+    });
+    h += '</div>';
+
+    var repItems=[];var shownPhones={};
+    Object.keys(flagged.phones).forEach(function(ph){var c=null;for(var i=0;i<S.cases.length;i++){if(String(S.cases[i].customerPhone||"").trim()===ph){c=S.cases[i];break;}}repItems.push({label:c?esc(c.customerName||ph):ph,sub:"📞 "+ph,count:flagged.phones[ph]});if(c)shownPhones[String(c.customerName||"").toLowerCase()]=true;});
+    Object.keys(flagged.names).forEach(function(nm){if(shownPhones[nm])return;repItems.push({label:esc(nm),sub:"👤 Name match",count:flagged.names[nm]});});
+    if(repItems.length){
+      h += '<div class="card" style="border-top:3px solid #D97706"><div style="font-size:14px;font-weight:700;color:#D97706;margin-bottom:12px">🔄 Repeat Customers — 3+ feedback in past year</div><div style="display:flex;flex-wrap:wrap;gap:8px">';
+      repItems.forEach(function(r){h+='<div style="background:#FEF3C7;border:1.5px solid #FCD34D;border-radius:9px;padding:8px 14px;font-size:12px"><div style="font-weight:700;color:#92400E">'+r.label+'</div><div style="color:#B45309;font-size:11px;margin-top:2px">'+r.sub+' · <strong>'+r.count+'</strong> cases</div></div>';});
+      h += '</div></div>';
+    }
+
+    if(urgent.length){
+      h += '<div class="card" style="border-top:3px solid #DC2626"><div style="font-size:14px;font-weight:700;color:#DC2626;margin-bottom:14px">🚨 Urgent — SLA Due Today or Overdue ('+urgent.length+')</div><div class="ox"><table><thead><tr>';
+      ["Customer","Phone","Branch","Branch Rtg","Staff","Partner","SLA","Actions"].forEach(function(x){h+='<th>'+x+'</th>';});
+      h += '</tr></thead><tbody>';
+      urgent.forEach(function(c){
+        var p=PARTNERS[c.businessPartner]||{};var rep=isRepeat(c,flagged);
+        h += '<tr style="background:#FEF2F2">';
+        h += '<td><strong>'+esc(c.customerName||"—")+'</strong>'+(rep?'<span style="font-size:10px;background:#FEF3C7;color:#92400E;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px">🔄</span>':'')+'<div style="font-size:10px;color:#9CA3AF">#'+String(c.id).slice(-6).toUpperCase()+'</div></td>';
+        h += '<td><code style="background:#F1F5F9;padding:2px 5px;border-radius:4px;font-size:11px">'+esc(c.customerPhone)+'</code></td>';
+        h += '<td style="font-size:11px">'+esc(c.branch)+'</td>';
+        h += '<td>'+(c.branchRating>0?starsD(c.branchRating,11):"—")+'</td>';
+        h += '<td style="font-size:11px">'+esc(c.staffName||"—")+'</td>';
+        h += '<td style="font-size:11px;font-weight:600">'+esc(c.businessPartner||"—")+(p.email?'<div style="font-size:10px;color:#9CA3AF">'+esc(p.email)+'</div>':"")+'</td>';
+        h += '<td>'+badge(slaBreached(c.dueDate,c.followUpStatus)?"SLA Breached":"Within SLA")+'<div style="font-size:10px;color:#9CA3AF">'+c.dueDate+'</div></td>';
+        h += '<td><div class="fr"><button class="btn-se" onclick="openEdit(\''+c.id+'\')">✏</button>'+(c.businessPartner?'<button class="btn-sg" onclick="doEmail(\''+c.id+'\')">📧'+(c.emailSent?" ✓":"")+'</button>':"")+'</div></td>';
+        h += '</tr>';
+      });
+      h += '</tbody></table></div></div>';
+    } else {
+      h += '<div class="card" style="text-align:center;padding:52px;color:#16A34A"><div style="font-size:46px;margin-bottom:10px">✅</div><div style="font-size:17px;font-weight:700">No Urgent Cases</div><div style="font-size:13px;color:#6B7280;margin-top:5px">All cases are within SLA</div></div>';
+    }
+
+    if(S.cases.length){
+      h += '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><span style="font-size:14px;font-weight:700">🕐 Recent Cases</span><button class="btn-ghost" onclick="exportCSV(S.cases)">⬇ Export CSV</button></div><div class="ox"><table><thead><tr>';
+      ["Date","Customer","Branch","Branch Rtg","Staff","Status","Age"].forEach(function(x){h+='<th>'+x+'</th>';});
+      h += '</tr></thead><tbody>';
+      S.cases.slice(0,10).forEach(function(c){
+        var rep=isRepeat(c,flagged);var bg=rep?"#FFFBEB":"#fff";
+        h += '<tr style="background:'+bg+'">';
+        h += '<td class="gray sm">'+c.date+'</td>';
+        h += '<td><strong>'+esc(c.customerName||"—")+'</strong>'+(rep?'<span style="font-size:10px;background:#FEF3C7;color:#92400E;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px">🔄</span>':'')+'</td>';
+        h += '<td class="sm">'+esc(c.branch)+'</td>';
+        h += '<td>'+(c.branchRating>0?starsD(c.branchRating,11):"—")+'</td>';
+        h += '<td class="sm">'+esc(c.staffName||"—")+'</td>';
+        h += '<td>'+badge(c.followUpStatus)+'</td>';
+        h += '<td>'+ageChip(c)+'</td></tr>';
+      });
+      h += '</tbody></table></div></div>';
+    }
+  }
+
+  if(S.tab==="add"){
+    var f=S.form;
+    h += '<div class="card"><div style="font-size:15px;font-weight:700;margin-bottom:18px;padding-bottom:10px;border-bottom:2px solid #F0F4FA">+ Add New Feedback Case</div>';
+    h += '<div style="font-size:11px;font-weight:700;color:#D4A843;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">Customer &amp; Case Information</div>';
+    h += '<div class="g3" style="margin-bottom:14px">';
+    h += '<div><label class="lbl">Customer Name <span style="color:#DC2626">*</span></label><input id="fi-name" oninput="tf(\'customerName\',this.value)" placeholder="Full name" autocomplete="off"/></div>';
+    h += '<div><label class="lbl">Phone Number <span style="color:#DC2626">*</span></label><input id="fi-phone" oninput="onPhone(this.value)" placeholder="XXXXXXXX" inputmode="numeric" autocomplete="off"/>'+(S.dupWarn?'<div class="dup">'+esc(S.dupWarn)+'</div>':"")+'</div>';
+    h += '<div><label class="lbl">Ticket Number</label><input id="fi-ticket" oninput="tf(\'ticketNumber\',this.value)" placeholder="e.g. TKT-001" autocomplete="off"/></div>';
+    h += '</div><div class="g2" style="margin-bottom:14px">';
+    h += '<div><label class="lbl">Branch <span style="color:#DC2626">*</span></label><select onchange="onBranch(this.value)"><option value="">— Select Branch —</option>'+bOpts(f.branch)+'</select></div>';
+    h += '<div><label class="lbl">Feedback Date</label><input type="date" value="'+f.date+'" onchange="syncFromDOM();S.form.date=this.value" style="cursor:pointer"/></div></div>';
+    if(f.businessPartner){var pp=PARTNERS[f.businessPartner]||{};h+='<div class="info-box"><span>👤</span><div><strong style="color:#1E40AF">Auto-assigned: '+esc(f.businessPartner)+'</strong>'+(pp.email?'<span style="font-size:11px;color:#3B82F6;margin-left:8px">'+esc(pp.email)+'</span>':"")+'</div></div>';}
+    h += '<div class="box-b"><div style="font-weight:700;font-size:13px;color:#9A3412;margin-bottom:14px">🏢 Branch Feedback <span style="font-weight:400;font-size:11px;color:#6B7280">(optional if staff only)</span></div>';
+    h += '<label class="lbl">Branch Rating</label><div class="stars" style="margin-bottom:12px">';
+    for(var i=1;i<=5;i++)h+='<span style="color:'+(i<=f.branchRating&&f.branchRating>0?(RC[f.branchRating]||"#D4A843"):"#E2E8F0")+'" onclick="onStar(\'branchRating\','+i+')">★</span>';
+    if(f.branchRating>0)h+='<span style="font-size:12px;color:'+(RC[f.branchRating]||"#374151")+';font-weight:700;margin-left:6px">'+RL[f.branchRating]+'</span>';
+    h += '</div><label class="lbl">Branch Feedback Details</label><textarea id="fi-bcmt" oninput="tf(\'branchComment\',this.value)" placeholder="e.g. long waiting time, poor facilities..."></textarea></div>';
+    h += '<div class="box-s"><div style="font-weight:700;font-size:13px;color:#9F1239;margin-bottom:14px">👤 Staff Feedback <span style="font-weight:400;font-size:11px;color:#6B7280">(optional if branch only)</span></div>';
+    if(f.branch)h+='<div style="background:#FFF0F0;border:1px solid #FECACA;border-radius:7px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#9F1239"><strong>Branch:</strong> '+esc(f.branch)+'</div>';
+    h += '<div class="g2" style="margin-bottom:12px"><div><label class="lbl">Staff Name</label><input id="fi-sname" oninput="tf(\'staffName\',this.value)" placeholder="Free text" autocomplete="off"/></div>';
+    h += '<div><label class="lbl">Staff Rating</label><div class="stars">';
+    for(var j=1;j<=5;j++)h+='<span style="color:'+(j<=f.staffRating&&f.staffRating>0?(RC[f.staffRating]||"#D4A843"):"#E2E8F0")+'" onclick="onStar(\'staffRating\','+j+')">★</span>';
+    if(f.staffRating>0)h+='<span style="font-size:12px;color:'+(RC[f.staffRating]||"#374151")+';font-weight:700;margin-left:6px">'+RL[f.staffRating]+'</span>';
+    h += '</div></div></div>';
+    h += '<label class="lbl">Staff Feedback Details</label><textarea id="fi-scmt" oninput="tf(\'staffComment\',this.value)" placeholder="e.g. rude attitude, wrong information..."></textarea></div>';
+    if(S.formErr)h+='<div class="err-box">⚠️ '+esc(S.formErr)+'</div>';
+    h += '<div class="fr"><button class="btn-gold" onclick="handleAdd()">💾 Save Case</button><button class="btn-ghost" onclick="resetForm()">🔄 Clear</button></div></div>';
+  }
+
+  if(S.tab==="cases"){
+    var filtered=getFiltered();var months=getMonths();
+    h += '<div class="card" style="padding:13px 18px;margin-bottom:13px"><div class="fr">';
+    h += '<div style="flex:1 1 160px"><label class="lbl" style="font-size:11px">🔍 Search</label><input value="'+esc(S.search)+'" oninput="debounceSearch(this.value)" placeholder="Name, phone, branch, ticket..."/></div>';
+    h += '<div><label class="lbl" style="font-size:11px">Month</label><select style="width:125px" onchange="S.fMonth=this.value;render()"><option value="">All</option>';
+    months.forEach(function(m){h+='<option value="'+esc(m)+'"'+(m===S.fMonth?" selected":"")+'>'+fmtM(m)+'</option>';});
+    h += '</select></div><div><label class="lbl" style="font-size:11px">Status</label><select style="width:125px" onchange="S.fStatus=this.value;render()"><option value="">All</option>';
+    ["Pending","Completed"].forEach(function(s){h+='<option'+(s===S.fStatus?" selected":"")+'>'+s+'</option>';});
+    h += '</select></div><div><label class="lbl" style="font-size:11px">Root Cause</label><select style="width:150px" onchange="S.fType=this.value;render()"><option value="">All</option>';
+    ROOT_CAUSES.concat(["Other"]).forEach(function(s){h+='<option value="'+esc(s)+'"'+(s===S.fType?" selected":"")+'>'+esc(s)+'</option>';});
+    h += '</select></div>';
+    if(S.search||S.fMonth||S.fStatus||S.fType)h+='<button class="btn-ghost" style="align-self:flex-end" onclick="clearFilters()">✕ Clear</button>';
+    h += '<div style="margin-left:auto;align-self:flex-end;display:flex;gap:8px;align-items:center"><span style="font-size:12px;color:#6B7280;font-weight:600">'+filtered.length+' cases</span><button class="btn-ghost" onclick="exportCSV(getFiltered())">⬇ Export</button></div></div></div>';
+    h += '<div class="card" style="padding:0;overflow:hidden"><div class="ox"><table><thead><tr>';
+    ["#","Date","Customer","Phone","Branch","Ticket","Br★","Staff","St★","Partner","Status","SLA","Age","Root Cause","Actions"].forEach(function(x){h+='<th>'+x+'</th>';});
+    h += '</tr></thead><tbody>';
+    if(!filtered.length)h+='<tr><td colspan="15" style="text-align:center;padding:48px;color:#9CA3AF">No cases match the current filters</td></tr>';
+    var _fl=flagged;
+    filtered.forEach(function(c){
+      var br=slaBreached(c.dueDate,c.followUpStatus);var rep=isRepeat(c,_fl);var bg=br?"#FEF2F2":rep?"#FFFBEB":"#fff";
+      var rcs=c.rootCauses&&c.rootCauses.length?c.rootCauses:(c.validityStatus?[c.validityStatus]:[]);
+      h += '<tr style="background:'+bg+'">';
+      h += '<td style="font-size:10px;font-weight:700;color:#9CA3AF">#'+String(c.id).slice(-6).toUpperCase()+'</td>';
+      h += '<td class="gray sm">'+c.date+'</td>';
+      h += '<td><strong>'+esc(c.customerName||"—")+'</strong>'+(rep?'<span style="font-size:10px;background:#FEF3C7;color:#92400E;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px">🔄</span>':'')+'</td>';
+      h += '<td><code style="background:#F1F5F9;padding:2px 5px;border-radius:4px;font-size:11px">'+esc(c.customerPhone)+'</code></td>';
+      h += '<td class="sm">'+esc(c.branch)+'</td>';
+      h += '<td class="sm gray">'+(c.ticketNumber||'<span style="color:#CBD5E1">—</span>')+'</td>';
+      h += '<td>'+(c.branchRating>0?starsD(c.branchRating,11):'<span style="color:#CBD5E1">—</span>')+'</td>';
+      h += '<td class="sm">'+esc(c.staffName||"—")+'</td>';
+      h += '<td>'+(c.staffRating>0?starsD(c.staffRating,11):'<span style="color:#CBD5E1">—</span>')+'</td>';
+      h += '<td style="font-size:11px;font-weight:600">'+esc(c.businessPartner||"—")+(c.emailSent?'<div style="font-size:9px;color:#16A34A;font-weight:700">✓ SENT</div>':"")+'</td>';
+      h += '<td>'+badge(c.followUpStatus)+'</td>';
+      h += '<td>'+badge(br?"SLA Breached":"Within SLA")+'</td>';
+      h += '<td>'+ageChip(c)+'</td>';
+      h += '<td>'+(rcs.length?rcs.map(function(r){return'<span style="display:inline-block;background:#EEF2FF;color:#3730A3;border-radius:5px;padding:1px 5px;font-size:10px;font-weight:700;margin:1px">'+esc(r)+'</span>';}).join(""):'<span style="color:#CBD5E1">—</span>')+'</td>';
+      h += '<td><div class="fr"><button class="btn-se" onclick="openEdit(\''+c.id+'\')">✏</button>'+(c.businessPartner?'<button class="btn-sg" onclick="doEmail(\''+c.id+'\')">📧</button>':"")+'<button class="btn-sr" onclick="reqDel(\''+c.id+'\')">🗑</button></div></td>';
+      h += '</tr>';
+    });
+    h += '</tbody></table></div></div>';
+  }
+
+  if(S.tab==="analytics"){
+    if(!S.cases.length){h+='<div class="card" style="text-align:center;padding:60px;color:#9CA3AF"><div style="font-size:42px;margin-bottom:12px">📊</div><div style="font-size:16px;font-weight:600">No data yet</div></div>';}
+    else{
+      var allMonths=getMonths();
+      h += '<div class="card" style="padding:13px 18px;margin-bottom:13px"><div class="fr">';
+      h += '<div><label class="lbl" style="font-size:11px">Month</label><select style="width:130px" onchange="S.aMonth=this.value;render()"><option value="">All Time</option>';
+      allMonths.forEach(function(m){h+='<option value="'+esc(m)+'"'+(m===S.aMonth?" selected":"")+'>'+fmtM(m)+'</option>';});
+      h += '</select></div><div><label class="lbl" style="font-size:11px">Branch</label><select style="width:160px" onchange="S.aBranch=this.value;render()"><option value="">All Branches</option>';
+      BRANCHES.forEach(function(b){h+='<option value="'+esc(b)+'"'+(b===S.aBranch?" selected":"")+'>'+esc(b)+'</option>';});
+      h += '</select></div><div><label class="lbl" style="font-size:11px">Partner</label><select style="width:120px" onchange="S.aPartner=this.value;render()"><option value="">All</option>';
+      ["Nora","Ethan","Elena","Diana"].forEach(function(p){h+='<option'+(p===S.aPartner?" selected":"")+'>'+p+'</option>';});
+      h += '</select></div>';
+      if(S.aMonth||S.aBranch||S.aPartner)h+='<button class="btn-ghost" style="align-self:flex-end" onclick="clearAnalyticsFilters()">✕ Clear</button>';
+      h += '</div></div>';
+
+      var aDat=S.cases.filter(function(c){if(S.aMonth&&c.month!==S.aMonth)return false;if(S.aBranch&&c.branch!==S.aBranch)return false;if(S.aPartner&&c.businessPartner!==S.aPartner)return false;return true;});
+      var total=aDat.length,done=aDat.filter(function(c){return c.followUpStatus==="Completed";}).length;
+      var resRate=total?Math.round(done/total*100):0;
+      var slaOkC=aDat.filter(function(c){return c.followUpStatus==="Completed"&&(!c.followUpDate||!c.dueDate||c.followUpDate<=c.dueDate);}).length;
+      var slaRate=done?Math.round(slaOkC/done*100):0;
+      var ratedB=aDat.filter(function(c){return c.branchRating>0;});
+      var avgRtg=ratedB.length?+(ratedB.reduce(function(a,c){return a+c.branchRating;},0)/ratedB.length).toFixed(1):0;
+      var breachedN=aDat.filter(function(c){return slaBreached(c.dueDate,c.followUpStatus);}).length;
+      var openN=aDat.filter(function(c){return c.followUpStatus==="Pending";}).length;
+
+      h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin-bottom:16px">';
+      [{l:"Total Cases",v:total,c:"#1B3060"},{l:"Resolution Rate",v:resRate+"%",c:resRate>=70?"#16A34A":"#D97706"},{l:"SLA Compliance",v:slaRate+"%",c:slaRate>=80?"#16A34A":"#D97706"},{l:"Avg Branch Rating",v:avgRtg>0?avgRtg+"/5":"—",c:"#D97706"},{l:"SLA Breached",v:breachedN,c:breachedN>0?"#DC2626":"#16A34A"},{l:"Open Cases",v:openN,c:"#9A3412"}].forEach(function(k){
+        h += '<div style="background:#fff;border-radius:12px;padding:14px 16px;box-shadow:0 1px 8px rgba(17,30,56,.07);border-top:4px solid '+k.c+'"><div style="font-size:22px;font-weight:800;color:'+k.c+';line-height:1.1">'+k.v+'</div><div style="font-size:11px;font-weight:600;color:#374151;margin-top:6px">'+k.l+'</div></div>';
+      });
+      h += '</div>';
+
+      var bMap={};aDat.forEach(function(c){if(!bMap[c.branch])bMap[c.branch]={total:0,done:0,sumB:0,cntB:0};bMap[c.branch].total++;if(c.followUpStatus==="Completed")bMap[c.branch].done++;if(c.branchRating>0){bMap[c.branch].sumB+=c.branchRating;bMap[c.branch].cntB++;}});
+      var bl=Object.keys(bMap).map(function(k){var b=bMap[k];return{name:k,total:b.total,done:b.done,avg:b.cntB>0?+(b.sumB/b.cntB).toFixed(1):0,res:b.total>0?Math.round(b.done/b.total*100):0};}).sort(function(a,b){return b.total-a.total;});
+      var maxB=bl.length?Math.max.apply(null,bl.map(function(x){return x.total;})):1;
+      h += '<div class="card"><div style="font-size:14px;font-weight:700;margin-bottom:14px">🏢 Branch Overview</div>';
+      bl.forEach(function(b){var tw=Math.round(b.total/maxB*100);var rc=b.res>=70?"#16A34A":b.res>=40?"#D97706":"#DC2626";h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:11px"><div style="width:150px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#374151;flex-shrink:0" title="'+esc(b.name)+'">'+esc(b.name)+'</div><div style="flex:1"><div style="background:#1B3060;height:10px;width:'+tw+'%;border-radius:3px;min-width:2px"></div></div><span style="font-weight:700;color:#374151;width:20px;text-align:right">'+b.total+'</span><span style="font-size:10px;font-weight:700;color:'+rc+';width:35px;text-align:right">'+b.res+'%</span></div>';});
+      h += '</div>';
+
+      var tMap={};aDat.forEach(function(c){var rcs=c.rootCauses&&c.rootCauses.length?c.rootCauses:(c.validityStatus?[c.validityStatus]:[]);rcs.forEach(function(r){var k=String(r).indexOf("Other:")===0?"Other":r;tMap[k]=(tMap[k]||0)+1;});});
+      var tTotal=Object.keys(tMap).reduce(function(a,k){return a+tMap[k];},0);
+      var tPal=["#1B3060","#9F1239","#9A3412","#1E3A8A","#4C1D95","#065F46","#92400E","#6B7280"];
+      var tKeys=Object.keys(tMap).sort(function(a,b){return tMap[b]-tMap[a];});
+      h += '<div class="g2">';
+      h += '<div class="card"><div style="font-size:14px;font-weight:700;margin-bottom:14px">🔎 Root Cause Distribution</div>';
+      if(tTotal){tKeys.forEach(function(k,i){var v=tMap[k],pct=Math.round(v/tTotal*100),col=tPal[i%tPal.length];h+='<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="font-weight:600;color:'+col+'">'+esc(k)+'</span><span style="font-weight:700">'+v+' <span style="color:#6B7280;font-weight:400">('+pct+'%)</span></span></div><div style="background:#F0F4FA;border-radius:6px;height:12px"><div style="height:100%;background:'+col+';width:'+pct+'%;border-radius:6px"></div></div></div>';});}
+      else h+='<div style="color:#9CA3AF;text-align:center;padding:20px;font-size:13px">No root causes recorded yet</div>';
+      h += '</div>';
+
+      h += '<div class="card"><div style="font-size:14px;font-weight:700;margin-bottom:14px">👥 Partner Performance</div><div class="ox"><table><thead><tr>';
+      ["Partner","Total","Done","Pending","SLA%"].forEach(function(x){h+='<th>'+x+'</th>';});
+      h += '</tr></thead><tbody>';
+      Object.keys(PARTNERS).forEach(function(n){var pc=aDat.filter(function(c){return c.businessPartner===n;});var dn=pc.filter(function(c){return c.followUpStatus==="Completed";}).length;var pend=pc.filter(function(c){return c.followUpStatus==="Pending";}).length;var pSlaOk=pc.filter(function(c){return c.followUpStatus==="Completed"&&(!c.followUpDate||!c.dueDate||c.followUpDate<=c.dueDate);}).length;var pSlaR=dn?Math.round(pSlaOk/dn*100):0;var pSlaC=pSlaR>=80?"#16A34A":pSlaR>=60?"#D97706":"#DC2626";h+='<tr><td><strong>'+n+'</strong></td><td style="text-align:center;font-weight:700">'+pc.length+'</td><td style="text-align:center;color:#16A34A;font-weight:700">'+dn+'</td><td style="text-align:center;color:#D97706;font-weight:700">'+pend+'</td><td style="text-align:center;font-weight:700;color:'+pSlaC+'">'+pSlaR+'%</td></tr>';});
+      h += '</tbody></table></div></div>';
+      h += '</div>';
+    }
+  }
+
+  if(S.tab==="weekly"){
+    var now2=new Date();var wkEnd=new Date(now2),wkStart=new Date(now2);
+    if(S.wkRange==="thisWeek")wkStart.setDate(wkEnd.getDate()-6);
+    else if(S.wkRange==="lastWeek"){wkEnd.setDate(wkEnd.getDate()-7);wkStart=new Date(wkEnd);wkStart.setDate(wkEnd.getDate()-6);}
+    else if(S.wkRange==="twoWeeks")wkStart.setDate(wkEnd.getDate()-13);
+    else{wkStart=new Date(now2.getFullYear(),now2.getMonth(),1);}
+    var wkS=wkStart.toISOString().split("T")[0],wkE=wkEnd.toISOString().split("T")[0];
+    S._wkStart=wkS;S._wkEnd=wkE;
+    var wkAll=S.cases.filter(function(c){return c.date>=wkS&&c.date<=wkE&&((c.branchRating>0&&c.branchRating<=2)||(c.staffRating>0&&c.staffRating<=2));});
+    var wkBMap={};wkAll.forEach(function(c){if(!wkBMap[c.branch])wkBMap[c.branch]={branch:c.branch,cases:[]};wkBMap[c.branch].cases.push(c);});
+    var wkBranches=Object.keys(wkBMap).sort(function(a,b){return wkBMap[b].cases.length-wkBMap[a].cases.length;}).map(function(k){return wkBMap[k];});
+    S._wkBranches=wkBranches.map(function(b){return b.branch;});
+    h += '<div class="card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">';
+    h += '<div><div style="font-size:16px;font-weight:800;color:#111E38">💌 Weekly Branch Manager Report</div>';
+    h += '<div style="font-size:12px;color:#6B7280;margin-top:3px">Auto-generated — cases with 1–2★ ratings only</div></div>';
+    h += '<div class="fr"><select style="padding:7px 11px;border:1.5px solid #D8E0EC;border-radius:8px;font-size:12px;cursor:pointer" onchange="S.wkRange=this.value;render()">';
+    [["thisWeek","This Week"],["lastWeek","Last Week"],["twoWeeks","Last 2 Weeks"],["thisMonth","This Month"]].forEach(function(r){h+='<option value="'+r[0]+'"'+(S.wkRange===r[0]?" selected":"")+'>'+r[1]+'</option>';});
+    h += '</select>';
+    if(wkAll.length)h+='<button class="btn-gold" style="padding:7px 14px;font-size:12px" onclick="sendAllReports()">📧 Send Combined Report</button>';
+    h += '</div></div>';
+    h += '<div style="display:flex;gap:16px;font-size:12px;margin-top:14px;padding-top:12px;border-top:1px solid #F0F4FA;flex-wrap:wrap">';
+    h += '<span><strong style="color:#1B3060">'+wkAll.length+'</strong> <span style="color:#6B7280">poor-rated cases</span></span>';
+    h += '<span><strong style="color:#DC2626">'+wkBranches.length+'</strong> <span style="color:#6B7280">branches</span></span>';
+    h += '<span style="color:#6B7280">Period: <strong style="color:#374151">'+wkS+' → '+wkE+'</strong></span></div></div>';
+    if(!wkAll.length){
+      h += '<div class="card" style="text-align:center;padding:52px;color:#16A34A"><div style="font-size:46px;margin-bottom:10px">🎉</div><div style="font-size:17px;font-weight:700">No Poor Ratings This Period</div></div>';
+    } else {
+      wkBranches.forEach(function(br,brIdx){
+        var staff={};br.cases.forEach(function(c){if(c.staffName&&c.staffName.trim())staff[c.staffName.trim()]=true;});
+        var staffList=Object.keys(staff);var pname=BP[br.branch]||"";var pinfo=PARTNERS[pname]||{};
+        h += '<div class="card" style="border-left:4px solid #DC2626;margin-bottom:14px">';
+        h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:14px">';
+        h += '<div><div style="font-size:15px;font-weight:800;color:#111E38">🏢 '+esc(br.branch)+'</div>';
+        h += '<div style="font-size:11px;color:#6B7280;margin-top:3px">SQ Partner: <strong>'+esc(pname)+'</strong>'+(pinfo.email?' · '+esc(pinfo.email):"")+'</div></div>';
+        h += '<div class="fr"><span style="background:#FEE2E2;color:#991B1B;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700">'+br.cases.length+' feedbacks</span>';
+        h += '<button class="btn-navy" style="padding:6px 12px;font-size:11px" onclick="sendBranchReport('+brIdx+')">📧 Send Report</button>';
+        h += '<button class="btn-ghost" style="padding:6px 12px;font-size:11px" onclick="previewBranchReport('+brIdx+')">👁 Preview</button></div></div>';
+        if(staffList.length){h+='<div style="background:#FEF2F2;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px"><span style="font-weight:700;color:#991B1B;margin-right:8px">👤 Staff Mentioned:</span>';staffList.forEach(function(s){h+='<span style="background:#fff;border:1px solid #FECACA;border-radius:6px;padding:2px 8px;font-size:11px;margin-right:5px;font-weight:600">'+esc(s)+'</span>';});h+='</div>';}
+        h += '<div class="ox"><table style="font-size:12px"><thead><tr>';
+        ["Date","Branch ★","Staff","Staff ★","Root Cause","Status"].forEach(function(x){h+='<th>'+x+'</th>';});
+        h += '</tr></thead><tbody>';
+        br.cases.forEach(function(c){
+          var rcs=c.rootCauses&&c.rootCauses.length?c.rootCauses:(c.validityStatus?[c.validityStatus]:[]);
+          h += '<tr style="border-bottom:1px solid #F0F4FA">';
+          h += '<td style="padding:7px 10px;color:#6B7280">'+c.date+'</td>';
+          h += '<td style="padding:7px 10px">'+(c.branchRating>0?starsD(c.branchRating,11):"—")+'</td>';
+          h += '<td style="padding:7px 10px;font-size:11px">'+esc(c.staffName||"—")+'</td>';
+          h += '<td style="padding:7px 10px">'+(c.staffRating>0?starsD(c.staffRating,11):"—")+'</td>';
+          h += '<td style="padding:7px 10px">'+(rcs.length?rcs.map(function(r){return'<span style="display:inline-block;background:#EEF2FF;color:#3730A3;border-radius:5px;padding:1px 5px;font-size:10px;font-weight:700;margin:1px">'+esc(r)+'</span>';}).join(""):"—")+'</td>';
+          h += '<td style="padding:7px 10px">'+badge(c.followUpStatus)+'</td></tr>';
+        });
+        h += '</tbody></table></div></div>';
+      });
+    }
+  }
+
+  if(S.tab==="settings"){
+    h += '<div class="card"><div style="font-size:15px;font-weight:700;margin-bottom:18px;padding-bottom:10px;border-bottom:2px solid #F0F4FA">⚙ Branch — SQ Staff Assignment</div>';
+    h += '<div class="info-box"><span>ℹ️</span><div style="font-size:12px;color:#1E40AF">Change who handles each branch. Saves automatically.</div></div>';
+    h += '<div class="ox"><table><thead><tr><th>Branch</th><th>SQ Staff</th><th>Email</th></tr></thead><tbody>';
+    BRANCHES.forEach(function(b,idx){
+      var cur=BP[b]||"Ethan";var pinfo=PARTNERS[cur]||{};
+      h += '<tr style="background:'+(idx%2===0?"#fff":"#FAFBFD")+'">';
+      h += '<td style="font-weight:600">'+esc(b)+'</td>';
+      h += '<td><select onchange="updateBP('+idx+',this.value)" style="padding:6px 10px;border:1.5px solid #D8E0EC;border-radius:7px;font-size:12px;background:#FAFBFD;cursor:pointer;width:auto">';
+      ["Nora","Ethan","Elena","Diana"].forEach(function(p){h+='<option value="'+p+'"'+(cur===p?" selected":"")+'>'+p+'</option>';});
+      h += '</select></td>';
+      h += '<td class="sm gray" id="bp-email-'+idx+'">'+esc(pinfo.email||"—")+'</td></tr>';
+    });
+    h += '</tbody></table></div>';
+    h += '<div id="bp-saved" style="display:none;background:#D1FAE5;color:#065F46;padding:8px 14px;border-radius:8px;margin-top:12px;font-size:12px;font-weight:600">✓ Saved</div>';
+    h += '<div class="fr" style="margin-top:16px"><button class="btn-ghost" onclick="resetBP()" style="font-size:12px">🔄 Reset to Default</button></div></div>';
+  }
+
+  h += '</div>'; // page body
+
+  // EDIT MODAL
+  if(S.editCase){
+    var ec=S.editCase;var eid=String(ec.id).slice(-6).toUpperCase();
+    h += '<div class="modal-ov" onclick="if(event.target===this)closeEdit()"><div class="modal-box">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px"><div><div style="font-size:16px;font-weight:800">Update Case #'+eid+'</div><div style="font-size:11px;color:#6B7280;margin-top:1px">Follow-up &amp; Validation</div></div><button onclick="closeEdit()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9CA3AF">✕</button></div>';
+    h += '<div style="background:#F5F7FF;border:1.5px solid #E4EAF4;border-radius:10px;padding:14px;margin-bottom:18px">';
+    h += '<div style="font-weight:700;font-size:14px">'+esc(ec.customerName||"No name")+'</div>';
+    h += '<div style="font-size:11px;color:#6B7280;margin-top:6px;display:flex;gap:14px;flex-wrap:wrap"><span>📅 '+ec.date+'</span><span>📞 '+esc(ec.customerPhone)+'</span><span>🏢 '+esc(ec.branch)+'</span><span>⌛ Due: <strong style="color:'+(slaBreached(ec.dueDate,ec.followUpStatus)?"#DC2626":"#16A34A")+'">'+ec.dueDate+'</strong></span></div>';
+    if(ec.branchRating>0)h+='<div style="font-size:11px;margin-top:8px">🏢 Branch: '+starsD(ec.branchRating,12)+'</div>';
+    if(ec.staffName)h+='<div style="font-size:11px;margin-top:5px">👤 '+esc(ec.staffName)+': '+starsD(ec.staffRating,12)+'</div>';
+    if(ec.businessPartner){var ep=PARTNERS[ec.businessPartner]||{};h+='<div style="margin-top:12px"><button class="btn-navy" style="font-size:12px;padding:7px 13px;border-radius:8px" onclick="openEmailModal(buildEmail(S.editCase),S.editCase.id);editMarkSent()">📧 Send to '+esc(ec.businessPartner)+(ep.email?' ('+esc(ep.email)+')':"")+'</button>'+(ec.emailSent?'<span style="font-size:11px;color:#16A34A;font-weight:700;margin-left:8px">✔ Sent</span>':"")+'</div>';}
+    h += '</div>';
+    h += '<div class="g2">';
+    h += '<div><label class="lbl">Follow-up Status</label><select onchange="S.editCase.followUpStatus=this.value"><option'+(ec.followUpStatus==="Pending"?" selected":"")+'>Pending</option><option'+(ec.followUpStatus==="Completed"?" selected":"")+'>Completed</option></select></div>';
+    h += '<div><label class="lbl">Date Contacted</label><input type="date" value="'+(ec.followUpDate||"")+'" onchange="S.editCase.followUpDate=this.value" style="cursor:pointer"/></div>';
+    h += '<div><label class="lbl">Case Validation</label><select onchange="S.editCase.caseValidation=this.value"><option'+(ec.caseValidation==="Under Review"?" selected":"")+'>Under Review</option><option'+(ec.caseValidation==="Valid"?" selected":"")+'>Valid</option><option'+(ec.caseValidation==="Not Valid"?" selected":"")+'>Not Valid</option></select></div>';
+    h += '<div><label class="lbl">Business Partner</label><select onchange="S.editCase.businessPartner=this.value"><option value="">— Select —</option>';
+    ["Nora","Ethan","Elena","Diana"].forEach(function(p){h+='<option'+(ec.businessPartner===p?" selected":"")+'>'+p+'</option>';});
+    h += '</select></div>';
+    h += '<div><label class="lbl">SLA Due Date</label><input type="date" value="'+(ec.dueDate||"")+'" onchange="S.editCase.dueDate=this.value" style="cursor:pointer"/></div>';
+    h += '</div>';
+    h += '<div style="margin-top:14px"><label class="lbl">Root Cause <span style="font-size:10px;color:#6B7280;font-weight:400">(select all that apply)</span></label>';
+    h += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">';
+    var curRcs=ec.rootCauses&&ec.rootCauses.length?ec.rootCauses:(ec.validityStatus?[ec.validityStatus]:[]);
+    ROOT_CAUSES.forEach(function(rc,rci){
+      var chk=curRcs.indexOf(rc)>-1;
+      h += '<label style="display:flex;align-items:center;gap:6px;background:'+(chk?"#EEF2FF":"#F9FAFB")+';border:1.5px solid '+(chk?"#6366F1":"#D8E0EC")+';border-radius:8px;padding:6px 11px;cursor:pointer;font-size:12px;font-weight:'+(chk?"700":"400")+';color:'+(chk?"#3730A3":"#374151")+';user-select:none">';
+      h += '<input type="checkbox"'+(chk?" checked":"")+' style="accent-color:#6366F1;width:14px;height:14px;cursor:pointer" onchange="toggleRC('+rci+')"/> '+esc(rc)+'</label>';
+    });
+    var hasOther=curRcs.some(function(x){return String(x).indexOf("Other:")===0;});
+    var otherTxt=curRcs.filter(function(x){return String(x).indexOf("Other:")===0;}).map(function(x){return x.replace("Other:","").trim();}).join("");
+    h += '<label style="display:flex;align-items:center;gap:6px;background:'+(hasOther?"#EEF2FF":"#F9FAFB")+';border:1.5px solid '+(hasOther?"#6366F1":"#D8E0EC")+';border-radius:8px;padding:6px 11px;cursor:pointer;font-size:12px;font-weight:'+(hasOther?"700":"400")+';color:'+(hasOther?"#3730A3":"#374151")+';user-select:none">';
+    h += '<input type="checkbox" id="rc-other-cb"'+(hasOther?" checked":"")+' style="accent-color:#6366F1;width:14px;height:14px" onchange="toggleOtherRC(this)"/> Other</label>';
+    h += '</div>';
+    h += '<div id="rc-other-box" style="margin-top:8px;display:'+(hasOther?"block":"none")+'"><input id="rc-other-txt" placeholder="Describe the issue..." value="'+esc(otherTxt)+'" oninput="updateOtherRC(this.value)"/></div></div>';
+    h += '<div style="background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:10px;padding:14px;margin-top:14px">';
+    h += '<div style="font-size:12px;font-weight:700;color:#9A3412;margin-bottom:12px">✏️ Edit Ratings (if submitted incorrectly)</div>';
+    h += '<div class="g2"><div><label class="lbl">Branch Rating</label><div class="stars">';
+    for(var bi=1;bi<=5;bi++)h+='<span style="color:'+(bi<=ec.branchRating&&ec.branchRating>0?(RC[ec.branchRating]||"#D4A843"):"#E2E8F0")+'" onclick="editStar(\'branchRating\','+bi+')">★</span>';
+    h += '</div></div><div><label class="lbl">Staff Rating</label><div class="stars">';
+    for(var si=1;si<=5;si++)h+='<span style="color:'+(si<=ec.staffRating&&ec.staffRating>0?(RC[ec.staffRating]||"#D4A843"):"#E2E8F0")+'" onclick="editStar(\'staffRating\','+si+')">★</span>';
+    h += '</div></div></div></div>';
+    h += '<div style="margin-top:12px"><label class="lbl">Follow-up Notes</label><textarea id="ei-fn" oninput="S.editCase.followUpNotes=this.value" placeholder="What did the customer say?">'+esc(ec.followUpNotes||"")+'</textarea></div>';
+    h += '<div style="margin-top:10px"><label class="lbl">Validation Notes</label><textarea id="ei-vn" oninput="S.editCase.validationNotes=this.value" placeholder="Reason &amp; action taken...">'+esc(ec.validationNotes||"")+'</textarea></div>';
+    h += '<div class="fr" style="margin-top:20px"><button class="btn-gold" onclick="saveEdit()">💾 Save Update</button><button class="btn-ghost" onclick="closeEdit()">Cancel</button></div>';
+    h += '</div></div>';
+  }
+
+  // OTP MODAL
+  if(S.delCase){
+    var dc=S.delCase;
+    h += '<div class="modal-ov"><div class="modal-box" style="max-width:460px;text-align:center">';
+    h += '<div style="font-size:38px;margin-bottom:10px">🔐</div>';
+    h += '<div style="font-size:17px;font-weight:800;color:#111E38;margin-bottom:4px">Delete Approval Required</div>';
+    h += '<div style="font-size:12px;color:#6B7280;margin-bottom:20px">OTP will be sent to <strong>'+CHECKER+'</strong></div>';
+    h += '<div style="background:#FEF2F2;border:1.5px solid #FECACA;border-radius:10px;padding:14px;margin-bottom:22px;text-align:left">';
+    h += '<div style="font-size:12px;font-weight:700;color:#991B1B;margin-bottom:6px">Case to Delete:</div>';
+    h += '<div style="font-size:12px;color:#374151"><strong>#'+String(dc.id).slice(-6).toUpperCase()+'</strong> — '+esc(dc.customerName||"No name")+'</div>';
+    h += '<div style="font-size:11px;color:#6B7280;margin-top:3px">'+esc(dc.branch)+' · '+dc.date+'</div></div>';
+    if(!S.otpSent){
+      h += '<button class="btn-navy" style="display:block;width:100%;padding:11px;font-size:13px;margin-bottom:10px" onclick="sendOtp()">📧 Compose OTP Email</button>';
+      h += '<button class="btn-ghost" style="width:100%" onclick="cancelDel()">Cancel</button>';
+    } else {
+      h += '<p style="font-size:12px;color:#374151;margin-bottom:12px">Enter the OTP from the approver\'s email:</p>';
+      h += '<input id="otp-inp" style="font-size:22px;font-weight:700;text-align:center;letter-spacing:8px;margin-bottom:8px" placeholder="000000" maxlength="6" inputmode="numeric"/>';
+      if(S.otpErr)h+='<div style="color:#DC2626;font-size:12px;font-weight:600;margin-bottom:10px">⚠️ '+esc(S.otpErr)+'</div>';
+      h += '<div class="fr" style="margin-top:12px"><button class="btn-sr" style="flex:1;padding:11px;font-size:13px;font-weight:700;border-radius:9px" onclick="confirmDel()">🗑️ Confirm Delete</button><button class="btn-ghost" style="flex:1" onclick="cancelDel()">Cancel</button></div>';
+      h += '<div style="margin-top:12px"><button style="background:none;border:none;font-size:11px;color:#6B7280;cursor:pointer;text-decoration:underline" onclick="sendOtp()">Resend OTP email</button></div>';
+    }
+    h += '</div></div>';
+  }
+
+  // EMAIL MODAL
+  if(S.emailModal){
+    var em=S.emailModal;
+    h += '<div class="modal-ov" onclick="if(event.target===this)closeEmailModal()"><div class="modal-box" style="max-width:620px">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><div style="font-size:16px;font-weight:800;color:#111E38">📧 Send Email</div><button onclick="closeEmailModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9CA3AF">✕</button></div>';
+    h += '<div class="info-box"><span>ℹ️</span><div style="font-size:12px;color:#1E40AF">Click <strong>Open in Mail Client</strong> to send. Or copy fields manually.</div></div>';
+    h += '<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><label class="lbl" style="margin:0">To</label><button id="btn-to" class="btn-ghost" style="padding:3px 10px;font-size:11px" onclick="copyField(\'em-to\',\'btn-to\')">📋 Copy</button></div>';
+    h += '<input id="em-to" readonly style="background:#F9FAFB;color:#374151;font-size:13px" value="'+esc(em.to||"")+'"/></div>';
+    h += '<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><label class="lbl" style="margin:0">Subject</label><button id="btn-su" class="btn-ghost" style="padding:3px 10px;font-size:11px" onclick="copyField(\'em-su\',\'btn-su\')">📋 Copy</button></div>';
+    h += '<input id="em-su" readonly style="background:#F9FAFB;color:#374151;font-size:13px" value="'+esc(em.subj||"")+'"/></div>';
+    h += '<div style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><label class="lbl" style="margin:0">Body</label><button id="btn-bd" class="btn-ghost" style="padding:3px 10px;font-size:11px" onclick="copyField(\'em-bd\',\'btn-bd\')">📋 Copy</button></div>';
+    h += '<textarea id="em-bd" readonly style="height:200px;font-size:12px;font-family:monospace;background:#F9FAFB;color:#374151;resize:none"></textarea></div>';
+    h += '<div class="fr"><button class="btn-navy" style="padding:10px 18px;font-size:13px" onclick="openOutlook()">🔵 Open in Mail Client</button><button class="btn-ghost" style="margin-left:auto" onclick="closeEmailModal()">Close</button></div>';
+    h += '</div></div>';
+  }
+
+  // EXPORT MODAL
+  if(S.exportData){
+    var etitle=S._previewTitle||"📊 Export Data";
+    var esub=S._previewTitle?"Preview":""+S.exportCount+" cases";
+    h += '<div class="modal-ov" onclick="if(event.target===this)closeExport()"><div class="modal-box" style="max-width:760px">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div><div style="font-size:16px;font-weight:800">'+etitle+'</div><div style="font-size:12px;color:#6B7280;margin-top:2px">'+esub+'</div></div><button onclick="closeExport()" style="background:none;border:none;font-size:19px;cursor:pointer;color:#9CA3AF">✕</button></div>';
+    h += '<textarea id="csv-ta" readonly style="width:100%;height:220px;font-size:11px;font-family:monospace;background:#F9FAFB;border:1.5px solid #E4EAF4;border-radius:8px;padding:10px;resize:none;color:#374151"></textarea>';
+    h += '<div class="fr" style="margin-top:14px"><button class="btn-gold" onclick="copyCSV()" style="padding:10px 18px;font-size:13px">📋 Copy All</button><button class="btn-navy" onclick="downloadCSV()" style="padding:10px 18px;font-size:13px">⬇ Download</button><button class="btn-ghost" onclick="closeExport()">Close</button></div>';
+    h += '</div></div>';
+  }
+
+  if(S.toast)h+='<div class="toast">'+esc(S.toast)+'</div>';
+
+  document.getElementById("app").innerHTML = h;
+  restoreInputs();
+  if(S.emailModal){var ta=document.getElementById("em-bd");if(ta)ta.value=S.emailModal.body||"";}
+  if(S.exportData){var cta=document.getElementById("csv-ta");if(cta)cta.value=S.exportData;}
+  try{requestAnimationFrame(function(){window.scrollTo(0,sy);});}catch(e){}
+}
+
+// Seed sample data on first load
+function seedDemo(){
+  var today=new Date();
+  function dStr(off){var d=new Date(today);d.setDate(d.getDate()-off);return d.toISOString().split("T")[0];}
+  var samples=[
+    {n:"Sarah Mills",p:"55501234",b:"Northgate",br:1,bc:"Waited 45 minutes for a teller.",sn:"Mark T.",sr:2,sc:"Curt and unhelpful when asked about transfer fees.",rc:["Long Waiting Time","Staff Behavior"],off:0,st:"Pending",cv:"Under Review"},
+    {n:"James Chen",p:"55509876",b:"Eastfield",br:2,bc:"ATM out of order, no signage.",sn:"",sr:0,sc:"",rc:["Branch Facilities"],off:1,st:"Pending",cv:"Valid"},
+    {n:"Priya Kumar",p:"55502345",b:"Westbridge",br:0,bc:"",sn:"Lina R.",sr:1,sc:"Gave me wrong info about loan eligibility.",rc:["Staff Knowledge"],off:2,st:"Completed",cv:"Valid",fd:dStr(1),fn:"Apologized, escalated to manager."},
+    {n:"David Park",p:"55503456",b:"Northgate",br:2,bc:"Branch was understaffed at lunchtime.",sn:"",sr:0,sc:"",rc:["Long Waiting Time"],off:3,st:"Pending",cv:"Under Review"},
+    {n:"Maria Lopez",p:"55504567",b:"Central Plaza",br:5,bc:"Excellent service.",sn:"Aiden K.",sr:5,sc:"Very helpful and patient.",rc:[],off:4,st:"Completed",cv:"Valid",fd:dStr(3),fn:"Thanked customer."},
+    {n:"Tom Reynolds",p:"55505678",b:"Harbor",br:1,bc:"Chairs broken, AC not working.",sn:"",sr:0,sc:"",rc:["Branch Facilities"],off:5,st:"Completed",cv:"Valid",fd:dStr(4)},
+    {n:"Aisha Khan",p:"55506789",b:"Riverside",br:0,bc:"",sn:"Greg P.",sr:2,sc:"Rushed me through the process.",rc:["Staff Behavior"],off:6,st:"Pending",cv:"Under Review"},
+    {n:"Sarah Mills",p:"55501234",b:"Lakeshore",br:2,bc:"Online system kept crashing during transfer.",sn:"",sr:0,sc:"",rc:["System / Technical Error"],off:8,st:"Completed",cv:"Valid",fd:dStr(7)},
+    {n:"Sarah Mills",p:"55501234",b:"Northgate",br:1,bc:"Same issue as last time, no improvement.",sn:"",sr:0,sc:"",rc:["Long Waiting Time"],off:14,st:"Completed",cv:"Valid",fd:dStr(13)},
+    {n:"Chen Wei",p:"55507890",b:"Parkview",br:3,bc:"Average — could be faster.",sn:"",sr:0,sc:"",rc:[],off:10,st:"Completed",cv:"Not Valid",fd:dStr(9)},
+    {n:"Olivia Brown",p:"55508901",b:"Eastfield",br:0,bc:"",sn:"Mark T.",sr:1,sc:"Refused to help with a basic question.",rc:["Staff Behavior"],off:12,st:"Pending",cv:"Under Review"},
+    {n:"Hassan Ali",p:"55509012",b:"Highland",br:4,bc:"Good overall.",sn:"Aiden K.",sr:5,sc:"",rc:[],off:15,st:"Completed",cv:"Valid",fd:dStr(14)},
+    {n:"Rachel Green",p:"55510123",b:"Summit",br:2,bc:"Confusing process for opening account.",sn:"Lina R.",sr:2,sc:"Couldn't explain the steps clearly.",rc:["Process Complexity","Staff Knowledge"],off:18,st:"Completed",cv:"Valid",fd:dStr(17)},
+    {n:"Yusuf Ahmed",p:"55511234",b:"Meadowbrook",br:1,bc:"Long line, only one teller working.",sn:"",sr:0,sc:"",rc:["Long Waiting Time"],off:20,st:"Pending",cv:"Under Review"},
+    {n:"Emma White",p:"55512345",b:"Bayside",br:0,bc:"",sn:"Greg P.",sr:2,sc:"Wasn't given clear info about my transaction.",rc:["Communication Issue"],off:22,st:"Completed",cv:"Valid",fd:dStr(21)},
+    {n:"Liam Jones",p:"55513456",b:"Stonebridge",br:3,bc:"OK.",sn:"",sr:0,sc:"",rc:[],off:25,st:"Completed",cv:"Not Valid",fd:dStr(24)},
+    {n:"Ana Silva",p:"55514567",b:"Westbridge",br:2,bc:"Branch felt outdated and dirty.",sn:"",sr:0,sc:"",rc:["Branch Facilities"],off:30,st:"Completed",cv:"Valid",fd:dStr(29)},
+    {n:"Kenji Tanaka",p:"55515678",b:"Crossroads",br:0,bc:"",sn:"Mark T.",sr:1,sc:"Argued with me about a fee.",rc:["Staff Behavior"],off:32,st:"Completed",cv:"Valid",fd:dStr(31)},
+  ];
+  S.cases = samples.map(function(s,i){
+    return {
+      id:String(Date.now()-i*1000),
+      date:dStr(s.off),
+      month:mk(dStr(s.off)),
+      customerName:s.n,customerPhone:s.p,branch:s.b,ticketNumber:"TKT-"+(1000+i),
+      branchRating:s.br,branchComment:s.bc||"",
+      staffName:s.sn||"",staffRating:s.sr,staffComment:s.sc||"",
+      businessPartner:BP[s.b]||"",
+      dueDate:ndw(dStr(s.off)),
+      followUpStatus:s.st,followUpDate:s.fd||"",followUpNotes:s.fn||"",
+      caseValidation:s.cv,rootCauses:s.rc||[],validityStatus:(s.rc&&s.rc[0])||"",
+      validationNotes:"",emailSent:false
+    };
+  });
+  sdb();
+}
+
+var existing = ldb();
+if(!existing || !existing.length) seedDemo(); else S.cases = existing;
+render();
+</script>
+</body>
+</html>
