@@ -1,9 +1,11 @@
-using SQPortal.Models.Entities;
+using SQPortal.Models.ViewModels.Cases;
 
 namespace SQPortal.Models.ViewModels.Dashboard;
 
 public class DashboardViewModel
 {
+    public DateOnly Today { get; set; }
+
     public int Total { get; set; }
     public int Month { get; set; }
     public int Pending { get; set; }
@@ -16,6 +18,10 @@ public class DashboardViewModel
     public int BranchIssues { get; set; }
 
     public List<RepeatCustomerViewModel> RepeatCustomers { get; set; } = new();
-    public List<FeedbackCase> Urgent { get; set; } = new();
-    public List<FeedbackCase> Recent { get; set; } = new();
+    public List<CaseRow> Urgent { get; set; } = new();
+    public List<CaseRow> Recent { get; set; } = new();
+
+    public IDictionary<string, string> PartnerEmails { get; set; } = new Dictionary<string, string>();
+    public IReadOnlyCollection<string> FlaggedPhones { get; set; } = Array.Empty<string>();
+    public IReadOnlyCollection<string> FlaggedNames { get; set; } = Array.Empty<string>();
 }

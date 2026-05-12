@@ -1,0 +1,195 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+    string ShortId(string id) => id.Length >= 6 ? id[^6..].ToUpper() : id.ToUpper();
+    bool IsRepeat(FeedbackCase c)
+    {
+        var phone = (c.CustomerPhone ?? "").Trim();
+        if (!string.IsNullOrEmpty(phone) && Model.FlaggedPhones.Contains(phone)) return true;
+        var name = (c.CustomerName ?? "").Trim().ToLowerInvariant();
+        return !string.IsNullOrEmpty(name) && Model.FlaggedNames.Contains(name);
+    }
+    string PartnerEmailLink(CaseRow row)
+    {
+        if (!Model.PartnerEmails.TryGetValue(row.Case.BusinessPartner ?? "", out var email)) return string.Empty;
+        var subject = Uri.EscapeDataString($"Low-rating feedback alert — {row.Case.Branch} — {row.Case.Date:yyyy-MM-dd}");
+        var body = Uri.EscapeDataString(
+            $"Case ID: {ShortId(row.Case.Id)}\n" +
+            $"Date: {row.Case.Date:yyyy-MM-dd}\n" +
+            $"Branch: {row.Case.Branch}\n" +
+            $"Customer: {row.Case.CustomerName} ({row.Case.CustomerPhone})\n" +
+            $"Branch rating: {(row.Case.BranchRating > 0 ? row.Case.BranchRating.ToString() : "-")}\n" +
+            $"Staff rating: {(row.Case.StaffRating > 0 ? row.Case.StaffRating.ToString() : "-")}\n\n" +
+            $"Please follow up by {row.Case.DueDate:yyyy-MM-dd}.");
+        return $"mailto:{email}?subject={subject}&body={body}";
+    }
+}
+
+<h1 class="h3 mb-3">Dashboard <span class="text-muted fs-6">@Model.Today.ToString("yyyy-MM-dd")</span></h1>
+
+<div class="row g-2 mb-4">
+    @{
+        var stats = new (string Label, int Value, string CssClass)[]
+        {
+            ("Total", Model.Total, "bg-white"),
+            ("This month", Model.Month, "bg-white"),
+            ("Pending", Model.Pending, "bg-warning-subtle"),
+            ("SLA breached", Model.Breached, "bg-danger-subtle"),
+            ("Completed", Model.Done, "bg-success-subtle"),
+            ("Valid", Model.Valid, "bg-success-subtle"),
+            ("Not valid", Model.NotValid, "bg-secondary-subtle"),
+            ("Under review", Model.UnderReview, "bg-info-subtle"),
+            ("Staff issues", Model.StaffIssues, "bg-white"),
+            ("Branch issues", Model.BranchIssues, "bg-white"),
+        };
+    }
+    @foreach (var s in stats)
+    {
+        <div class="col-6 col-md-3 col-lg-2">
+            <div class="card @s.CssClass shadow-sm h-100">
+                <div class="card-body py-2 px-3">
+                    <div class="small text-muted">@s.Label</div>
+                    <div class="h4 mb-0">@s.Value</div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@if (Model.RepeatCustomers.Any())
+{
+    <div class="card border-warning bg-warning-subtle mb-4">
+        <div class="card-body py-2">
+            <div class="d-flex align-items-center flex-wrap gap-2">
+                <strong class="me-2">🔄 Repeat customers</strong>
+                @foreach (var r in Model.RepeatCustomers)
+                {
+                    <span class="badge bg-warning text-dark border border-warning-subtle">
+                        <span class="fw-semibold">@r.Label</span>
+                        <span class="ms-1 text-muted small">@r.Sub</span>
+                        <span class="ms-2 badge bg-dark">@r.Count</span>
+                    </span>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="h5 mb-0">Urgent <span class="text-muted small">(@Model.Urgent.Count)</span></h2>
+</div>
+@if (!Model.Urgent.Any())
+{
+    <div class="alert alert-light border mb-4">No urgent cases — nothing overdue or due today.</div>
+}
+else
+{
+    <div class="table-responsive bg-white rounded shadow-sm mb-4 border-start border-danger border-4">
+        <table class="table table-sm table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Phone</th>
+                    <th>Branch</th>
+                    <th class="text-center">Branch ★</th>
+                    <th>Staff</th>
+                    <th>Partner</th>
+                    <th>SLA</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Urgent)
+                {
+                    var c = row.Case;
+                    var mailto = PartnerEmailLink(row);
+                    <tr>
+                        <td class="text-monospace small">@ShortId(c.Id)</td>
+                        <td>@c.Date.ToString("yyyy-MM-dd")</td>
+                        <td>
+                            @c.CustomerName
+                            @if (IsRepeat(c)) { <span class="ms-1" title="Repeat customer">🔄</span> }
+                        </td>
+                        <td>@c.CustomerPhone</td>
+                        <td>@c.Branch</td>
+                        <td class="text-center">@(c.BranchRating > 0 ? c.BranchRating.ToString() : "-")</td>
+                        <td>@c.StaffName</td>
+                        <td>@c.BusinessPartner</td>
+                        <td>
+                            @if (row.SlaBreached)
+                            {
+                                <span class="badge bg-danger">Breached</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning text-dark">Due @c.DueDate.ToString("MM-dd")</span>
+                            }
+                        </td>
+                        <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-outline-secondary" asp-controller="Cases" asp-action="Edit" asp-route-id="@c.Id">Edit</a>
+                            @if (!string.IsNullOrEmpty(mailto))
+                            {
+                                <a class="btn btn-sm btn-outline-primary" href="@mailto">Email</a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="h5 mb-0">Recent</h2>
+    <a class="small" asp-controller="Cases" asp-action="Index">View all cases &rarr;</a>
+</div>
+@if (!Model.Recent.Any())
+{
+    <div class="alert alert-light border">No cases yet. <a asp-controller="Cases" asp-action="Create">Add the first one</a>.</div>
+}
+else
+{
+    <div class="table-responsive bg-white rounded shadow-sm">
+        <table class="table table-sm table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Branch</th>
+                    <th class="text-center">Branch ★</th>
+                    <th class="text-center">Staff ★</th>
+                    <th>Status</th>
+                    <th class="text-end">Age</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Recent)
+                {
+                    var c = row.Case;
+                    <tr>
+                        <td>@c.Date.ToString("yyyy-MM-dd")</td>
+                        <td>
+                            @c.CustomerName
+                            @if (IsRepeat(c)) { <span class="ms-1" title="Repeat customer">🔄</span> }
+                        </td>
+                        <td>@c.Branch</td>
+                        <td class="text-center">@(c.BranchRating > 0 ? c.BranchRating.ToString() : "-")</td>
+                        <td class="text-center">@(c.StaffRating > 0 ? c.StaffRating.ToString() : "-")</td>
+                        <td>
+                            <span class="badge @(c.FollowUpStatus == FollowUpStatus.Completed ? "bg-success" : "bg-warning text-dark")">
+                                @c.FollowUpStatus
+                            </span>
+                        </td>
+                        <td class="text-end">@row.AgeDays d</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-secondary" asp-controller="Cases" asp-action="Edit" asp-route-id="@c.Id">Edit</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
