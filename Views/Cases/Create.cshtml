@@ -1,0 +1,133 @@
+@model CaseFormViewModel
+@{
+    ViewData["Title"] = "Add Case";
+}
+
+<h1 class="h3 mb-3">Add new case</h1>
+
+@if (!string.IsNullOrEmpty(Model.DuplicateWarning))
+{
+    <div class="alert alert-warning">@Model.DuplicateWarning</div>
+}
+
+<form asp-action="Create" method="post" class="card card-body bg-white shadow-sm">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+
+    <h2 class="h6 text-muted">Customer &amp; case info</h2>
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <label asp-for="CustomerName" class="form-label"></label>
+            <input asp-for="CustomerName" class="form-control" />
+            <span asp-validation-for="CustomerName" class="text-danger small"></span>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="CustomerPhone" class="form-label"></label>
+            <input asp-for="CustomerPhone" class="form-control" id="customerPhone" />
+            <span asp-validation-for="CustomerPhone" class="text-danger small"></span>
+            <div id="dupWarning" class="text-warning small mt-1"></div>
+        </div>
+        <div class="col-md-2">
+            <label asp-for="TicketNumber" class="form-label"></label>
+            <input asp-for="TicketNumber" class="form-control" />
+        </div>
+        <div class="col-md-3">
+            <label asp-for="Date" class="form-label">Date</label>
+            <input asp-for="Date" class="form-control" />
+        </div>
+        <div class="col-md-4">
+            <label asp-for="Branch" class="form-label"></label>
+            <select asp-for="Branch" class="form-select" id="branchSelect">
+                <option value="">-- Select --</option>
+                @foreach (var b in Model.Branches)
+                {
+                    <option value="@b">@b</option>
+                }
+            </select>
+            <span asp-validation-for="Branch" class="text-danger small"></span>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Assigned partner</label>
+            <input class="form-control" id="assignedPartner" value="@Model.AssignedPartner" readonly />
+        </div>
+    </div>
+
+    <h2 class="h6 text-muted">Branch feedback (optional)</h2>
+    <div class="row g-3 mb-3">
+        <div class="col-md-2">
+            <label asp-for="BranchRating" class="form-label"></label>
+            <select asp-for="BranchRating" class="form-select">
+                <option value="0">Not rated</option>
+                <option value="1">1 - Very Poor</option>
+                <option value="2">2 - Poor</option>
+                <option value="3">3 - Fair</option>
+                <option value="4">4 - Good</option>
+                <option value="5">5 - Excellent</option>
+            </select>
+        </div>
+        <div class="col-md-10">
+            <label asp-for="BranchComment" class="form-label"></label>
+            <input asp-for="BranchComment" class="form-control" />
+        </div>
+    </div>
+
+    <h2 class="h6 text-muted">Staff feedback (optional)</h2>
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <label asp-for="StaffName" class="form-label"></label>
+            <input asp-for="StaffName" class="form-control" />
+        </div>
+        <div class="col-md-2">
+            <label asp-for="StaffRating" class="form-label"></label>
+            <select asp-for="StaffRating" class="form-select">
+                <option value="0">Not rated</option>
+                <option value="1">1 - Very Poor</option>
+                <option value="2">2 - Poor</option>
+                <option value="3">3 - Fair</option>
+                <option value="4">4 - Good</option>
+                <option value="5">5 - Excellent</option>
+            </select>
+        </div>
+        <div class="col-md-7">
+            <label asp-for="StaffComment" class="form-label"></label>
+            <input asp-for="StaffComment" class="form-control" />
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 justify-content-end">
+        <a asp-action="Index" class="btn btn-link">Cancel</a>
+        <button type="submit" class="btn btn-primary">Save case</button>
+    </div>
+</form>
+
+@section Scripts {
+<script>
+    (function () {
+        var phoneInput = document.getElementById('customerPhone');
+        var dupBox = document.getElementById('dupWarning');
+        var branchSelect = document.getElementById('branchSelect');
+        var partnerBox = document.getElementById('assignedPartner');
+        var partners = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.BranchPartnerMap));
+
+        if (branchSelect) {
+            branchSelect.addEventListener('change', function () {
+                partnerBox.value = partners[branchSelect.value] || '';
+            });
+        }
+
+        if (phoneInput) {
+            var timer;
+            phoneInput.addEventListener('input', function () {
+                clearTimeout(timer);
+                timer = setTimeout(function () {
+                    var v = phoneInput.value.trim();
+                    if (v.length < 7) { dupBox.textContent = ''; return; }
+                    fetch('@Url.Action("CheckDuplicate", "Cases")?phone=' + encodeURIComponent(v))
+                        .then(function (r) { return r.json(); })
+                        .then(function (data) { dupBox.textContent = data.warning || ''; });
+                }, 300);
+            });
+        }
+    })();
+</script>
+}

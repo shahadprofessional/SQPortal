@@ -1,23 +1,37 @@
+using System.ComponentModel.DataAnnotations;
 using SQPortal.Models.Enums;
 
 namespace SQPortal.Models.Entities;
 
 public class FeedbackCase
 {
+    [Key]
+    [MaxLength(64)]
     public string Id { get; set; } = string.Empty;
+
     public DateOnly Date { get; set; }
 
+    [MaxLength(200)]
     public string CustomerName { get; set; } = string.Empty;
+
+    [MaxLength(40)]
     public string CustomerPhone { get; set; } = string.Empty;
+
+    [MaxLength(60)]
     public string? TicketNumber { get; set; }
 
+    [MaxLength(100)]
     public string Branch { get; set; } = string.Empty;
+
+    [MaxLength(40)]
     public string BusinessPartner { get; set; } = string.Empty;
 
     public int BranchRating { get; set; }
     public string? BranchComment { get; set; }
 
+    [MaxLength(200)]
     public string? StaffName { get; set; }
+
     public int StaffRating { get; set; }
     public string? StaffComment { get; set; }
 

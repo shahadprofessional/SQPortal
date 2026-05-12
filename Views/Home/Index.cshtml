@@ -2,5 +2,11 @@
     ViewData["Title"] = "Home";
 }
 
-<h1>SQPortal</h1>
-<p>ASP.NET Core MVC scaffold. Models tree is in place; controllers and views to follow.</p>
+<div class="p-5 bg-white rounded shadow-sm">
+    <h1 class="mb-3">SQPortal</h1>
+    <p class="lead">ASP.NET Core MVC migration of the SQ Feedback Tracker.</p>
+    <p>
+        <a class="btn btn-primary" asp-controller="Cases" asp-action="Index">View cases</a>
+        <a class="btn btn-outline-primary" asp-controller="Cases" asp-action="Create">Add case</a>
+    </p>
+</div>

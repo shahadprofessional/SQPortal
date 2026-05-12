@@ -1,0 +1,162 @@
+@model CasesListViewModel
+@{
+    ViewData["Title"] = "Cases";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Cases <span class="text-muted fs-6">(@Model.Count)</span></h1>
+    <div>
+        <a class="btn btn-outline-secondary" asp-action="ExportCsv"
+           asp-route-search="@Model.Search"
+           asp-route-month="@Model.Month"
+           asp-route-followUpStatus="@Model.FollowUpStatus"
+           asp-route-rootCause="@Model.RootCause">Export CSV</a>
+        <a class="btn btn-primary" asp-action="Create">+ New case</a>
+    </div>
+</div>
+
+<form method="get" class="card card-body mb-3">
+    <div class="row g-2">
+        <div class="col-md-4">
+            <label class="form-label small text-muted">Search</label>
+            <input class="form-control" name="search" value="@Model.Search" placeholder="Customer, phone, branch, staff, ticket" />
+        </div>
+        <div class="col-md-2">
+            <label class="form-label small text-muted">Month</label>
+            <select class="form-select" name="month">
+                <option value="">All</option>
+                @foreach (var m in Model.Months)
+                {
+                    if (m == Model.Month)
+                    {
+                        <option value="@m" selected>@m</option>
+                    }
+                    else
+                    {
+                        <option value="@m">@m</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label small text-muted">Follow-up</label>
+            <select class="form-select" name="followUpStatus">
+                <option value="">All</option>
+                @foreach (var status in Enum.GetValues<FollowUpStatus>())
+                {
+                    if (Model.FollowUpStatus == status)
+                    {
+                        <option value="@status" selected>@status</option>
+                    }
+                    else
+                    {
+                        <option value="@status">@status</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small text-muted">Root cause</label>
+            <select class="form-select" name="rootCause">
+                <option value="">All</option>
+                @foreach (var r in Model.RootCauseOptions)
+                {
+                    if (r == Model.RootCause)
+                    {
+                        <option value="@r" selected>@r</option>
+                    }
+                    else
+                    {
+                        <option value="@r">@r</option>
+                    }
+                }
+                @if (Model.RootCause == "Other")
+                {
+                    <option value="Other" selected>Other</option>
+                }
+                else
+                {
+                    <option value="Other">Other</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-1 d-flex align-items-end">
+            <button class="btn btn-primary w-100" type="submit">Filter</button>
+        </div>
+    </div>
+    <div class="mt-2">
+        <a asp-action="Index" class="small">Clear filters</a>
+    </div>
+</form>
+
+@if (!Model.Cases.Any())
+{
+    <div class="alert alert-info">No cases match these filters.</div>
+}
+else
+{
+    <div class="table-responsive bg-white rounded shadow-sm">
+        <table class="table table-sm table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Phone</th>
+                    <th>Branch</th>
+                    <th class="text-center">Branch ★</th>
+                    <th>Staff</th>
+                    <th class="text-center">Staff ★</th>
+                    <th>Partner</th>
+                    <th>Status</th>
+                    <th>SLA</th>
+                    <th class="text-end">Age</th>
+                    <th>Root causes</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Cases)
+                {
+                    var c = row.Case;
+                    <tr>
+                        <td class="text-monospace small">@(c.Id.Length >= 6 ? c.Id[^6..].ToUpper() : c.Id.ToUpper())</td>
+                        <td>@c.Date.ToString("yyyy-MM-dd")</td>
+                        <td>@c.CustomerName</td>
+                        <td>@c.CustomerPhone</td>
+                        <td>@c.Branch</td>
+                        <td class="text-center">@(c.BranchRating > 0 ? c.BranchRating.ToString() : "-")</td>
+                        <td>@c.StaffName</td>
+                        <td class="text-center">@(c.StaffRating > 0 ? c.StaffRating.ToString() : "-")</td>
+                        <td>@c.BusinessPartner</td>
+                        <td>
+                            <span class="badge @(c.FollowUpStatus == FollowUpStatus.Completed ? "bg-success" : "bg-warning text-dark")">
+                                @c.FollowUpStatus
+                            </span>
+                        </td>
+                        <td>
+                            @if (row.SlaBreached)
+                            {
+                                <span class="badge bg-danger">Breached</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">@c.DueDate.ToString("MM-dd")</span>
+                            }
+                        </td>
+                        <td class="text-end">@row.AgeDays d</td>
+                        <td class="small">@string.Join(", ", c.RootCauses)</td>
+                        <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@c.Id">Edit</a>
+                            <form asp-action="Delete" asp-route-id="@c.Id" method="post" class="d-inline"
+                                  onsubmit="return confirm('Delete this case? This cannot be undone.');">
+                                @Html.AntiForgeryToken()
+                                <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

@@ -5,12 +5,20 @@ namespace SQPortal.Models.ViewModels.Cases;
 
 public class CasesListViewModel
 {
-    public IEnumerable<FeedbackCase> Cases { get; set; } = Array.Empty<FeedbackCase>();
+    public IEnumerable<CaseRow> Cases { get; set; } = Array.Empty<CaseRow>();
     public IEnumerable<string> Months { get; set; } = Array.Empty<string>();
+    public IEnumerable<string> RootCauseOptions { get; set; } = Array.Empty<string>();
     public int Count { get; set; }
 
     public string? Search { get; set; }
     public string? Month { get; set; }
     public FollowUpStatus? FollowUpStatus { get; set; }
     public string? RootCause { get; set; }
+}
+
+public class CaseRow
+{
+    public FeedbackCase Case { get; set; } = null!;
+    public int AgeDays { get; set; }
+    public bool SlaBreached { get; set; }
 }
