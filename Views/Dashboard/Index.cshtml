@@ -20,28 +20,26 @@
 
 <div class="row g-2 mb-4">
     @{
-        var stats = new (string Label, int Value, string CssClass)[]
+        var stats = new (string Label, int Value, string Accent)[]
         {
-            ("Total", Model.Total, "bg-white"),
-            ("This month", Model.Month, "bg-white"),
-            ("Pending", Model.Pending, "bg-warning-subtle"),
-            ("SLA breached", Model.Breached, "bg-danger-subtle"),
-            ("Completed", Model.Done, "bg-success-subtle"),
-            ("Valid", Model.Valid, "bg-success-subtle"),
-            ("Not valid", Model.NotValid, "bg-secondary-subtle"),
-            ("Under review", Model.UnderReview, "bg-info-subtle"),
-            ("Staff issues", Model.StaffIssues, "bg-white"),
-            ("Branch issues", Model.BranchIssues, "bg-white"),
+            ("Total",         Model.Total,       "accent-navy"),
+            ("This month",    Model.Month,       "accent-navy"),
+            ("Pending",       Model.Pending,     "accent-amber"),
+            ("SLA breached",  Model.Breached,    Model.Breached > 0 ? "accent-red" : "accent-green"),
+            ("Completed",     Model.Done,        "accent-green"),
+            ("Valid",         Model.Valid,       "accent-green"),
+            ("Not valid",     Model.NotValid,    "accent-gray"),
+            ("Under review",  Model.UnderReview, "accent-indigo"),
+            ("Staff issues",  Model.StaffIssues, "accent-orange"),
+            ("Branch issues", Model.BranchIssues,"accent-orange"),
         };
     }
     @foreach (var s in stats)
     {
         <div class="col-6 col-md-3 col-lg-2">
-            <div class="card @s.CssClass shadow-sm h-100">
-                <div class="card-body py-2 px-3">
-                    <div class="small text-muted">@s.Label</div>
-                    <div class="h4 mb-0">@s.Value</div>
-                </div>
+            <div class="stat-card @s.Accent">
+                <div class="stat-value">@s.Value</div>
+                <div class="stat-label">@s.Label</div>
             </div>
         </div>
     }
@@ -98,7 +96,8 @@ else
                     var c = row.Case;
                     var partnerEmail = PartnerEmail(c.BusinessPartner);
                     var mailto = string.IsNullOrEmpty(partnerEmail) ? string.Empty : DisplayHelpers.BuildLowRatingMailto(c, partnerEmail);
-                    <tr data-case-id="@c.Id">
+                    var rowClasses = (row.SlaBreached ? "tr-breached" : "") + (IsRepeat(c) ? " tr-repeat" : "");
+                    <tr data-case-id="@c.Id" class="@rowClasses.Trim()">
                         <td class="text-monospace small">@DisplayHelpers.ShortId(c.Id)</td>
                         <td>@c.Date.ToString("yyyy-MM-dd")</td>
                         <td>
@@ -168,7 +167,8 @@ else
                 @foreach (var row in Model.Recent)
                 {
                     var c = row.Case;
-                    <tr>
+                    var rowClasses = IsRepeat(c) ? "tr-repeat" : "";
+                    <tr class="@rowClasses">
                         <td>@c.Date.ToString("yyyy-MM-dd")</td>
                         <td>
                             @c.CustomerName
