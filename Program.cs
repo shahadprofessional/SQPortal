@@ -15,6 +15,7 @@ builder.Services.AddScoped<DuplicateDetectionService>();
 builder.Services.AddScoped<CsvExportService>();
 builder.Services.AddScoped<RepeatCustomerService>();
 builder.Services.AddScoped<DashboardService>();
+builder.Services.AddScoped<AnalyticsService>();
 
 var app = builder.Build();
 

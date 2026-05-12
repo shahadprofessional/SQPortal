@@ -1,0 +1,211 @@
+@model AnalyticsViewModel
+@{
+    ViewData["Title"] = "Analytics";
+
+    string ResolutionColor(int v) => v >= 70 ? "text-success" : "text-warning";
+    string SlaColor(int v) => v >= 80 ? "text-success" : "text-warning";
+    string BreachedColor(int v) => v > 0 ? "text-danger" : "text-success";
+
+    string BranchResolutionTextColor(int v) =>
+        v >= 70 ? "text-success" : v >= 40 ? "text-warning" : "text-danger";
+
+    string PartnerSlaColor(int v) =>
+        v >= 80 ? "text-success" : v >= 60 ? "text-warning" : "text-danger";
+
+    string[] rootCausePalette = new[] { "#1B3060", "#9F1239", "#9A3412", "#1E3A8A", "#4C1D95", "#065F46", "#92400E", "#6B7280" };
+}
+
+<h1 class="h3 mb-3">Analytics</h1>
+
+<form method="get" class="card card-body mb-3">
+    <div class="row g-2">
+        <div class="col-md-3">
+            <label class="form-label small text-muted">Month</label>
+            <select class="form-select" name="month">
+                <option value="">All time</option>
+                @foreach (var m in Model.Months)
+                {
+                    if (m == Model.Month)
+                    {
+                        <option value="@m" selected>@m</option>
+                    }
+                    else
+                    {
+                        <option value="@m">@m</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small text-muted">Branch</label>
+            <select class="form-select" name="branch">
+                <option value="">All branches</option>
+                @foreach (var b in Model.Branches)
+                {
+                    if (b == Model.Branch)
+                    {
+                        <option value="@b" selected>@b</option>
+                    }
+                    else
+                    {
+                        <option value="@b">@b</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small text-muted">Partner</label>
+            <select class="form-select" name="partner">
+                <option value="">All</option>
+                @foreach (var p in Model.Partners)
+                {
+                    if (p == Model.Partner)
+                    {
+                        <option value="@p" selected>@p</option>
+                    }
+                    else
+                    {
+                        <option value="@p">@p</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end gap-2">
+            <button class="btn btn-primary flex-grow-1" type="submit">Apply</button>
+        </div>
+    </div>
+    @if (!string.IsNullOrEmpty(Model.Month) || !string.IsNullOrEmpty(Model.Branch) || !string.IsNullOrEmpty(Model.Partner))
+    {
+        <div class="mt-2"><a asp-action="Index" class="small">Clear filters</a></div>
+    }
+</form>
+
+@if (Model.Total == 0)
+{
+    <div class="card text-center py-5">
+        <div class="card-body">
+            <div style="font-size:42px">📊</div>
+            <h2 class="h5 mt-2 mb-0 text-muted">No data for these filters</h2>
+        </div>
+    </div>
+}
+else
+{
+    <div class="row g-2 mb-4">
+        @{
+            var kpis = new (string Label, string Value, string CssClass)[]
+            {
+                ("Total cases",       Model.Total.ToString(),                            "text-primary"),
+                ("Resolution rate",   $"{Model.ResolutionRate}%",                        ResolutionColor(Model.ResolutionRate)),
+                ("SLA compliance",    $"{Model.SlaCompliance}%",                         SlaColor(Model.SlaCompliance)),
+                ("Avg branch rating", Model.AvgBranchRating > 0 ? $"{Model.AvgBranchRating:0.0}/5" : "—", "text-warning"),
+                ("SLA breached",      Model.Breached.ToString(),                         BreachedColor(Model.Breached)),
+                ("Open cases",        Model.Open.ToString(),                             "text-warning"),
+            };
+        }
+        @foreach (var k in kpis)
+        {
+            <div class="col-6 col-md-4 col-lg-2">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body py-3">
+                        <div class="h3 mb-1 @k.CssClass">@k.Value</div>
+                        <div class="small text-muted">@k.Label</div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <h2 class="h6 mb-3">🏢 Branch Overview</h2>
+            @{
+                var maxBranchTotal = Model.ByBranch.Count > 0 ? Model.ByBranch.Max(b => b.Total) : 1;
+            }
+            @if (!Model.ByBranch.Any())
+            {
+                <div class="text-muted small text-center py-3">No branch data</div>
+            }
+            else
+            {
+                foreach (var b in Model.ByBranch)
+                {
+                    var w = Math.Max(2, (int)Math.Round(b.Total / (double)maxBranchTotal * 100));
+                    <div class="d-flex align-items-center gap-2 mb-2 small">
+                        <div class="text-end text-truncate" style="width:160px" title="@b.Name">@b.Name</div>
+                        <div class="flex-grow-1">
+                            <div class="bg-primary rounded" style="height:10px;width:@(w)%;min-width:2px"></div>
+                        </div>
+                        <span class="fw-bold text-muted" style="width:32px;text-align:right">@b.Total</span>
+                        <span class="fw-bold @BranchResolutionTextColor(b.ResolutionRate)" style="width:42px;text-align:right">@b.ResolutionRate%</span>
+                        <span class="text-muted" style="width:50px;text-align:right">@(b.AvgBranchRating > 0 ? $"{b.AvgBranchRating:0.0}★" : "—")</span>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h6 mb-3">🔎 Root Cause Distribution</h2>
+                    @if (!Model.RootCauseDistribution.Any())
+                    {
+                        <div class="text-muted small text-center py-3">No root causes recorded yet</div>
+                    }
+                    else
+                    {
+                        var i = 0;
+                        foreach (var r in Model.RootCauseDistribution)
+                        {
+                            var color = rootCausePalette[i % rootCausePalette.Length];
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span class="fw-semibold" style="color:@color">@r.Name</span>
+                                    <span class="fw-bold">@r.Count <span class="text-muted fw-normal">(@r.Percent%)</span></span>
+                                </div>
+                                <div class="bg-light rounded" style="height:12px">
+                                    <div class="rounded" style="height:100%;width:@(r.Percent)%;background:@color"></div>
+                                </div>
+                            </div>
+                            i++;
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h6 mb-3">👥 Partner Performance</h2>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Partner</th>
+                                    <th class="text-center">Total</th>
+                                    <th class="text-center">Done</th>
+                                    <th class="text-center">Pending</th>
+                                    <th class="text-center">SLA %</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var p in Model.ByPartner)
+                                {
+                                    <tr>
+                                        <td><strong>@p.Partner</strong></td>
+                                        <td class="text-center fw-bold">@p.Total</td>
+                                        <td class="text-center fw-bold text-success">@p.Done</td>
+                                        <td class="text-center fw-bold text-warning">@p.Pending</td>
+                                        <td class="text-center fw-bold @PartnerSlaColor(p.SlaRate)">@p.SlaRate%</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
