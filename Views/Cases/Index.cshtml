@@ -1,6 +1,20 @@
 @model CasesListViewModel
 @{
     ViewData["Title"] = "Cases";
+
+    bool IsRepeat(FeedbackCase c)
+    {
+        var phone = (c.CustomerPhone ?? "").Trim();
+        if (!string.IsNullOrEmpty(phone) && Model.FlaggedPhones.Contains(phone)) return true;
+        var name = (c.CustomerName ?? "").Trim().ToLowerInvariant();
+        return !string.IsNullOrEmpty(name) && Model.FlaggedNames.Contains(name);
+    }
+
+    string PartnerEmail(string? partner)
+    {
+        if (string.IsNullOrEmpty(partner)) return string.Empty;
+        return Model.PartnerEmails.TryGetValue(partner, out var e) ? e : string.Empty;
+    }
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -29,11 +43,11 @@
                 {
                     if (m == Model.Month)
                     {
-                        <option value="@m" selected>@m</option>
+                        <option value="@m" selected>@DisplayHelpers.FormatMonth(m)</option>
                     }
                     else
                     {
-                        <option value="@m">@m</option>
+                        <option value="@m">@DisplayHelpers.FormatMonth(m)</option>
                     }
                 }
             </select>
@@ -95,6 +109,7 @@
 }
 else
 {
+    @Html.AntiForgeryToken()
     <div class="table-responsive bg-white rounded shadow-sm">
         <table class="table table-sm table-hover align-middle mb-0">
             <thead class="table-light">
@@ -119,15 +134,23 @@ else
                 @foreach (var row in Model.Cases)
                 {
                     var c = row.Case;
-                    <tr>
-                        <td class="text-monospace small">@(c.Id.Length >= 6 ? c.Id[^6..].ToUpper() : c.Id.ToUpper())</td>
+                    var partnerEmail = PartnerEmail(c.BusinessPartner);
+                    var mailto = string.IsNullOrEmpty(partnerEmail) ? string.Empty : DisplayHelpers.BuildLowRatingMailto(c, partnerEmail);
+                    <tr data-case-id="@c.Id">
+                        <td class="text-monospace small">@DisplayHelpers.ShortId(c.Id)</td>
                         <td>@c.Date.ToString("yyyy-MM-dd")</td>
-                        <td>@c.CustomerName</td>
+                        <td>
+                            @c.CustomerName
+                            @if (IsRepeat(c))
+                            {
+                                <span class="repeat-marker" title="Repeat customer">🔄</span>
+                            }
+                        </td>
                         <td>@c.CustomerPhone</td>
                         <td>@c.Branch</td>
-                        <td class="text-center">@(c.BranchRating > 0 ? c.BranchRating.ToString() : "-")</td>
+                        <td class="text-center">@DisplayHelpers.Stars(c.BranchRating)</td>
                         <td>@c.StaffName</td>
-                        <td class="text-center">@(c.StaffRating > 0 ? c.StaffRating.ToString() : "-")</td>
+                        <td class="text-center">@DisplayHelpers.Stars(c.StaffRating)</td>
                         <td>@c.BusinessPartner</td>
                         <td>
                             <span class="badge @(c.FollowUpStatus == FollowUpStatus.Completed ? "bg-success" : "bg-warning text-dark")">
@@ -148,6 +171,13 @@ else
                         <td class="small">@string.Join(", ", c.RootCauses)</td>
                         <td class="text-end text-nowrap">
                             <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@c.Id">Edit</a>
+                            @if (!string.IsNullOrEmpty(mailto))
+                            {
+                                <a class="btn btn-sm btn-outline-primary js-email-btn @(c.EmailSent ? "btn-email-sent" : "")"
+                                   href="@mailto" data-case-id="@c.Id" title="@(c.EmailSent ? "Email already sent" : "Send partner email")">
+                                    @(c.EmailSent ? "✓ Email" : "📧 Email")
+                                </a>
+                            }
                             <form asp-action="Delete" asp-route-id="@c.Id" method="post" class="d-inline"
                                   onsubmit="return confirm('Delete this case? This cannot be undone.');">
                                 @Html.AntiForgeryToken()
@@ -159,4 +189,30 @@ else
             </tbody>
         </table>
     </div>
+}
+
+@section Scripts {
+<script>
+    (function () {
+        var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
+        if (!tokenEl) return;
+        var token = tokenEl.value;
+        document.querySelectorAll('.js-email-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var id = btn.getAttribute('data-case-id');
+                if (!id) return;
+                var body = new URLSearchParams({ id: id, __RequestVerificationToken: token });
+                fetch('@Url.Action("MarkEmailSent", "Cases")', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body.toString()
+                }).then(function () {
+                    btn.classList.add('btn-email-sent');
+                    btn.textContent = '✓ Email';
+                    btn.setAttribute('title', 'Email already sent');
+                }).catch(function () { /* leave UI as-is; user can retry */ });
+            });
+        });
+    })();
+</script>
 }

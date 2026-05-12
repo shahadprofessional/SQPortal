@@ -1,0 +1,135 @@
+:root {
+    --sq-navy: #1B3060;
+    --sq-navy-dark: #111E38;
+    --sq-gold: #D4A843;
+    --sq-gold-dark: #B68A2A;
+    --sq-red: #DC2626;
+    --sq-red-dark: #991B1B;
+    --sq-bg: #F0F4FA;
+    --sq-border: #D8E0EC;
+}
+
+body.bg-light {
+    background-color: var(--sq-bg) !important;
+}
+
+/* Navbar */
+.navbar.bg-dark {
+    background-color: var(--sq-navy-dark) !important;
+    border-bottom: 3px solid var(--sq-gold);
+}
+.navbar-brand {
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+.nav-link {
+    font-weight: 500;
+}
+.navbar .nav-link.active,
+.navbar .nav-link:hover {
+    color: var(--sq-gold) !important;
+}
+
+/* Primary actions */
+.btn-primary {
+    background-color: var(--sq-navy);
+    border-color: var(--sq-navy);
+}
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: var(--sq-navy-dark);
+    border-color: var(--sq-navy-dark);
+}
+.btn-outline-primary {
+    color: var(--sq-navy);
+    border-color: var(--sq-navy);
+}
+.btn-outline-primary:hover {
+    background-color: var(--sq-navy);
+    border-color: var(--sq-navy);
+}
+a, .text-primary {
+    color: var(--sq-navy) !important;
+}
+
+/* Gold accent buttons */
+.btn-warning {
+    background-color: var(--sq-gold);
+    border-color: var(--sq-gold);
+    color: #fff;
+}
+.btn-warning:hover {
+    background-color: var(--sq-gold-dark);
+    border-color: var(--sq-gold-dark);
+    color: #fff;
+}
+
+/* Danger emphasis */
+.btn-danger,
+.btn-outline-danger:hover {
+    background-color: var(--sq-red);
+    border-color: var(--sq-red);
+}
+
+/* Cards */
+.card {
+    border: 1px solid var(--sq-border);
+    border-radius: 12px;
+}
+.card.shadow-sm {
+    box-shadow: 0 1px 8px rgba(17, 30, 56, 0.07) !important;
+}
+
+/* Brand color helpers */
+.text-sq-navy { color: var(--sq-navy) !important; }
+.text-sq-gold { color: var(--sq-gold) !important; }
+.bg-sq-navy { background-color: var(--sq-navy) !important; color: #fff; }
+.bg-sq-gold-subtle { background-color: #FAF1DC !important; }
+
+/* Stars */
+.stars-row {
+    color: var(--sq-gold);
+    letter-spacing: 1px;
+}
+.stars-row .star-off {
+    color: #E2E8F0;
+}
+
+/* Repeat customer marker */
+.repeat-marker {
+    color: var(--sq-red);
+    font-size: 0.95em;
+    margin-left: 4px;
+}
+
+/* Email button states */
+.btn-email-sent {
+    color: #16A34A !important;
+    border-color: #16A34A !important;
+}
+
+/* Toast container */
+.toast-container.sq-toasts {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    z-index: 1080;
+}
+
+/* Tables */
+.table > :not(caption) > * > * {
+    border-color: #F0F4FA;
+}
+.table thead.table-light th {
+    background-color: #FAFBFD;
+    color: #374151;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* Nav badge */
+.nav-link .badge {
+    margin-left: 4px;
+    font-size: 0.7em;
+}

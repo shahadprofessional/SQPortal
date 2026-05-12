@@ -27,11 +27,11 @@
                 {
                     if (m == Model.Month)
                     {
-                        <option value="@m" selected>@m</option>
+                        <option value="@m" selected>@DisplayHelpers.FormatMonth(m)</option>
                     }
                     else
                     {
-                        <option value="@m">@m</option>
+                        <option value="@m">@DisplayHelpers.FormatMonth(m)</option>
                     }
                 }
             </select>

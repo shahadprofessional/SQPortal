@@ -18,19 +18,22 @@ public class CasesController : Controller
     private readonly PartnerAssignmentService _partners;
     private readonly DuplicateDetectionService _duplicates;
     private readonly CsvExportService _csv;
+    private readonly RepeatCustomerService _repeats;
 
     public CasesController(
         SQPortalDbContext db,
         SlaService sla,
         PartnerAssignmentService partners,
         DuplicateDetectionService duplicates,
-        CsvExportService csv)
+        CsvExportService csv,
+        RepeatCustomerService repeats)
     {
         _db = db;
         _sla = sla;
         _partners = partners;
         _duplicates = duplicates;
         _csv = csv;
+        _repeats = repeats;
     }
 
     public async Task<IActionResult> Index(string? search, string? month, FollowUpStatus? followUpStatus, string? rootCause)
@@ -56,6 +59,17 @@ public class CasesController : Controller
             .OrderByDescending(s => s)
             .ToList();
 
+        var allCasesForFlagging = await _db.Cases.AsNoTracking().ToListAsync();
+        var flagged = _repeats.Detect(allCasesForFlagging, today);
+        var flaggedPhones = new HashSet<string>(
+            flagged.Where(f => f.MatchType == "Phone")
+                   .Select(f => f.Sub.Replace("📞 ", string.Empty).Trim()),
+            StringComparer.Ordinal);
+        var flaggedNames = new HashSet<string>(
+            flagged.Where(f => f.MatchType == "Name")
+                   .Select(f => f.Label.Trim().ToLowerInvariant()),
+            StringComparer.Ordinal);
+
         var vm = new CasesListViewModel
         {
             Cases = rows,
@@ -65,10 +79,29 @@ public class CasesController : Controller
             Search = search,
             Month = month,
             FollowUpStatus = followUpStatus,
-            RootCause = rootCause
+            RootCause = rootCause,
+            FlaggedPhones = flaggedPhones,
+            FlaggedNames = flaggedNames,
+            PartnerEmails = LookupData.Partners.ToDictionary(p => p.Name, p => p.Email)
         };
 
         return View(vm);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MarkEmailSent(string id)
+    {
+        var entity = await _db.Cases.FirstOrDefaultAsync(c => c.Id == id);
+        if (entity == null) return NotFound();
+
+        if (!entity.EmailSent)
+        {
+            entity.EmailSent = true;
+            await _db.SaveChangesAsync();
+        }
+
+        return Json(new { id, emailSent = true });
     }
 
     [HttpGet]

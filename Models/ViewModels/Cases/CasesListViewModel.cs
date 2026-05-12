@@ -14,6 +14,10 @@ public class CasesListViewModel
     public string? Month { get; set; }
     public FollowUpStatus? FollowUpStatus { get; set; }
     public string? RootCause { get; set; }
+
+    public IReadOnlyCollection<string> FlaggedPhones { get; set; } = Array.Empty<string>();
+    public IReadOnlyCollection<string> FlaggedNames { get; set; } = Array.Empty<string>();
+    public IDictionary<string, string> PartnerEmails { get; set; } = new Dictionary<string, string>();
 }
 
 public class CaseRow
