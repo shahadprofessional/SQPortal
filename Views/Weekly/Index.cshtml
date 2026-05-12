@@ -1,0 +1,155 @@
+@model WeeklyReportViewModel
+@{
+    ViewData["Title"] = "Weekly Report";
+    string StarsHtml(int n) => n > 0 ? new string('★', n) + new string('☆', 5 - n) : "—";
+}
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="h4 mb-1">💌 Weekly Branch Manager Report</h1>
+                <div class="small text-muted">Auto-generated — cases with 1–2★ ratings only</div>
+            </div>
+            <form method="get" class="d-flex gap-2 align-items-center">
+                <select name="range" class="form-select form-select-sm" onchange="this.form.submit()">
+                    @foreach (var r in Model.RangeOptions)
+                    {
+                        if (r.Value == Model.Range)
+                        {
+                            <option value="@r.Value" selected>@r.Label</option>
+                        }
+                        else
+                        {
+                            <option value="@r.Value">@r.Label</option>
+                        }
+                    }
+                </select>
+                @if (Model.TotalPoorCases > 0)
+                {
+                    <a class="btn btn-warning btn-sm" href="@Model.CombinedMailtoLink">📧 Send Combined</a>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse" data-bs-target="#combinedPreview">👁 Preview</button>
+                }
+            </form>
+        </div>
+        <div class="d-flex gap-4 small mt-3 pt-2 border-top flex-wrap">
+            <span><strong class="text-primary">@Model.TotalPoorCases</strong> <span class="text-muted">poor-rated cases</span></span>
+            <span><strong class="text-danger">@Model.Branches.Count</strong> <span class="text-muted">branches</span></span>
+            <span class="text-muted">Period: <strong class="text-dark">@Model.Start.ToString("yyyy-MM-dd") → @Model.End.ToString("yyyy-MM-dd")</strong></span>
+        </div>
+    </div>
+</div>
+
+@if (Model.TotalPoorCases > 0)
+{
+    <div class="collapse mb-3" id="combinedPreview">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="h6 mb-2">Combined report preview</h2>
+                <textarea class="form-control font-monospace small" rows="14" readonly>@Model.CombinedPreviewText</textarea>
+            </div>
+        </div>
+    </div>
+}
+
+@if (Model.TotalPoorCases == 0)
+{
+    <div class="card text-center py-5">
+        <div class="card-body">
+            <div style="font-size:46px">🎉</div>
+            <h2 class="h5 mt-2 mb-0 text-success">No Poor Ratings This Period</h2>
+        </div>
+    </div>
+}
+else
+{
+    var brIdx = 0;
+    foreach (var b in Model.Branches)
+    {
+        var previewId = $"preview-{brIdx}";
+        <div class="card mb-3 border-start border-danger border-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                    <div>
+                        <div class="h6 mb-1">🏢 @b.Branch</div>
+                        <div class="small text-muted">
+                            SQ Partner: <strong>@b.Partner</strong>
+                            @if (!string.IsNullOrEmpty(b.PartnerEmail))
+                            {
+                                <span> · @b.PartnerEmail</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center">
+                        <span class="badge bg-danger-subtle text-danger fw-semibold">@b.PoorCaseCount feedbacks</span>
+                        <a class="btn btn-primary btn-sm" href="@b.MailtoLink">📧 Send Report</a>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse" data-bs-target="#@previewId">👁 Preview</button>
+                    </div>
+                </div>
+
+                @if (b.StaffMentioned.Count > 0)
+                {
+                    <div class="bg-danger-subtle rounded p-2 mb-3 small">
+                        <strong class="text-danger me-2">👤 Staff Mentioned:</strong>
+                        @foreach (var s in b.StaffMentioned)
+                        {
+                            <span class="badge bg-white text-dark border me-1 fw-semibold">@s</span>
+                        }
+                    </div>
+                }
+
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Branch ★</th>
+                                <th>Staff</th>
+                                <th>Staff ★</th>
+                                <th>Root Cause</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var c in b.Cases)
+                            {
+                                var rcs = (c.RootCauses != null && c.RootCauses.Count > 0)
+                                    ? c.RootCauses
+                                    : (string.IsNullOrEmpty(c.ValidityStatus) ? new List<string>() : new List<string> { c.ValidityStatus });
+                                <tr>
+                                    <td class="text-muted small">@c.Date.ToString("yyyy-MM-dd")</td>
+                                    <td class="text-warning">@(c.BranchRating > 0 ? StarsHtml(c.BranchRating) : "—")</td>
+                                    <td class="small">@(c.StaffName ?? "—")</td>
+                                    <td class="text-warning">@(c.StaffRating > 0 ? StarsHtml(c.StaffRating) : "—")</td>
+                                    <td>
+                                        @if (rcs.Count > 0)
+                                        {
+                                            foreach (var r in rcs)
+                                            {
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle me-1">@r</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">—</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge @(c.FollowUpStatus == FollowUpStatus.Completed ? "bg-success" : "bg-warning text-dark")">
+                                            @c.FollowUpStatus
+                                        </span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="collapse mt-3" id="@previewId">
+                    <textarea class="form-control font-monospace small" rows="12" readonly>@b.PreviewText</textarea>
+                </div>
+            </div>
+        </div>
+        brIdx++;
+    }
+}
