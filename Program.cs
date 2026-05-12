@@ -20,10 +20,11 @@ builder.Services.AddScoped<WeeklyReportService>();
 
 var app = builder.Build();
 
+// Schema is created manually via Scripts/init.sql (run in SSMS) — no DDL in code.
+// On first run after the schema exists, SeedLookups() populates default partners/branches/assignments.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<SQPortalDbContext>();
-    db.Database.EnsureCreated();
     db.SeedLookups();
 }
 

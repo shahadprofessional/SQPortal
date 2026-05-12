@@ -19,4 +19,9 @@
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Database schema script. Run manually in SSMS (see Scripts/init.sql header). -->
+    <None Include="Scripts\init.sql" />
+  </ItemGroup>
+
 </Project>
