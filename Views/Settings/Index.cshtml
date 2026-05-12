@@ -1,0 +1,99 @@
+@model SettingsViewModel
+@{
+    ViewData["Title"] = "Settings";
+}
+
+<div class="card">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 pb-3 mb-3 border-bottom">
+            <h1 class="h5 mb-0">⚙ Branch — SQ Staff Assignment</h1>
+            <form asp-action="ResetDefaults" method="post" onsubmit="return confirm('Reset all branch assignments to defaults?');">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-outline-secondary btn-sm">🔄 Reset to Default</button>
+            </form>
+        </div>
+
+        <div class="alert alert-info py-2 small d-flex gap-2 align-items-center">
+            <span>ℹ️</span>
+            <span>Change who handles each branch. Saves automatically.</span>
+        </div>
+
+        <div class="d-none alert alert-success py-2 small mb-3" id="saveIndicator">✓ Saved</div>
+
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Branch</th>
+                        <th>SQ Staff</th>
+                        <th>Email</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Rows)
+                    {
+                        <tr data-branch="@row.Branch">
+                            <td class="fw-semibold">@row.Branch</td>
+                            <td>
+                                <select class="form-select form-select-sm w-auto js-partner" data-branch="@row.Branch">
+                                    @foreach (var p in Model.Partners)
+                                    {
+                                        if (p == row.Partner)
+                                        {
+                                            <option value="@p" selected>@p</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@p">@p</option>
+                                        }
+                                    }
+                                </select>
+                            </td>
+                            <td class="text-muted small js-email">@(string.IsNullOrEmpty(row.PartnerEmail) ? "—" : row.PartnerEmail)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    (function () {
+        var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+        var indicator = document.getElementById('saveIndicator');
+        var indicatorTimer;
+
+        function flashSaved() {
+            indicator.classList.remove('d-none');
+            clearTimeout(indicatorTimer);
+            indicatorTimer = setTimeout(function () { indicator.classList.add('d-none'); }, 1500);
+        }
+
+        document.querySelectorAll('.js-partner').forEach(function (sel) {
+            sel.addEventListener('change', function () {
+                var branch = sel.getAttribute('data-branch');
+                var partner = sel.value;
+                var row = sel.closest('tr');
+                var emailCell = row.querySelector('.js-email');
+
+                sel.disabled = true;
+                var body = new URLSearchParams({ branch: branch, partner: partner, __RequestVerificationToken: token });
+                fetch('@Url.Action("UpdateAssignment", "Settings")', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body.toString()
+                })
+                .then(function (r) { if (!r.ok) throw new Error('Save failed'); return r.json(); })
+                .then(function (data) {
+                    emailCell.textContent = data.email || '—';
+                    flashSaved();
+                })
+                .catch(function () { alert('Failed to save assignment. Please refresh and try again.'); })
+                .finally(function () { sel.disabled = false; });
+            });
+        });
+    })();
+</script>
+}
