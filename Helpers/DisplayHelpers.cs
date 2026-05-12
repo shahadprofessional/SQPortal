@@ -1,8 +1,6 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Html;
-using SQPortal.Data;
 using SQPortal.Models.Entities;
-using SQPortal.Models.Enums;
 
 namespace SQPortal.Helpers;
 
@@ -37,12 +35,12 @@ public static class DisplayHelpers
         string.IsNullOrEmpty(id) ? string.Empty :
         id.Length >= 6 ? id[^6..].ToUpperInvariant() : id.ToUpperInvariant();
 
-    public static string BuildLowRatingMailto(FeedbackCase c, string? partnerEmail)
+    public static string BuildLowRatingMailto(FeedbackCase c, string? partnerEmail, string? partnerFullName = null)
     {
-        var partner = LookupData.Partners.FirstOrDefault(p => p.Name == c.BusinessPartner);
-        var partnerFullName = partner?.FullName
-            ?? (string.IsNullOrEmpty(c.BusinessPartner) ? "Partner" : c.BusinessPartner);
-        var to = partnerEmail ?? partner?.Email ?? string.Empty;
+        var fullName = !string.IsNullOrWhiteSpace(partnerFullName)
+            ? partnerFullName
+            : (string.IsNullOrEmpty(c.BusinessPartner) ? "Partner" : c.BusinessPartner);
+        var to = partnerEmail ?? string.Empty;
 
         var lines = new List<string>
         {
@@ -74,7 +72,7 @@ public static class DisplayHelpers
 
         var bodyText = string.Join("\n", new[]
         {
-            $"Dear {partnerFullName},",
+            $"Dear {fullName},",
             string.Empty,
             $"Please find the below low customer feedback notification received on {c.Branch}.",
             string.Empty,

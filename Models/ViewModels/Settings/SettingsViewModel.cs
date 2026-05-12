@@ -2,9 +2,17 @@ namespace SQPortal.Models.ViewModels.Settings;
 
 public class SettingsViewModel
 {
-    public List<BranchAssignmentRow> Rows { get; set; } = new();
-    public IEnumerable<string> Partners { get; set; } = Array.Empty<string>();
+    public List<PartnerRow> Partners { get; set; } = new();
+    public List<string> Branches { get; set; } = new();
+    public List<BranchAssignmentRow> Assignments { get; set; } = new();
     public IDictionary<string, string> PartnerEmails { get; set; } = new Dictionary<string, string>();
+}
+
+public class PartnerRow
+{
+    public string Name { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
 }
 
 public class BranchAssignmentRow

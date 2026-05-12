@@ -51,6 +51,8 @@ public class DashboardService
             .Select(c => ToRow(c, today))
             .ToList();
 
+        var dbPartners = await _db.Partners.AsNoTracking().ToListAsync();
+
         return new DashboardViewModel
         {
             Today = today,
@@ -67,7 +69,8 @@ public class DashboardService
             RepeatCustomers = repeats.ToList(),
             Urgent = urgent,
             Recent = recent,
-            PartnerEmails = LookupData.Partners.ToDictionary(p => p.Name, p => p.Email),
+            PartnerEmails = dbPartners.ToDictionary(p => p.Name, p => p.Email),
+            PartnerFullNames = dbPartners.ToDictionary(p => p.Name, p => p.FullName),
             FlaggedPhones = flaggedPhones,
             FlaggedNames = flaggedNames
         };

@@ -70,6 +70,8 @@ public class CasesController : Controller
                    .Select(f => f.Label.Trim().ToLowerInvariant()),
             StringComparer.Ordinal);
 
+        var dbPartners = await _db.Partners.AsNoTracking().ToListAsync();
+
         var vm = new CasesListViewModel
         {
             Cases = rows,
@@ -82,7 +84,8 @@ public class CasesController : Controller
             RootCause = rootCause,
             FlaggedPhones = flaggedPhones,
             FlaggedNames = flaggedNames,
-            PartnerEmails = LookupData.Partners.ToDictionary(p => p.Name, p => p.Email)
+            PartnerEmails = dbPartners.ToDictionary(p => p.Name, p => p.Email),
+            PartnerFullNames = dbPartners.ToDictionary(p => p.Name, p => p.FullName)
         };
 
         return View(vm);
@@ -164,6 +167,7 @@ public class CasesController : Controller
         if (entity == null) return NotFound();
 
         var (selected, other) = SplitRootCauses(entity.RootCauses);
+        var (branches, partners) = await GetBranchesAndPartnersAsync();
 
         var vm = new EditCaseViewModel
         {
@@ -187,8 +191,8 @@ public class CasesController : Controller
             RootCauses = selected,
             OtherRootCause = other,
             ValidationNotes = entity.ValidationNotes,
-            Branches = LookupData.Branches,
-            Partners = LookupData.PartnerNames,
+            Branches = branches,
+            Partners = partners,
             RootCauseOptions = LookupData.RootCauses
         };
 
@@ -201,8 +205,9 @@ public class CasesController : Controller
     {
         if (!ModelState.IsValid)
         {
-            vm.Branches = LookupData.Branches;
-            vm.Partners = LookupData.PartnerNames;
+            var (branches, partners) = await GetBranchesAndPartnersAsync();
+            vm.Branches = branches;
+            vm.Partners = partners;
             vm.RootCauseOptions = LookupData.RootCauses;
             return View(vm);
         }
@@ -314,11 +319,18 @@ public class CasesController : Controller
 
     private async Task PopulateLookupsAsync(CaseFormViewModel vm)
     {
-        vm.Branches = LookupData.Branches;
-        vm.Partners = LookupData.PartnerNames;
+        vm.Branches = await _db.Branches.AsNoTracking().OrderBy(b => b.Name).Select(b => b.Name).ToListAsync();
+        vm.Partners = await _db.Partners.AsNoTracking().OrderBy(p => p.Name).Select(p => p.Name).ToListAsync();
         vm.BranchPartnerMap = await _db.BranchAssignments
             .AsNoTracking()
             .ToDictionaryAsync(a => a.BranchName, a => a.AssignedPartner);
+    }
+
+    private async Task<(List<string> Branches, List<string> Partners)> GetBranchesAndPartnersAsync()
+    {
+        var branches = await _db.Branches.AsNoTracking().OrderBy(b => b.Name).Select(b => b.Name).ToListAsync();
+        var partners = await _db.Partners.AsNoTracking().OrderBy(p => p.Name).Select(p => p.Name).ToListAsync();
+        return (branches, partners);
     }
 
     private static (List<string> selected, string? other) SplitRootCauses(IEnumerable<string> rootCauses)

@@ -18,6 +18,7 @@ public class CasesListViewModel
     public IReadOnlyCollection<string> FlaggedPhones { get; set; } = Array.Empty<string>();
     public IReadOnlyCollection<string> FlaggedNames { get; set; } = Array.Empty<string>();
     public IDictionary<string, string> PartnerEmails { get; set; } = new Dictionary<string, string>();
+    public IDictionary<string, string> PartnerFullNames { get; set; } = new Dictionary<string, string>();
 }
 
 public class CaseRow

@@ -3,10 +3,106 @@
     ViewData["Title"] = "Settings";
 }
 
+@Html.AntiForgeryToken()
+
+<h1 class="h4 mb-3">⚙ Settings</h1>
+
+<!-- ============ Partners ============ -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center pb-3 mb-3 border-bottom">
+            <h2 class="h6 mb-0">👤 Partners</h2>
+            <div class="text-muted small">Edit display name and email. The internal partner key cannot be changed.</div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:120px">Key</th>
+                        <th>Full Name</th>
+                        <th>Email</th>
+                        <th style="width:140px" class="text-end"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Model.Partners)
+                    {
+                        <tr data-partner="@p.Name">
+                            <td class="fw-semibold">@p.Name</td>
+                            <td><input class="form-control form-control-sm js-partner-fullname" value="@p.FullName" /></td>
+                            <td><input class="form-control form-control-sm js-partner-email" type="email" value="@p.Email" /></td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-primary js-partner-save" data-partner="@p.Name">Save</button>
+                                <span class="ms-1 small text-success js-partner-saved d-none">✓</span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ============ Branches ============ -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center pb-3 mb-3 border-bottom">
+            <h2 class="h6 mb-0">🏢 Branches</h2>
+            <div class="text-muted small">Add, rename, or remove. Renaming cascades to all referencing cases.</div>
+        </div>
+
+        <form asp-action="AddBranch" method="post" class="row g-2 mb-3">
+            @Html.AntiForgeryToken()
+            <div class="col-md-6">
+                <input class="form-control" name="name" placeholder="New branch name" required maxlength="100" />
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary w-100" type="submit">+ Add Branch</button>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th style="width:220px" class="text-end"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var b in Model.Branches)
+                    {
+                        <tr>
+                            <td>
+                                <form asp-action="RenameBranch" method="post" class="d-flex gap-2">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="oldName" value="@b" />
+                                    <input class="form-control form-control-sm" name="newName" value="@b" required maxlength="100" />
+                                    <button class="btn btn-sm btn-outline-primary" type="submit">Save</button>
+                                </form>
+                            </td>
+                            <td class="text-end">
+                                <form asp-action="DeleteBranch" method="post" class="d-inline"
+                                      onsubmit="return confirm('Delete branch &quot;@b&quot;? This is blocked if any cases reference it.');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="name" value="@b" />
+                                    <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ============ Branch ↔ Partner Assignments ============ -->
 <div class="card">
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 pb-3 mb-3 border-bottom">
-            <h1 class="h5 mb-0">⚙ Branch — SQ Staff Assignment</h1>
+            <h2 class="h6 mb-0">🔗 Branch — SQ Staff Assignment</h2>
             <form asp-action="ResetDefaults" method="post" onsubmit="return confirm('Reset all branch assignments to defaults?');">
                 @Html.AntiForgeryToken()
                 <button type="submit" class="btn btn-outline-secondary btn-sm">🔄 Reset to Default</button>
@@ -30,7 +126,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var row in Model.Rows)
+                    @foreach (var row in Model.Assignments)
                     {
                         <tr data-branch="@row.Branch">
                             <td class="fw-semibold">@row.Branch</td>
@@ -38,13 +134,13 @@
                                 <select class="form-select form-select-sm w-auto js-partner" data-branch="@row.Branch">
                                     @foreach (var p in Model.Partners)
                                     {
-                                        if (p == row.Partner)
+                                        if (p.Name == row.Partner)
                                         {
-                                            <option value="@p" selected>@p</option>
+                                            <option value="@p.Name" selected>@p.Name</option>
                                         }
                                         else
                                         {
-                                            <option value="@p">@p</option>
+                                            <option value="@p.Name">@p.Name</option>
                                         }
                                     }
                                 </select>
@@ -65,18 +161,51 @@
         var indicator = document.getElementById('saveIndicator');
         var indicatorTimer;
 
-        function flashSaved() {
+        function flashIndicator() {
             indicator.classList.remove('d-none');
             clearTimeout(indicatorTimer);
             indicatorTimer = setTimeout(function () { indicator.classList.add('d-none'); }, 1500);
         }
 
+        // Partner edit (AJAX)
+        document.querySelectorAll('.js-partner-save').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var row = btn.closest('tr');
+                var name = btn.getAttribute('data-partner');
+                var fullName = row.querySelector('.js-partner-fullname').value;
+                var email = row.querySelector('.js-partner-email').value;
+                var savedFlag = row.querySelector('.js-partner-saved');
+
+                btn.disabled = true;
+                var body = new URLSearchParams({ name: name, fullName: fullName, email: email, __RequestVerificationToken: token });
+                fetch('@Url.Action("UpdatePartner", "Settings")', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body.toString()
+                })
+                .then(function (r) { if (!r.ok) throw new Error('Save failed'); return r.json(); })
+                .then(function (data) {
+                    // Update any assignments-table email cells that show this partner
+                    document.querySelectorAll('.js-partner').forEach(function (sel) {
+                        if (sel.value === data.name) {
+                            var emailCell = sel.closest('tr').querySelector('.js-email');
+                            if (emailCell) emailCell.textContent = data.email || '—';
+                        }
+                    });
+                    savedFlag.classList.remove('d-none');
+                    setTimeout(function () { savedFlag.classList.add('d-none'); }, 1500);
+                })
+                .catch(function () { alert('Failed to save partner. Please try again.'); })
+                .finally(function () { btn.disabled = false; });
+            });
+        });
+
+        // Assignment auto-save (existing behavior)
         document.querySelectorAll('.js-partner').forEach(function (sel) {
             sel.addEventListener('change', function () {
                 var branch = sel.getAttribute('data-branch');
                 var partner = sel.value;
-                var row = sel.closest('tr');
-                var emailCell = row.querySelector('.js-email');
+                var emailCell = sel.closest('tr').querySelector('.js-email');
 
                 sel.disabled = true;
                 var body = new URLSearchParams({ branch: branch, partner: partner, __RequestVerificationToken: token });
@@ -88,7 +217,7 @@
                 .then(function (r) { if (!r.ok) throw new Error('Save failed'); return r.json(); })
                 .then(function (data) {
                     emailCell.textContent = data.email || '—';
-                    flashSaved();
+                    flashIndicator();
                 })
                 .catch(function () { alert('Failed to save assignment. Please refresh and try again.'); })
                 .finally(function () { sel.disabled = false; });

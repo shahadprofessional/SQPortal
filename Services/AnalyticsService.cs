@@ -23,6 +23,8 @@ public class AnalyticsService
     public async Task<AnalyticsViewModel> BuildAsync(string? month, string? branch, string? partner, DateOnly today)
     {
         var allCases = await _db.Cases.AsNoTracking().ToListAsync();
+        var branches = await _db.Branches.AsNoTracking().OrderBy(b => b.Name).Select(b => b.Name).ToListAsync();
+        var partners = await _db.Partners.AsNoTracking().OrderBy(p => p.Name).Select(p => p.Name).ToListAsync();
 
         var months = allCases
             .Select(c => $"{c.Date.Year:D4}-{c.Date.Month:D2}")
@@ -63,13 +65,13 @@ public class AnalyticsService
                 : 0,
             ByBranch = BuildBranchStats(filtered),
             RootCauseDistribution = BuildRootCauseStats(filtered),
-            ByPartner = BuildPartnerStats(filtered),
+            ByPartner = BuildPartnerStats(filtered, partners),
             Month = month,
             Branch = branch,
             Partner = partner,
             Months = months,
-            Branches = LookupData.Branches,
-            Partners = LookupData.PartnerNames
+            Branches = branches,
+            Partners = partners
         };
     }
 
@@ -125,10 +127,10 @@ public class AnalyticsService
             .ToList();
     }
 
-    private static List<PartnerStats> BuildPartnerStats(IEnumerable<FeedbackCase> cases)
+    private static List<PartnerStats> BuildPartnerStats(IEnumerable<FeedbackCase> cases, IEnumerable<string> partnerNames)
     {
         var list = cases.ToList();
-        return LookupData.PartnerNames
+        return partnerNames
             .Select(name =>
             {
                 var pc = list.Where(c => c.BusinessPartner == name).ToList();

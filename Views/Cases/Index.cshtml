@@ -15,6 +15,11 @@
         if (string.IsNullOrEmpty(partner)) return string.Empty;
         return Model.PartnerEmails.TryGetValue(partner, out var e) ? e : string.Empty;
     }
+    string PartnerFullName(string? partner)
+    {
+        if (string.IsNullOrEmpty(partner)) return string.Empty;
+        return Model.PartnerFullNames.TryGetValue(partner, out var n) ? n : string.Empty;
+    }
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -139,7 +144,8 @@ else
                 {
                     var c = row.Case;
                     var partnerEmail = PartnerEmail(c.BusinessPartner);
-                    var mailto = string.IsNullOrEmpty(partnerEmail) ? string.Empty : DisplayHelpers.BuildLowRatingMailto(c, partnerEmail);
+                    var partnerFullName = PartnerFullName(c.BusinessPartner);
+                    var mailto = string.IsNullOrEmpty(partnerEmail) ? string.Empty : DisplayHelpers.BuildLowRatingMailto(c, partnerEmail, partnerFullName);
                     var rowClasses = (row.SlaBreached ? "tr-breached" : "") + (IsRepeat(c) ? " tr-repeat" : "");
                     <tr data-case-id="@c.Id" class="@rowClasses.Trim()">
                         <td class="text-monospace small">@DisplayHelpers.ShortId(c.Id)</td>

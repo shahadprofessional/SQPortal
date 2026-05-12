@@ -12,6 +12,7 @@ public class SQPortalDbContext : DbContext
     public DbSet<FeedbackCase> Cases => Set<FeedbackCase>();
     public DbSet<BusinessPartner> Partners => Set<BusinessPartner>();
     public DbSet<BranchPartnerAssignment> BranchAssignments => Set<BranchPartnerAssignment>();
+    public DbSet<Branch> Branches => Set<Branch>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -48,6 +49,11 @@ public class SQPortalDbContext : DbContext
         if (!Partners.Any())
         {
             Partners.AddRange(LookupData.Partners);
+        }
+
+        if (!Branches.Any())
+        {
+            Branches.AddRange(LookupData.Branches.Select(b => new Branch { Name = b }));
         }
 
         if (!BranchAssignments.Any())

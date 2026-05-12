@@ -27,7 +27,7 @@ public class WeeklyReportService
     {
         var (start, end, normalizedRange) = ResolveRange(range, today);
 
-        var partnerEmails = LookupData.Partners.ToDictionary(p => p.Name, p => p.Email);
+        var partnerEmails = await _db.Partners.AsNoTracking().ToDictionaryAsync(p => p.Name, p => p.Email);
         var assignments = await _db.BranchAssignments
             .AsNoTracking()
             .ToDictionaryAsync(a => a.BranchName, a => a.AssignedPartner);
