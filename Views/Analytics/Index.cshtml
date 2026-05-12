@@ -82,11 +82,10 @@
 
 @if (Model.Total == 0)
 {
-    <div class="card text-center py-5">
-        <div class="card-body">
-            <div style="font-size:42px">📊</div>
-            <h2 class="h5 mt-2 mb-0 text-muted">No data for these filters</h2>
-        </div>
+    <div class="sq-empty">
+        <div class="sq-empty-emoji">📊</div>
+        <div class="sq-empty-title">No data for these filters</div>
+        <div class="sq-empty-sub">Adjust month, branch, or partner above.</div>
     </div>
 }
 else

@@ -47,16 +47,16 @@
 
 @if (Model.RepeatCustomers.Any())
 {
-    <div class="card border-warning bg-warning-subtle mb-4">
+    <div class="card mb-4" style="border-left: 4px solid #FCD34D;">
         <div class="card-body py-2">
             <div class="d-flex align-items-center flex-wrap gap-2">
-                <strong class="me-2">🔄 Repeat customers</strong>
+                <strong class="me-2 text-sq-navy">🔄 Repeat customers</strong>
                 @foreach (var r in Model.RepeatCustomers)
                 {
-                    <span class="badge bg-warning text-dark border border-warning-subtle">
-                        <span class="fw-semibold">@r.Label</span>
-                        <span class="ms-1 text-muted small">@r.Sub</span>
-                        <span class="ms-2 badge bg-dark">@r.Count</span>
+                    <span class="repeat-pill">
+                        <span>@r.Label</span>
+                        <span class="repeat-pill-sub">@r.Sub</span>
+                        <span class="repeat-pill-count">@r.Count</span>
                     </span>
                 }
             </div>
@@ -69,7 +69,11 @@
 </div>
 @if (!Model.Urgent.Any())
 {
-    <div class="alert alert-light border mb-4">No urgent cases — nothing overdue or due today.</div>
+    <div class="sq-empty sq-empty-success mb-4">
+        <div class="sq-empty-emoji">✅</div>
+        <div class="sq-empty-title">No urgent cases</div>
+        <div class="sq-empty-sub">Nothing overdue or due today.</div>
+    </div>
 }
 else
 {
@@ -115,11 +119,11 @@ else
                         <td>
                             @if (row.SlaBreached)
                             {
-                                <span class="badge bg-danger">Breached</span>
+                                <span class="badge-sq badge-sq-breached">Breached</span>
                             }
                             else
                             {
-                                <span class="badge bg-warning text-dark">Due @c.DueDate.ToString("MM-dd")</span>
+                                <span class="badge-sq badge-sq-pending">Due @c.DueDate.ToString("MM-dd")</span>
                             }
                         </td>
                         <td class="text-end text-nowrap">
@@ -145,7 +149,11 @@ else
 </div>
 @if (!Model.Recent.Any())
 {
-    <div class="alert alert-light border">No cases yet. <a asp-controller="Cases" asp-action="Create">Add the first one</a>.</div>
+    <div class="sq-empty">
+        <div class="sq-empty-emoji">📋</div>
+        <div class="sq-empty-title">No cases yet</div>
+        <div class="sq-empty-sub"><a asp-controller="Cases" asp-action="Create">Add the first one</a> to get started.</div>
+    </div>
 }
 else
 {
@@ -181,7 +189,7 @@ else
                         <td class="text-center">@DisplayHelpers.Stars(c.BranchRating)</td>
                         <td class="text-center">@DisplayHelpers.Stars(c.StaffRating)</td>
                         <td>
-                            <span class="badge @(c.FollowUpStatus == FollowUpStatus.Completed ? "bg-success" : "bg-warning text-dark")">
+                            <span class="badge-sq @(c.FollowUpStatus == FollowUpStatus.Completed ? "badge-sq-completed" : "badge-sq-pending")">
                                 @c.FollowUpStatus
                             </span>
                         </td>
@@ -206,15 +214,15 @@ else
             btn.addEventListener('click', function () {
                 var id = btn.getAttribute('data-case-id');
                 if (!id) return;
+                // Optimistic update — match the prototype's immediate-feedback behavior
+                btn.classList.add('btn-email-sent');
+                btn.textContent = '✓ Email';
+                btn.setAttribute('title', 'Email already sent');
                 var body = new URLSearchParams({ id: id, __RequestVerificationToken: token });
                 fetch('@Url.Action("MarkEmailSent", "Cases")', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: body.toString()
-                }).then(function () {
-                    btn.classList.add('btn-email-sent');
-                    btn.textContent = '✓ Email';
-                    btn.setAttribute('title', 'Email already sent');
                 }).catch(function () {});
             });
         });

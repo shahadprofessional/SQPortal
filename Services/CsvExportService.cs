@@ -8,10 +8,10 @@ public class CsvExportService
 {
     private static readonly string[] Headers = new[]
     {
-        "Id", "Date", "Customer", "Phone", "Ticket", "Branch", "Partner",
-        "BranchRating", "BranchComment", "StaffName", "StaffRating", "StaffComment",
-        "DueDate", "FollowUpStatus", "FollowUpDate", "FollowUpNotes",
-        "CaseValidation", "RootCauses", "ValidationNotes", "EmailSent"
+        "ID", "Date", "Customer", "Phone", "Branch", "Ticket",
+        "Branch Rtg", "Branch Comment", "Staff Name", "Staff Rtg", "Staff Comment",
+        "Partner", "Due Date", "Status", "Follow-up Date", "Follow-up Notes",
+        "Validation", "Root Causes", "Validation Notes", "Email Sent"
     };
 
     public byte[] Build(IEnumerable<FeedbackCase> cases)
@@ -27,14 +27,14 @@ public class CsvExportService
                 Escape(c.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
                 Escape(c.CustomerName),
                 Escape(c.CustomerPhone),
-                Escape(c.TicketNumber),
                 Escape(c.Branch),
-                Escape(c.BusinessPartner),
+                Escape(c.TicketNumber),
                 Escape(c.BranchRating.ToString()),
                 Escape(c.BranchComment),
                 Escape(c.StaffName),
                 Escape(c.StaffRating.ToString()),
                 Escape(c.StaffComment),
+                Escape(c.BusinessPartner),
                 Escape(c.DueDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
                 Escape(c.FollowUpStatus.ToString()),
                 Escape(c.FollowUpDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),

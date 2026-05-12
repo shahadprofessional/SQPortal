@@ -54,11 +54,10 @@
 
 @if (Model.TotalPoorCases == 0)
 {
-    <div class="card text-center py-5">
-        <div class="card-body">
-            <div style="font-size:46px">🎉</div>
-            <h2 class="h5 mt-2 mb-0 text-success">No Poor Ratings This Period</h2>
-        </div>
+    <div class="sq-empty sq-empty-success">
+        <div class="sq-empty-emoji">🎉</div>
+        <div class="sq-empty-title">No Poor Ratings This Period</div>
+        <div class="sq-empty-sub">Nothing flagged 1–2★ in this date range.</div>
     </div>
 }
 else
@@ -81,7 +80,7 @@ else
                         </div>
                     </div>
                     <div class="d-flex gap-2 align-items-center">
-                        <span class="badge bg-danger-subtle text-danger fw-semibold">@b.PoorCaseCount feedbacks</span>
+                        <span class="badge-sq badge-sq-feedbacks">@b.PoorCaseCount feedbacks</span>
                         <a class="btn btn-primary btn-sm" href="@b.MailtoLink">📧 Send Report</a>
                         <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse" data-bs-target="#@previewId">👁 Preview</button>
                     </div>
@@ -135,7 +134,7 @@ else
                                         }
                                     </td>
                                     <td>
-                                        <span class="badge @(c.FollowUpStatus == FollowUpStatus.Completed ? "bg-success" : "bg-warning text-dark")">
+                                        <span class="badge-sq @(c.FollowUpStatus == FollowUpStatus.Completed ? "badge-sq-completed" : "badge-sq-pending")">
                                             @c.FollowUpStatus
                                         </span>
                                     </td>
