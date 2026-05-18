@@ -11,22 +11,24 @@
     <div class="alert alert-warning">@Model.DuplicateWarning</div>
 }
 
-<form id="caseForm" asp-action="Create" method="post" class="card card-body bg-white shadow-sm">
+<form id="caseForm" asp-action="Create" method="post" class="card card-body bg-white shadow-sm" novalidate>
     @Html.AntiForgeryToken()
-    <div asp-validation-summary="All" class="text-danger mb-3"></div>
+    <div asp-validation-summary="All" class="text-danger mb-3" id="validationSummary"></div>
 
     <h2 class="h6 text-muted">Customer &amp; case info</h2>
     <div class="row g-3 mb-3">
         <div class="col-md-4">
             <label asp-for="CustomerName" class="form-label"></label>
             <input asp-for="CustomerName" class="form-control js-letters-only"
-                   pattern="[A-Za-z ]+" maxlength="200"
+                   pattern="[A-Za-z ]+" maxlength="200" required
+                   data-error-label="Customer name"
                    title="Letters and spaces only" />
         </div>
         <div class="col-md-3">
             <label asp-for="CustomerPhone" class="form-label"></label>
             <input asp-for="CustomerPhone" class="form-control js-digits-only" id="customerPhone"
-                   inputmode="numeric" pattern="[0-9]{8}" minlength="8" maxlength="8"
+                   inputmode="numeric" pattern="[0-9]{8}" minlength="8" maxlength="8" required
+                   data-error-label="Customer phone"
                    title="Exactly 8 digits" />
             <div id="dupWarning" class="text-warning small mt-1"></div>
         </div>
@@ -34,15 +36,17 @@
             <label asp-for="TicketNumber" class="form-label"></label>
             <input asp-for="TicketNumber" class="form-control js-digits-only"
                    inputmode="numeric" pattern="[0-9]*" maxlength="60"
+                   data-error-label="Ticket number"
                    title="Digits only" />
         </div>
         <div class="col-md-3">
             <label asp-for="Date" class="form-label">Date</label>
-            <input asp-for="Date" class="form-control" max="@today" />
+            <input asp-for="Date" class="form-control" max="@today" required
+                   data-error-label="Date" />
         </div>
         <div class="col-md-4">
             <label asp-for="Branch" class="form-label"></label>
-            <select asp-for="Branch" class="form-select" id="branchSelect" required>
+            <select asp-for="Branch" class="form-select" id="branchSelect" required data-error-label="Branch">
                 <option value="">-- Select --</option>
                 @foreach (var b in Model.Branches)
                 {
@@ -73,6 +77,7 @@
             <label asp-for="BranchComment" class="form-label"></label>
             <input asp-for="BranchComment" class="form-control js-comment"
                    pattern="[A-Za-z0-9 &amp;+#]*"
+                   data-error-label="Branch comment"
                    title="Letters, numbers, spaces, and the symbols & + # only" />
         </div>
     </div>
@@ -83,6 +88,7 @@
             <label asp-for="StaffName" class="form-label"></label>
             <input asp-for="StaffName" class="form-control js-letters-only"
                    pattern="[A-Za-z ]*" maxlength="200"
+                   data-error-label="Staff name"
                    title="Letters and spaces only" />
         </div>
         <div class="col-md-2">
@@ -100,6 +106,7 @@
             <label asp-for="StaffComment" class="form-label"></label>
             <input asp-for="StaffComment" class="form-control js-comment"
                    pattern="[A-Za-z0-9 &amp;+#]*"
+                   data-error-label="Staff comment"
                    title="Letters, numbers, spaces, and the symbols & + # only" />
         </div>
     </div>
@@ -166,6 +173,68 @@
                 }, 300);
             });
         }
+
+        // Submit-time validation — mirrors CaseFormViewModel rules client-side
+        // so all errors land in the same top summary as the server-side path,
+        // in form (DOM) order. Server still validates as defense in depth.
+        var form = document.getElementById('caseForm');
+        var summary = document.getElementById('validationSummary');
+        var today = '@today';
+        var branchRatingEl = document.querySelector('[name="BranchRating"]');
+        var staffRatingEl  = document.querySelector('[name="StaffRating"]');
+
+        function fieldError(el) {
+            var label = el.getAttribute('data-error-label') || el.name || 'Field';
+            var value = (el.value || '').trim();
+            if (el.hasAttribute('required') && value === '') {
+                return label + ' is required.';
+            }
+            if (value === '') return null; // optional + empty = fine
+            var min = el.getAttribute('minlength');
+            var max = el.getAttribute('maxlength');
+            if (min && max && min === max && value.length !== parseInt(min, 10)) {
+                return label + ' must be exactly ' + min + ' characters.';
+            }
+            var pattern = el.getAttribute('pattern');
+            if (pattern) {
+                var re = new RegExp('^(?:' + pattern + ')$');
+                if (!re.test(value)) {
+                    var hint = el.getAttribute('title');
+                    return label + (hint ? ' — ' + hint.toLowerCase() : ' is invalid') + '.';
+                }
+            }
+            return null;
+        }
+
+        form.addEventListener('submit', function (e) {
+            var errors = [];
+            // Iterate validated inputs/selects in DOM order
+            form.querySelectorAll('[data-error-label]').forEach(function (el) {
+                var msg = fieldError(el);
+                if (msg) errors.push(msg);
+            });
+            // Compound: date not in future
+            var dateEl = document.querySelector('[name="Date"]');
+            if (dateEl && dateEl.value && dateEl.value > today) {
+                errors.push('Date cannot be in the future.');
+            }
+            // Compound: at least one rating
+            var br = branchRatingEl ? parseInt(branchRatingEl.value || '0', 10) : 0;
+            var sr = staffRatingEl  ? parseInt(staffRatingEl.value  || '0', 10) : 0;
+            if (br === 0 && sr === 0) {
+                errors.push('At least one rating (branch or staff) is required.');
+            }
+            if (errors.length === 0) return; // let the form submit
+            e.preventDefault();
+            var ul = '<ul class="validation-summary-errors">';
+            errors.forEach(function (m) {
+                var safe = m.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                ul += '<li>' + safe + '</li>';
+            });
+            ul += '</ul>';
+            summary.innerHTML = ul;
+            summary.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
     })();
 </script>
 }
