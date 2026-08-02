@@ -156,6 +156,27 @@ a, .text-primary {
     margin-top: 6px;
     letter-spacing: 0.02em;
 }
+/* Pressable stat cards — each one opens its own case list */
+a.stat-card-link {
+    display: block;
+    text-decoration: none;
+    color: inherit !important;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+a.stat-card-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(17, 30, 56, 0.14);
+}
+a.stat-card-link:focus-visible {
+    outline: 2px solid var(--accent-color, var(--sq-navy));
+    outline-offset: 2px;
+}
+a.stat-card-link.stat-card-active {
+    background: #FAFCFF;
+    box-shadow: 0 0 0 2px var(--accent-color, var(--sq-navy)), 0 1px 8px rgba(17, 30, 56, 0.07);
+}
+
 .accent-navy   { --accent-color: var(--sq-navy); }
 .accent-amber  { --accent-color: #D97706; }
 .accent-red    { --accent-color: var(--sq-red); }
@@ -168,6 +189,24 @@ a, .text-primary {
 tr.tr-repeat   { background-color: #FFFBEB !important; }
 tr.tr-breached { background-color: #FEF2F2 !important; }
 tr.tr-repeat.tr-breached { background-color: #FEF2F2 !important; } /* breach wins when both apply */
+
+/* Pressable case records */
+tr.sq-row-pressable {
+    cursor: pointer;
+}
+/* Cell-level tint so it also covers the row context colors (repeat / breached) */
+.sq-case-table tbody tr.sq-row-pressable:hover > * {
+    background-color: #EAF0FA;
+}
+tr.sq-row-pressable:focus-visible {
+    outline: 2px solid var(--sq-navy);
+    outline-offset: -2px;
+}
+.sq-row-actions .btn + .btn,
+.sq-row-actions .btn + form,
+.sq-row-actions form + .btn {
+    margin-left: 4px;
+}
 
 /* Brand badges — exact hex pairs from prototype's BM color map */
 .badge-sq {
