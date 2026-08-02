@@ -48,12 +48,16 @@ public class SQPortalDbContext : DbContext
     }
 
     /// <summary>
-    /// Gives every case created before CaseNumber existed a number, oldest first.
-    /// Ids are unix-ms timestamps, so ordering by Id is creation order.
+    /// Gives every case created before CaseNumber existed a number, oldest case date
+    /// first, so the numbers read in the same order as the list. Cases sharing a date
+    /// fall back to Id, which is a unix-ms timestamp and therefore creation order.
     /// </summary>
     public void BackfillCaseNumbers()
     {
-        var unnumbered = Cases.Where(c => c.CaseNumber == 0).OrderBy(c => c.Id).ToList();
+        var unnumbered = Cases.Where(c => c.CaseNumber == 0)
+            .OrderBy(c => c.Date)
+            .ThenBy(c => c.Id)
+            .ToList();
         if (unnumbered.Count == 0) return;
 
         var next = (Cases.Max(c => (int?)c.CaseNumber) ?? 0) + 1;

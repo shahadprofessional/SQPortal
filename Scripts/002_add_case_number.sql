@@ -7,8 +7,11 @@
 --
 -- Adds Cases.CaseNumber (1, 2, 3, …) — the human-facing case ID shown in the
 -- lists. The NVARCHAR Id stays the primary key and keeps driving URLs.
--- Existing rows are numbered oldest-first (Id is a unix-ms timestamp, so Id
--- order is creation order).
+-- Existing rows are numbered oldest case date first, ties broken by Id (a
+-- unix-ms timestamp, so Id order is creation order).
+--
+-- Already ran an earlier copy of this script that numbered by Id alone? Run
+-- Scripts/003_renumber_cases_by_date.sql to put the numbers back in date order.
 --
 -- Re-runnable: YES — both steps are guarded.
 -- ============================================================================
@@ -35,7 +38,7 @@ DECLARE @offset INT = (SELECT ISNULL(MAX(CaseNumber), 0) FROM dbo.Cases);
 ;WITH numbered AS
 (
     SELECT CaseNumber,
-           ROW_NUMBER() OVER (ORDER BY Id) AS rn
+           ROW_NUMBER() OVER (ORDER BY [Date], Id) AS rn
     FROM dbo.Cases
     WHERE CaseNumber = 0
 )

@@ -13,7 +13,7 @@ body.bg-light {
     background-color: var(--sq-bg) !important;
 }
 
-/* Navbar — brand top-left, user top-right, tabs centered on their own row */
+/* Navbar — one row: brand left, tabs centered, user right */
 .navbar.bg-dark {
     background-color: var(--sq-navy-dark) !important;
     border-bottom: 3px solid var(--sq-gold);
@@ -24,12 +24,38 @@ body.bg-light {
     padding-top: 0;
     padding-bottom: 0;
 }
-.sq-navbar .sq-navbar-top {
-    padding: 10px 0 6px;
+/* Grid, not flex: the side columns share the leftover space equally, so the
+   tabs sit dead centre of the bar rather than centred between two odd widths. */
+.sq-navbar > .sq-navbar-inner {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    column-gap: 1rem;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+.sq-navbar .navbar-brand {
+    justify-self: start;
 }
 .sq-navbar .sq-navbar-tabs {
+    justify-self: center;
     gap: 0.25rem 1.25rem;
-    padding-bottom: 6px;
+    margin-bottom: 0;
+}
+.sq-navbar .sq-user {
+    justify-self: end;
+}
+
+/* Narrow screens: brand and user keep the top line, tabs drop underneath */
+@media (max-width: 991.98px) {
+    .sq-navbar > .sq-navbar-inner {
+        grid-template-columns: 1fr auto;
+        row-gap: 6px;
+    }
+    .sq-navbar .sq-navbar-tabs {
+        grid-row: 2;
+        grid-column: 1 / -1;
+    }
 }
 .navbar-brand {
     font-weight: 700;
