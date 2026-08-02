@@ -19,33 +19,51 @@
         if (string.IsNullOrEmpty(partner)) return string.Empty;
         return Model.PartnerFullNames.TryGetValue(partner, out var n) ? n : string.Empty;
     }
+
+    // Card + active filters + page, ready for asp-all-route-data on the pagination links.
+    Dictionary<string, string> RouteFor(int page)
+    {
+        var data = new Dictionary<string, string>
+        {
+            ["card"] = Model.SelectedCard,
+            ["page"] = page.ToString()
+        };
+        if (!string.IsNullOrWhiteSpace(Model.Search)) data["search"] = Model.Search;
+        if (!string.IsNullOrWhiteSpace(Model.Month)) data["month"] = Model.Month;
+        if (Model.Status.HasValue) data["status"] = Model.Status.Value.ToString();
+        if (!string.IsNullOrWhiteSpace(Model.RootCause)) data["rootCause"] = Model.RootCause;
+        return data;
+    }
+
+    var returnUrl = Url.Action("Index", "Dashboard", new
+    {
+        card = Model.SelectedCard,
+        search = Model.Search,
+        month = Model.Month,
+        status = Model.Status,
+        rootCause = Model.RootCause,
+        page = Model.Page
+    });
 }
 
 <h1 class="h3 mb-3">Dashboard <span class="text-muted fs-6">@Model.Today.ToString("yyyy-MM-dd")</span></h1>
 
 <div class="row g-2 mb-4">
-    @{
-        var stats = new (string Label, int Value, string Accent)[]
-        {
-            ("Total",         Model.Total,       "accent-navy"),
-            ("This month",    Model.Month,       "accent-navy"),
-            ("Pending",       Model.Pending,     "accent-amber"),
-            ("SLA breached",  Model.Breached,    Model.Breached > 0 ? "accent-red" : "accent-green"),
-            ("Completed",     Model.Done,        "accent-green"),
-            ("Valid",         Model.Valid,       "accent-green"),
-            ("Not valid",     Model.NotValid,    "accent-gray"),
-            ("Under review",  Model.UnderReview, "accent-indigo"),
-            ("Staff issues",  Model.StaffIssues, "accent-orange"),
-            ("Branch issues", Model.BranchIssues,"accent-orange"),
-        };
-    }
-    @foreach (var s in stats)
+    @foreach (var card in Model.Cards)
     {
-        <div class="col-6 col-md-3 col-lg-2">
-            <div class="stat-card @s.Accent">
-                <div class="stat-value">@s.Value</div>
-                <div class="stat-label">@s.Label</div>
-            </div>
+        <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+            <a class="stat-card stat-card-link @card.Accent @(card.IsSelected ? "stat-card-active" : "")"
+               asp-action="Index"
+               asp-route-card="@card.Key"
+               asp-route-search="@Model.Search"
+               asp-route-month="@Model.Month"
+               asp-route-status="@Model.Status"
+               asp-route-rootCause="@Model.RootCause"
+               title="@card.Hint"
+               aria-current="@(card.IsSelected ? "true" : null)">
+                <div class="stat-value">@card.Value</div>
+                <div class="stat-label">@card.Label</div>
+            </a>
         </div>
     }
 </div>
@@ -70,46 +88,133 @@
 }
 
 <div class="d-flex justify-content-between align-items-center mb-2">
-    <h2 class="h5 mb-0">Urgent <span class="text-muted small">(@Model.Urgent.Count)</span></h2>
+    <h2 class="h5 mb-0">
+        @Model.SelectedCardLabel
+        <span class="text-muted small">(@Model.TotalItems)</span>
+    </h2>
+    <a class="small" asp-controller="Cases" asp-action="Index">Open in Cases &rarr;</a>
 </div>
-@if (!Model.Urgent.Any())
+
+<form method="get" asp-action="Index" class="card card-body mb-3">
+    <input type="hidden" name="card" value="@Model.SelectedCard" />
+    <div class="row g-2">
+        <div class="col-md-4">
+            <label class="form-label small text-muted">Search</label>
+            <input class="form-control" name="search" value="@Model.Search"
+                   placeholder="Case ID, customer, phone, branch, staff, ticket" />
+        </div>
+        <div class="col-md-2">
+            <label class="form-label small text-muted">Month</label>
+            <select class="form-select" name="month">
+                <option value="">All</option>
+                @foreach (var m in Model.Months)
+                {
+                    if (m == Model.Month)
+                    {
+                        <option value="@m" selected>@DisplayHelpers.FormatMonth(m)</option>
+                    }
+                    else
+                    {
+                        <option value="@m">@DisplayHelpers.FormatMonth(m)</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label small text-muted">Status</label>
+            <select class="form-select" name="status">
+                <option value="">All</option>
+                @foreach (var status in Enum.GetValues<FollowUpStatus>())
+                {
+                    if (Model.Status == status)
+                    {
+                        <option value="@status" selected>@status</option>
+                    }
+                    else
+                    {
+                        <option value="@status">@status</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small text-muted">Root cause</label>
+            <select class="form-select" name="rootCause">
+                <option value="">All</option>
+                @foreach (var r in Model.RootCauseOptions)
+                {
+                    if (r == Model.RootCause)
+                    {
+                        <option value="@r" selected>@r</option>
+                    }
+                    else
+                    {
+                        <option value="@r">@r</option>
+                    }
+                }
+                @if (Model.RootCause == "Other")
+                {
+                    <option value="Other" selected>Other</option>
+                }
+                else
+                {
+                    <option value="Other">Other</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-1 d-flex align-items-end">
+            <button class="btn btn-primary w-100" type="submit">Filter</button>
+        </div>
+    </div>
+    @if (Model.HasFilters)
+    {
+        <div class="mt-2">
+            <a asp-action="Index" asp-route-card="@Model.SelectedCard" class="small">Clear filters</a>
+        </div>
+    }
+</form>
+
+@if (!Model.Items.Any())
 {
-    <div class="sq-empty sq-empty-success mb-4">
-        <div class="sq-empty-emoji">✅</div>
-        <div class="sq-empty-title">No urgent cases</div>
-        <div class="sq-empty-sub">Nothing overdue or due today.</div>
+    <div class="sq-empty">
+        <div class="sq-empty-emoji">🔍</div>
+        <div class="sq-empty-title">No cases in “@Model.SelectedCardLabel”</div>
+        <div class="sq-empty-sub">Try another card, or clear the filters.</div>
     </div>
 }
 else
 {
     @Html.AntiForgeryToken()
-    <div class="table-responsive bg-white rounded shadow-sm mb-4 border-start border-danger border-4">
-        <table class="table table-sm table-hover align-middle mb-0">
+    <div class="table-responsive bg-white rounded shadow-sm">
+        <table class="table table-sm table-hover align-middle mb-0 sq-case-table">
             <thead class="table-light">
                 <tr>
-                    <th>ID</th>
+                    <th>Case ID</th>
                     <th>Date</th>
                     <th>Customer</th>
-                    <th>Phone</th>
                     <th>Branch</th>
-                    <th class="text-center">Branch ★</th>
-                    <th>Staff</th>
-                    <th>Partner</th>
+                    <th>Root cause</th>
+                    <th>Status</th>
                     <th>SLA</th>
-                    <th></th>
+                    <th class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach (var row in Model.Urgent)
+                @foreach (var row in Model.Items)
                 {
                     var c = row.Case;
                     var partnerEmail = PartnerEmail(c.BusinessPartner);
                     var partnerFullName = PartnerFullName(c.BusinessPartner);
                     var mailto = string.IsNullOrEmpty(partnerEmail) ? string.Empty : DisplayHelpers.BuildLowRatingMailto(c, partnerEmail, partnerFullName);
+                    var rootCauses = c.RootCauses.Any() ? string.Join(", ", c.RootCauses) : "—";
                     var rowClasses = (row.SlaBreached ? "tr-breached" : "") + (IsRepeat(c) ? " tr-repeat" : "");
-                    <tr data-case-id="@c.Id" class="@rowClasses.Trim()">
+                    <tr class="sq-row-pressable @rowClasses.Trim()"
+                        data-case-id="@c.Id"
+                        data-case-label="@DisplayHelpers.ShortId(c.Id)"
+                        tabindex="0" role="button"
+                        title="Open case (details coming soon)">
                         <td class="text-monospace small">@DisplayHelpers.ShortId(c.Id)</td>
-                        <td>@c.Date.ToString("yyyy-MM-dd")</td>
+                        <td class="text-nowrap">@c.Date.ToString("yyyy-MM-dd")</td>
                         <td>
                             @c.CustomerName
                             @if (IsRepeat(c))
@@ -117,11 +222,13 @@ else
                                 <span class="repeat-marker" title="Repeat customer">🔄</span>
                             }
                         </td>
-                        <td>@c.CustomerPhone</td>
                         <td>@c.Branch</td>
-                        <td class="text-center">@DisplayHelpers.Stars(c.BranchRating)</td>
-                        <td>@c.StaffName</td>
-                        <td>@c.BusinessPartner</td>
+                        <td class="small">@rootCauses</td>
+                        <td>
+                            <span class="badge-sq @(c.FollowUpStatus == FollowUpStatus.Completed ? "badge-sq-completed" : "badge-sq-pending")">
+                                @c.FollowUpStatus
+                            </span>
+                        </td>
                         <td>
                             @if (row.SlaBreached)
                             {
@@ -129,90 +236,136 @@ else
                             }
                             else
                             {
-                                <span class="badge-sq badge-sq-pending">Due @c.DueDate.ToString("MM-dd")</span>
+                                <span class="text-muted small text-nowrap">Due @c.DueDate.ToString("MM-dd")</span>
                             }
                         </td>
-                        <td class="text-end text-nowrap">
-                            <a class="btn btn-sm btn-outline-secondary" asp-controller="Cases" asp-action="Edit" asp-route-id="@c.Id">Edit</a>
+                        <td class="text-end text-nowrap sq-row-actions">
+                            <a class="btn btn-sm btn-outline-secondary"
+                               asp-controller="Cases" asp-action="Edit" asp-route-id="@c.Id">Edit</a>
+                            <form asp-controller="Cases" asp-action="Delete" asp-route-id="@c.Id" method="post" class="d-inline"
+                                  onsubmit="return confirm('Delete this case? This cannot be undone.');">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                            </form>
                             @if (!string.IsNullOrEmpty(mailto))
                             {
                                 <a class="btn btn-sm btn-outline-primary js-email-btn @(c.EmailSent ? "btn-email-sent" : "")"
-                                   href="@mailto" data-case-id="@c.Id" title="@(c.EmailSent ? "Email already sent" : "Send partner email")">
+                                   href="@mailto" data-case-id="@c.Id"
+                                   title="@(c.EmailSent ? "Email already sent" : "Send partner email")">
                                     @(c.EmailSent ? "✓ Email" : "📧 Email")
                                 </a>
                             }
+                            else
+                            {
+                                <button class="btn btn-sm btn-outline-primary" type="button" disabled
+                                        title="No partner email on file">📧 Email</button>
+                            }
                         </td>
                     </tr>
                 }
             </tbody>
         </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
+        <div class="small text-muted">
+            Showing @Model.FirstItemOnPage–@Model.LastItemOnPage of @Model.TotalItems
+        </div>
+        @if (Model.TotalPages > 1)
+        {
+            var windowStart = Math.Max(1, Model.Page - 2);
+            var windowEnd = Math.Min(Model.TotalPages, windowStart + 4);
+            windowStart = Math.Max(1, windowEnd - 4);
+
+            <nav aria-label="Case list pages" class="ms-auto">
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
+                        <a class="page-link" asp-action="Index"
+                           asp-all-route-data="@RouteFor(Math.Max(1, Model.Page - 1))">Previous</a>
+                    </li>
+
+                    @if (windowStart > 1)
+                    {
+                        <li class="page-item">
+                            <a class="page-link" asp-action="Index" asp-all-route-data="@RouteFor(1)">1</a>
+                        </li>
+                        if (windowStart > 2)
+                        {
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        }
+                    }
+
+                    @for (var p = windowStart; p <= windowEnd; p++)
+                    {
+                        <li class="page-item @(p == Model.Page ? "active" : "")">
+                            <a class="page-link" asp-action="Index" asp-all-route-data="@RouteFor(p)">@p</a>
+                        </li>
+                    }
+
+                    @if (windowEnd < Model.TotalPages)
+                    {
+                        if (windowEnd < Model.TotalPages - 1)
+                        {
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        }
+                        <li class="page-item">
+                            <a class="page-link" asp-action="Index" asp-all-route-data="@RouteFor(Model.TotalPages)">@Model.TotalPages</a>
+                        </li>
+                    }
+
+                    <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")">
+                        <a class="page-link" asp-action="Index"
+                           asp-all-route-data="@RouteFor(Math.Min(Model.TotalPages, Model.Page + 1))">Next</a>
+                    </li>
+                </ul>
+            </nav>
+        }
     </div>
 }
 
-<div class="d-flex justify-content-between align-items-center mb-2">
-    <h2 class="h5 mb-0">Recent</h2>
-    <a class="small" asp-controller="Cases" asp-action="Index">View all cases &rarr;</a>
+<div class="modal fade" id="caseDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Case <span class="text-monospace" id="caseDetailId"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0 text-muted">Full case details are coming soon.</p>
+            </div>
+        </div>
+    </div>
 </div>
-@if (!Model.Recent.Any())
-{
-    <div class="sq-empty">
-        <div class="sq-empty-emoji">📋</div>
-        <div class="sq-empty-title">No cases yet</div>
-        <div class="sq-empty-sub"><a asp-controller="Cases" asp-action="Create">Add the first one</a> to get started.</div>
-    </div>
-}
-else
-{
-    <div class="table-responsive bg-white rounded shadow-sm">
-        <table class="table table-sm table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>Date</th>
-                    <th>Customer</th>
-                    <th>Branch</th>
-                    <th class="text-center">Branch ★</th>
-                    <th class="text-center">Staff ★</th>
-                    <th>Status</th>
-                    <th class="text-end">Age</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var row in Model.Recent)
-                {
-                    var c = row.Case;
-                    var rowClasses = IsRepeat(c) ? "tr-repeat" : "";
-                    <tr class="@rowClasses">
-                        <td>@c.Date.ToString("yyyy-MM-dd")</td>
-                        <td>
-                            @c.CustomerName
-                            @if (IsRepeat(c))
-                            {
-                                <span class="repeat-marker" title="Repeat customer">🔄</span>
-                            }
-                        </td>
-                        <td>@c.Branch</td>
-                        <td class="text-center">@DisplayHelpers.Stars(c.BranchRating)</td>
-                        <td class="text-center">@DisplayHelpers.Stars(c.StaffRating)</td>
-                        <td>
-                            <span class="badge-sq @(c.FollowUpStatus == FollowUpStatus.Completed ? "badge-sq-completed" : "badge-sq-pending")">
-                                @c.FollowUpStatus
-                            </span>
-                        </td>
-                        <td class="text-end">@row.AgeDays d</td>
-                        <td class="text-end">
-                            <a class="btn btn-sm btn-outline-secondary" asp-controller="Cases" asp-action="Edit" asp-route-id="@c.Id">Edit</a>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-}
 
 @section Scripts {
 <script>
     (function () {
+        // Pressable records — the detail view lands later; for now confirm the press target.
+        var modalEl = document.getElementById('caseDetailModal');
+        var labelEl = document.getElementById('caseDetailId');
+
+        function openCase(tr) {
+            if (!modalEl || !window.bootstrap) return;
+            labelEl.textContent = tr.getAttribute('data-case-label') || '';
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+
+        document.querySelectorAll('tr.sq-row-pressable').forEach(function (tr) {
+            tr.addEventListener('click', function (e) {
+                // Let the row's own buttons/links win.
+                if (e.target.closest('a, button, form, input')) return;
+                openCase(tr);
+            });
+            tr.addEventListener('keydown', function (e) {
+                if (e.target !== tr) return;
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openCase(tr);
+                }
+            });
+        });
+
         var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
         if (!tokenEl) return;
         var token = tokenEl.value;
@@ -229,7 +382,7 @@ else
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: body.toString()
-                }).catch(function () {});
+                }).catch(function () { /* leave UI optimistic; will reconcile on next page load */ });
             });
         });
     })();

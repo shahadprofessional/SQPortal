@@ -254,7 +254,7 @@ public class CasesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Delete(string id)
+    public async Task<IActionResult> Delete(string id, string? returnUrl = null)
     {
         var entity = await _db.Cases.FirstOrDefaultAsync(c => c.Id == id);
         if (entity == null) return NotFound();
@@ -263,6 +263,13 @@ public class CasesController : Controller
         await _db.SaveChangesAsync();
 
         TempData["StatusMessage"] = "Case deleted.";
+
+        // Deleting from the dashboard list should land back on the same card/page.
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl);
+        }
+
         return RedirectToAction(nameof(Index));
     }
 
