@@ -121,6 +121,11 @@ public class CasesController : Controller
     {
         await PopulateLookupsAsync(vm);
 
+        if (vm.Date > DateOnly.FromDateTime(DateTime.Today))
+        {
+            ModelState.AddModelError(nameof(vm.Date), "Date cannot be in the future.");
+        }
+
         if (vm.BranchRating == 0 && vm.StaffRating == 0)
         {
             ModelState.AddModelError(string.Empty, "At least one rating (branch or staff) is required.");

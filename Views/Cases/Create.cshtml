@@ -1,6 +1,7 @@
 @model CaseFormViewModel
 @{
     ViewData["Title"] = "Add Case";
+    var today = DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd");
 }
 
 <h1 class="h3 mb-3">Add new case</h1>
@@ -10,41 +11,48 @@
     <div class="alert alert-warning">@Model.DuplicateWarning</div>
 }
 
-<form asp-action="Create" method="post" class="card card-body bg-white shadow-sm">
+<form id="caseForm" asp-action="Create" method="post" class="card card-body bg-white shadow-sm" novalidate>
     @Html.AntiForgeryToken()
-    <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+    <div asp-validation-summary="All" class="text-danger mb-3" id="validationSummary"></div>
 
     <h2 class="h6 text-muted">Customer &amp; case info</h2>
     <div class="row g-3 mb-3">
         <div class="col-md-4">
             <label asp-for="CustomerName" class="form-label"></label>
-            <input asp-for="CustomerName" class="form-control" />
-            <span asp-validation-for="CustomerName" class="text-danger small"></span>
+            <input asp-for="CustomerName" class="form-control js-letters-only"
+                   pattern="[A-Za-z ]+" maxlength="200" required
+                   data-error-label="Customer name"
+                   title="Letters and spaces only" />
         </div>
         <div class="col-md-3">
             <label asp-for="CustomerPhone" class="form-label"></label>
-            <input asp-for="CustomerPhone" class="form-control" id="customerPhone" />
-            <span asp-validation-for="CustomerPhone" class="text-danger small"></span>
+            <input asp-for="CustomerPhone" class="form-control js-digits-only" id="customerPhone"
+                   inputmode="numeric" pattern="[0-9]{8}" minlength="8" maxlength="8" required
+                   data-error-label="Customer phone"
+                   title="Exactly 8 digits" />
             <div id="dupWarning" class="text-warning small mt-1"></div>
         </div>
         <div class="col-md-2">
             <label asp-for="TicketNumber" class="form-label"></label>
-            <input asp-for="TicketNumber" class="form-control" />
+            <input asp-for="TicketNumber" class="form-control js-digits-only"
+                   inputmode="numeric" pattern="[0-9]*" maxlength="60"
+                   data-error-label="Ticket number"
+                   title="Digits only" />
         </div>
         <div class="col-md-3">
             <label asp-for="Date" class="form-label">Date</label>
-            <input asp-for="Date" class="form-control" />
+            <input asp-for="Date" class="form-control" max="@today" required
+                   data-error-label="Date" />
         </div>
         <div class="col-md-4">
             <label asp-for="Branch" class="form-label"></label>
-            <select asp-for="Branch" class="form-select" id="branchSelect">
+            <select asp-for="Branch" class="form-select" id="branchSelect" required data-error-label="Branch">
                 <option value="">-- Select --</option>
                 @foreach (var b in Model.Branches)
                 {
                     <option value="@b">@b</option>
                 }
             </select>
-            <span asp-validation-for="Branch" class="text-danger small"></span>
         </div>
         <div class="col-md-3">
             <label class="form-label">Assigned partner</label>
@@ -67,7 +75,10 @@
         </div>
         <div class="col-md-10">
             <label asp-for="BranchComment" class="form-label"></label>
-            <input asp-for="BranchComment" class="form-control" />
+            <input asp-for="BranchComment" class="form-control js-comment"
+                   pattern="[A-Za-z0-9 &amp;+#]*"
+                   data-error-label="Branch comment"
+                   title="Letters, numbers, spaces, and the symbols & + # only" />
         </div>
     </div>
 
@@ -75,7 +86,10 @@
     <div class="row g-3 mb-3">
         <div class="col-md-3">
             <label asp-for="StaffName" class="form-label"></label>
-            <input asp-for="StaffName" class="form-control" />
+            <input asp-for="StaffName" class="form-control js-letters-only"
+                   pattern="[A-Za-z ]*" maxlength="200"
+                   data-error-label="Staff name"
+                   title="Letters and spaces only" />
         </div>
         <div class="col-md-2">
             <label asp-for="StaffRating" class="form-label"></label>
@@ -90,12 +104,15 @@
         </div>
         <div class="col-md-7">
             <label asp-for="StaffComment" class="form-label"></label>
-            <input asp-for="StaffComment" class="form-control" />
+            <input asp-for="StaffComment" class="form-control js-comment"
+                   pattern="[A-Za-z0-9 &amp;+#]*"
+                   data-error-label="Staff comment"
+                   title="Letters, numbers, spaces, and the symbols & + # only" />
         </div>
     </div>
 
     <div class="d-flex gap-2 justify-content-end">
-        <a asp-action="Index" class="btn btn-link">Cancel</a>
+        <button type="reset" class="btn btn-sm btn-outline-danger" id="clearBtn">Clear</button>
         <button type="submit" class="btn btn-primary">Save case</button>
     </div>
 </form>
@@ -107,27 +124,117 @@
         var dupBox = document.getElementById('dupWarning');
         var branchSelect = document.getElementById('branchSelect');
         var partnerBox = document.getElementById('assignedPartner');
+        var clearBtn = document.getElementById('clearBtn');
         var partners = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.BranchPartnerMap));
 
+        // Real-time character filtering — strips invalid chars as the user types
+        function stripWith(el, allowedRegex) {
+            el.addEventListener('input', function () {
+                var clean = el.value.split('').filter(function (ch) { return allowedRegex.test(ch); }).join('');
+                if (clean !== el.value) {
+                    var pos = el.selectionStart - (el.value.length - clean.length);
+                    el.value = clean;
+                    try { el.setSelectionRange(pos, pos); } catch (e) { /* unsupported on some inputs */ }
+                }
+            });
+        }
+        document.querySelectorAll('.js-letters-only').forEach(function (el) { stripWith(el, /[A-Za-z ]/); });
+        document.querySelectorAll('.js-digits-only').forEach(function (el) { stripWith(el, /[0-9]/); });
+        document.querySelectorAll('.js-comment').forEach(function (el) { stripWith(el, /[A-Za-z0-9 &+#]/); });
+
+        // Branch → partner auto-fill
         if (branchSelect) {
             branchSelect.addEventListener('change', function () {
                 partnerBox.value = partners[branchSelect.value] || '';
             });
         }
 
+        // Reset also clears the auto-filled partner and the duplicate warning
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function () {
+                setTimeout(function () {
+                    if (partnerBox) partnerBox.value = '';
+                    if (dupBox) dupBox.textContent = '';
+                }, 0);
+            });
+        }
+
+        // Duplicate-phone check (only when phone reaches 8 digits)
         if (phoneInput) {
             var timer;
             phoneInput.addEventListener('input', function () {
                 clearTimeout(timer);
                 timer = setTimeout(function () {
                     var v = phoneInput.value.trim();
-                    if (v.length < 7) { dupBox.textContent = ''; return; }
+                    if (v.length !== 8) { dupBox.textContent = ''; return; }
                     fetch('@Url.Action("CheckDuplicate", "Cases")?phone=' + encodeURIComponent(v))
                         .then(function (r) { return r.json(); })
                         .then(function (data) { dupBox.textContent = data.warning || ''; });
                 }, 300);
             });
         }
+
+        // Submit-time validation — mirrors CaseFormViewModel rules client-side
+        // so all errors land in the same top summary as the server-side path,
+        // in form (DOM) order. Server still validates as defense in depth.
+        var form = document.getElementById('caseForm');
+        var summary = document.getElementById('validationSummary');
+        var today = '@today';
+        var branchRatingEl = document.querySelector('[name="BranchRating"]');
+        var staffRatingEl  = document.querySelector('[name="StaffRating"]');
+
+        function fieldError(el) {
+            var label = el.getAttribute('data-error-label') || el.name || 'Field';
+            var value = (el.value || '').trim();
+            if (el.hasAttribute('required') && value === '') {
+                return label + ' is required.';
+            }
+            if (value === '') return null; // optional + empty = fine
+            var min = el.getAttribute('minlength');
+            var max = el.getAttribute('maxlength');
+            if (min && max && min === max && value.length !== parseInt(min, 10)) {
+                return label + ' must be exactly ' + min + ' characters.';
+            }
+            var pattern = el.getAttribute('pattern');
+            if (pattern) {
+                var re = new RegExp('^(?:' + pattern + ')$');
+                if (!re.test(value)) {
+                    var hint = el.getAttribute('title');
+                    return label + (hint ? ' — ' + hint.toLowerCase() : ' is invalid') + '.';
+                }
+            }
+            return null;
+        }
+
+        form.addEventListener('submit', function (e) {
+            var errors = [];
+            // Iterate validated inputs/selects in DOM order
+            form.querySelectorAll('[data-error-label]').forEach(function (el) {
+                var msg = fieldError(el);
+                if (msg) errors.push(msg);
+            });
+            // Compound: date not in future
+            var dateEl = document.querySelector('[name="Date"]');
+            if (dateEl && dateEl.value && dateEl.value > today) {
+                errors.push('Date cannot be in the future.');
+            }
+            // Compound: at least one rating
+            var br = branchRatingEl ? parseInt(branchRatingEl.value || '0', 10) : 0;
+            var sr = staffRatingEl  ? parseInt(staffRatingEl.value  || '0', 10) : 0;
+            if (br === 0 && sr === 0) {
+                errors.push('At least one rating (branch or staff) is required.');
+            }
+            if (errors.length === 0) return; // let the form submit
+            e.preventDefault();
+            var ul = '<ul class="validation-summary-errors">';
+            errors.forEach(function (m) {
+                var safe = m.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                ul += '<li>' + safe + '</li>';
+            });
+            ul += '</ul>';
+            summary.innerHTML = ul;
+            summary.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
     })();
 </script>
 }
