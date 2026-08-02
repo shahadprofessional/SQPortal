@@ -26,6 +26,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<SQPortalDbContext>();
     db.SeedLookups();
+    db.BackfillCaseNumbers();
 }
 
 if (!app.Environment.IsDevelopment())

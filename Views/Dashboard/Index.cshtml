@@ -100,8 +100,7 @@
     <div class="row g-2">
         <div class="col-md-4">
             <label class="form-label small text-muted">Search</label>
-            <input class="form-control" name="search" value="@Model.Search"
-                   placeholder="Case ID, customer, phone, branch, staff, ticket" />
+            <input class="form-control" name="search" value="@Model.Search" placeholder="Search" />
         </div>
         <div class="col-md-2">
             <label class="form-label small text-muted">Month</label>
@@ -187,6 +186,16 @@ else
     @Html.AntiForgeryToken()
     <div class="table-responsive bg-white rounded shadow-sm">
         <table class="table table-sm table-hover align-middle mb-0 sq-case-table">
+            <colgroup>
+                <col style="width: 76px;" />
+                <col style="width: 96px;" />
+                <col style="width: 160px;" />
+                <col style="width: 130px;" />
+                <col style="width: 190px;" />
+                <col style="width: 96px;" />
+                <col style="width: 100px;" />
+                <col style="width: 284px;" />
+            </colgroup>
             <thead class="table-light">
                 <tr>
                     <th>Case ID</th>
@@ -210,10 +219,10 @@ else
                     var rowClasses = (row.SlaBreached ? "tr-breached" : "") + (IsRepeat(c) ? " tr-repeat" : "");
                     <tr class="sq-row-pressable @rowClasses.Trim()"
                         data-case-id="@c.Id"
-                        data-case-label="@DisplayHelpers.ShortId(c.Id)"
+                        data-case-label="@c.CaseNumber"
                         tabindex="0" role="button"
                         title="Open case (details coming soon)">
-                        <td class="text-monospace small">@DisplayHelpers.ShortId(c.Id)</td>
+                        <td class="text-monospace">@c.CaseNumber</td>
                         <td class="text-nowrap">@c.Date.ToString("yyyy-MM-dd")</td>
                         <td>
                             @c.CustomerName
@@ -239,28 +248,30 @@ else
                                 <span class="text-muted small text-nowrap">Due @c.DueDate.ToString("MM-dd")</span>
                             }
                         </td>
-                        <td class="text-end text-nowrap sq-row-actions">
-                            <a class="btn btn-sm btn-outline-secondary"
-                               asp-controller="Cases" asp-action="Edit" asp-route-id="@c.Id">Edit</a>
-                            <form asp-controller="Cases" asp-action="Delete" asp-route-id="@c.Id" method="post" class="d-inline"
-                                  onsubmit="return confirm('Delete this case? This cannot be undone.');">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="returnUrl" value="@returnUrl" />
-                                <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
-                            </form>
-                            @if (!string.IsNullOrEmpty(mailto))
-                            {
-                                <a class="btn btn-sm btn-outline-primary js-email-btn @(c.EmailSent ? "btn-email-sent" : "")"
-                                   href="@mailto" data-case-id="@c.Id"
-                                   title="@(c.EmailSent ? "Email already sent" : "Send partner email")">
-                                    @(c.EmailSent ? "✓ Email" : "📧 Email")
-                                </a>
-                            }
-                            else
-                            {
-                                <button class="btn btn-sm btn-outline-primary" type="button" disabled
-                                        title="No partner email on file">📧 Email</button>
-                            }
+                        <td>
+                            <div class="sq-row-actions">
+                                <a class="btn btn-sm btn-outline-secondary"
+                                   asp-controller="Cases" asp-action="Edit" asp-route-id="@c.Id">Edit</a>
+                                <form asp-controller="Cases" asp-action="Delete" asp-route-id="@c.Id" method="post"
+                                      onsubmit="return confirm('Delete this case? This cannot be undone.');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                    <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                                </form>
+                                @if (!string.IsNullOrEmpty(mailto))
+                                {
+                                    <a class="btn btn-sm btn-outline-primary js-email-btn @(c.EmailSent ? "btn-email-sent" : "")"
+                                       href="@mailto" data-case-id="@c.Id"
+                                       title="@(c.EmailSent ? "Email already sent" : "Send partner email")">
+                                        @(c.EmailSent ? "✓ Email" : "📧 Email")
+                                    </a>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-sm btn-outline-primary" type="button" disabled
+                                            title="No partner email on file">📧 Email</button>
+                                }
+                            </div>
                         </td>
                     </tr>
                 }

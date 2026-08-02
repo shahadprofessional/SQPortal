@@ -13,10 +13,23 @@ body.bg-light {
     background-color: var(--sq-bg) !important;
 }
 
-/* Navbar */
+/* Navbar — brand top-left, user top-right, tabs centered on their own row */
 .navbar.bg-dark {
     background-color: var(--sq-navy-dark) !important;
     border-bottom: 3px solid var(--sq-gold);
+}
+.sq-navbar {
+    background-color: #fff;
+    border-bottom: 1px solid var(--sq-border);
+    padding-top: 0;
+    padding-bottom: 0;
+}
+.sq-navbar .sq-navbar-top {
+    padding: 10px 0 6px;
+}
+.sq-navbar .sq-navbar-tabs {
+    gap: 0.25rem 1.25rem;
+    padding-bottom: 6px;
 }
 .navbar-brand {
     font-weight: 700;
@@ -28,6 +41,29 @@ body.bg-light {
 .navbar .nav-link.active,
 .navbar .nav-link:hover {
     color: var(--sq-gold) !important;
+}
+
+/* Signed-in user chip */
+.sq-user {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--sq-navy);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+.sq-user .sq-user-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: var(--sq-navy);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
 }
 
 /* Primary actions */
@@ -202,10 +238,40 @@ tr.sq-row-pressable:focus-visible {
     outline: 2px solid var(--sq-navy);
     outline-offset: -2px;
 }
-.sq-row-actions .btn + .btn,
-.sq-row-actions .btn + form,
-.sq-row-actions form + .btn {
-    margin-left: 4px;
+/* Case list reads as a grid: fixed columns, gridlines, nothing shifting per row */
+.sq-case-table {
+    table-layout: fixed;
+    min-width: 1100px;
+}
+.sq-case-table th,
+.sq-case-table td {
+    border-right: 1px solid #EEF2F8;
+    vertical-align: middle;
+    overflow-wrap: break-word;
+}
+.sq-case-table th:last-child,
+.sq-case-table td:last-child {
+    border-right: 0;
+}
+
+/* Action buttons: identical widths so Edit / Delete / Email line up column-wise */
+.sq-row-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+}
+.sq-row-actions > form {
+    margin: 0;
+    line-height: 1;
+}
+.sq-row-actions .btn {
+    width: 84px;
+    padding-left: 0;
+    padding-right: 0;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 /* Brand badges — exact hex pairs from prototype's BM color map */

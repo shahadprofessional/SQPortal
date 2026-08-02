@@ -8,10 +8,24 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body class="bg-light">
-    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
-        <div class="container">
-            <a class="navbar-brand" asp-controller="Dashboard" asp-action="Index">SQPortal</a>
-            <ul class="navbar-nav">
+    @{
+        // No sign-in yet — fall back to a placeholder until authentication lands.
+        var userName = !string.IsNullOrWhiteSpace(User?.Identity?.Name) ? User!.Identity!.Name! : "Guest";
+        var initials = string.Concat(userName
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Take(2)
+            .Select(part => char.ToUpperInvariant(part[0])));
+    }
+    <nav class="navbar navbar-dark sq-navbar mb-4">
+        <div class="container flex-column align-items-stretch">
+            <div class="d-flex align-items-center justify-content-between w-100 sq-navbar-top">
+                <a class="navbar-brand mb-0" asp-controller="Dashboard" asp-action="Index">SQPortal</a>
+                <div class="sq-user" title="Signed in as @userName">
+                    <span class="sq-user-avatar">@initials</span>
+                    <span class="sq-user-name">@userName</span>
+                </div>
+            </div>
+            <ul class="navbar-nav flex-row flex-wrap justify-content-center w-100 sq-navbar-tabs">
                 <li class="nav-item">
                     <a class="nav-link" asp-controller="Dashboard" asp-action="Index">📊 Dashboard</a>
                 </li>

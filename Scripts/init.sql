@@ -68,6 +68,7 @@ GO
 CREATE TABLE dbo.Cases
 (
     Id                NVARCHAR(64)  NOT NULL,
+    CaseNumber        INT           NOT NULL CONSTRAINT DF_Cases_CaseNumber DEFAULT 0,
     [Date]            DATE          NOT NULL,
     CustomerName      NVARCHAR(200) NOT NULL,
     CustomerPhone     NVARCHAR(40)  NOT NULL,
@@ -95,6 +96,9 @@ GO
 -- ============================================================================
 -- Indexes on Cases (match Data/SQPortalDbContext.cs::OnModelCreating)
 -- ============================================================================
+CREATE INDEX IX_Cases_CaseNumber    ON dbo.Cases (CaseNumber);
+GO
+
 CREATE INDEX IX_Cases_CustomerPhone ON dbo.Cases (CustomerPhone);
 GO
 

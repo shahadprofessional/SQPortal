@@ -35,6 +35,9 @@ public class SQPortalDbContext : DbContext
             .Metadata.SetValueComparer(rootCausesComparer);
 
         modelBuilder.Entity<FeedbackCase>()
+            .HasIndex(c => c.CaseNumber);
+
+        modelBuilder.Entity<FeedbackCase>()
             .HasIndex(c => c.CustomerPhone);
 
         modelBuilder.Entity<FeedbackCase>()
@@ -43,6 +46,27 @@ public class SQPortalDbContext : DbContext
         modelBuilder.Entity<FeedbackCase>()
             .HasIndex(c => c.Branch);
     }
+
+    /// <summary>
+    /// Gives every case created before CaseNumber existed a number, oldest first.
+    /// Ids are unix-ms timestamps, so ordering by Id is creation order.
+    /// </summary>
+    public void BackfillCaseNumbers()
+    {
+        var unnumbered = Cases.Where(c => c.CaseNumber == 0).OrderBy(c => c.Id).ToList();
+        if (unnumbered.Count == 0) return;
+
+        var next = (Cases.Max(c => (int?)c.CaseNumber) ?? 0) + 1;
+        foreach (var c in unnumbered)
+        {
+            c.CaseNumber = next++;
+        }
+
+        SaveChanges();
+    }
+
+    /// <summary>Next case number to hand out. 1 for the first case.</summary>
+    public int NextCaseNumber() => (Cases.Max(c => (int?)c.CaseNumber) ?? 0) + 1;
 
     public void SeedLookups()
     {

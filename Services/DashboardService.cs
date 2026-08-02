@@ -120,7 +120,7 @@ public class DashboardService
         {
             var s = query.Search.Trim();
             result = result.Where(c =>
-                Contains(c.Id, s) ||
+                c.CaseNumber.ToString() == s ||
                 Contains(c.CustomerName, s) ||
                 Contains(c.CustomerPhone, s) ||
                 Contains(c.Branch, s) ||

@@ -142,6 +142,7 @@ public class CasesController : Controller
         var entity = new FeedbackCase
         {
             Id = GenerateId(),
+            CaseNumber = _db.NextCaseNumber(),
             Date = vm.Date,
             CustomerName = vm.CustomerName.Trim(),
             CustomerPhone = vm.CustomerPhone.Trim(),
@@ -177,6 +178,7 @@ public class CasesController : Controller
         var vm = new EditCaseViewModel
         {
             Id = entity.Id,
+            CaseNumber = entity.CaseNumber,
             Date = entity.Date,
             CustomerName = entity.CustomerName,
             CustomerPhone = entity.CustomerPhone,
