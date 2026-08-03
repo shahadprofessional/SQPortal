@@ -120,7 +120,7 @@ else
 {
     @Html.AntiForgeryToken()
     <div class="table-responsive bg-white rounded shadow-sm">
-        <table class="table table-sm table-hover align-middle mb-0">
+        <table class="table table-sm table-hover align-middle mb-0 sq-centered">
             <thead class="table-light">
                 <tr>
                     <th>ID</th>
@@ -134,7 +134,7 @@ else
                     <th>Partner</th>
                     <th>Status</th>
                     <th>SLA</th>
-                    <th class="text-end">Age</th>
+                    <th>Age</th>
                     <th>Root causes</th>
                     <th></th>
                 </tr>
@@ -178,9 +178,9 @@ else
                                 <span class="text-muted small">@c.DueDate.ToString("MM-dd")</span>
                             }
                         </td>
-                        <td class="text-end">@row.AgeDays d</td>
+                        <td>@row.AgeDays d</td>
                         <td class="small">@string.Join(", ", c.RootCauses)</td>
-                        <td class="text-end text-nowrap">
+                        <td class="text-nowrap">
                             <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@c.Id">Edit</a>
                             @if (!string.IsNullOrEmpty(mailto))
                             {

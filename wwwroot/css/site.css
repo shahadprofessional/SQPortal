@@ -288,8 +288,13 @@ tr.sq-row-pressable:focus-visible {
         overflow-x: auto;
     }
 }
-.sq-case-table thead th {
+/* Every cell centred under its column name, header and record alike */
+.sq-centered th,
+.sq-centered td {
     text-align: center;
+}
+
+.sq-case-table thead th {
     position: sticky;
     top: 0;
     z-index: 2;
@@ -305,7 +310,7 @@ tr.sq-row-pressable:focus-visible {
 .sq-row-actions {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: center;
     gap: 6px;
 }
 .sq-row-actions > form {
