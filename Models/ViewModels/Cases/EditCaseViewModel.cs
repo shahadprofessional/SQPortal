@@ -8,6 +8,9 @@ public class EditCaseViewModel
     [Required]
     public string Id { get; set; } = string.Empty;
 
+    /// <summary>Display-only: the incremental case number shown in the lists.</summary>
+    public int CaseNumber { get; set; }
+
     [DataType(DataType.Date)]
     public DateOnly Date { get; set; }
 

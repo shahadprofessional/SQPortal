@@ -3,11 +3,12 @@
     ViewData["Title"] = "Edit Case";
 }
 
-<h1 class="h3 mb-3">Edit case <span class="text-muted fs-6">@(Model.Id.Length >= 6 ? Model.Id[^6..].ToUpper() : Model.Id.ToUpper())</span></h1>
+<h1 class="h3 mb-3">Edit case <span class="text-muted fs-6">#@Model.CaseNumber</span></h1>
 
 <form asp-action="Edit" method="post" class="card card-body bg-white shadow-sm">
     @Html.AntiForgeryToken()
     <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="CaseNumber" />
     <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
 
     <h2 class="h6 text-muted">Customer &amp; case info</h2>

@@ -121,6 +121,11 @@ public class CasesController : Controller
     {
         await PopulateLookupsAsync(vm);
 
+        if (vm.Date > DateOnly.FromDateTime(DateTime.Today))
+        {
+            ModelState.AddModelError(nameof(vm.Date), "Date cannot be in the future.");
+        }
+
         if (vm.BranchRating == 0 && vm.StaffRating == 0)
         {
             ModelState.AddModelError(string.Empty, "At least one rating (branch or staff) is required.");
@@ -137,6 +142,7 @@ public class CasesController : Controller
         var entity = new FeedbackCase
         {
             Id = GenerateId(),
+            CaseNumber = _db.NextCaseNumber(),
             Date = vm.Date,
             CustomerName = vm.CustomerName.Trim(),
             CustomerPhone = vm.CustomerPhone.Trim(),
@@ -172,6 +178,7 @@ public class CasesController : Controller
         var vm = new EditCaseViewModel
         {
             Id = entity.Id,
+            CaseNumber = entity.CaseNumber,
             Date = entity.Date,
             CustomerName = entity.CustomerName,
             CustomerPhone = entity.CustomerPhone,
@@ -249,7 +256,7 @@ public class CasesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Delete(string id)
+    public async Task<IActionResult> Delete(string id, string? returnUrl = null)
     {
         var entity = await _db.Cases.FirstOrDefaultAsync(c => c.Id == id);
         if (entity == null) return NotFound();
@@ -258,6 +265,13 @@ public class CasesController : Controller
         await _db.SaveChangesAsync();
 
         TempData["StatusMessage"] = "Case deleted.";
+
+        // Deleting from the dashboard list should land back on the same card/page.
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl);
+        }
+
         return RedirectToAction(nameof(Index));
     }
 

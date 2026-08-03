@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using SQPortal.Models.ViewModels.Dashboard;
 using SQPortal.Services;
 
 namespace SQPortal.Controllers;
@@ -12,9 +13,9 @@ public class DashboardController : Controller
         _service = service;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index([FromQuery] DashboardQuery query)
     {
-        var vm = await _service.BuildAsync(DateOnly.FromDateTime(DateTime.Today));
+        var vm = await _service.BuildAsync(query, DateOnly.FromDateTime(DateTime.Today));
         return View(vm);
     }
 }
