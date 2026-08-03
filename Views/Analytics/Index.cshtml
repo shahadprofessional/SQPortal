@@ -2,25 +2,31 @@
 @{
     ViewData["Title"] = "Analytics";
 
-    string ResolutionColor(int v) => v >= 70 ? "text-success" : "text-warning";
-    string SlaColor(int v) => v >= 80 ? "text-success" : "text-warning";
-    string BreachedColor(int v) => v > 0 ? "text-danger" : "text-success";
+    string ResolutionColor(int v) => v >= 70 ? "sq-good" : "sq-warn";
+    string SlaColor(int v) => v >= 80 ? "sq-good" : "sq-warn";
+    string BreachedColor(int v) => v > 0 ? "sq-bad" : "sq-good";
 
     string BranchResolutionTextColor(int v) =>
-        v >= 70 ? "text-success" : v >= 40 ? "text-warning" : "text-danger";
+        v >= 70 ? "sq-good" : v >= 40 ? "sq-warn" : "sq-bad";
 
     string PartnerSlaColor(int v) =>
-        v >= 80 ? "text-success" : v >= 60 ? "text-warning" : "text-danger";
+        v >= 80 ? "sq-good" : v >= 60 ? "sq-warn" : "sq-bad";
 
-    string[] rootCausePalette = new[] { "#1B3060", "#9F1239", "#9A3412", "#1E3A8A", "#4C1D95", "#065F46", "#92400E", "#6B7280" };
+    string[] rootCausePalette = new[] { "#1B66AB", "#DDAF16", "#4A8CC7", "#B88F0F", "#7FB0DA", "#EFCE63", "#A9CBE8", "#5D6570" };
 }
 
-<h1 class="h3 mb-3">Analytics</h1>
+<div class="sq-page-head">
+    <div>
+        <div class="sq-kicker">Insight</div>
+        <h1 class="sq-title">Analytics</h1>
+    </div>
+    <div class="sq-page-meta">Filtered pool: @Model.Total cases</div>
+</div>
 
-<form method="get" class="card card-body mb-3">
-    <div class="row g-2">
+<form method="get" class="sq-filters">
+    <div class="row g-3">
         <div class="col-md-3">
-            <label class="form-label small text-muted">Month</label>
+            <label class="form-label">Month</label>
             <select class="form-select" name="month">
                 <option value="">All time</option>
                 @foreach (var m in Model.Months)
@@ -37,7 +43,7 @@
             </select>
         </div>
         <div class="col-md-4">
-            <label class="form-label small text-muted">Branch</label>
+            <label class="form-label">Branch</label>
             <select class="form-select" name="branch">
                 <option value="">All branches</option>
                 @foreach (var b in Model.Branches)
@@ -54,7 +60,7 @@
             </select>
         </div>
         <div class="col-md-3">
-            <label class="form-label small text-muted">Partner</label>
+            <label class="form-label">SQ staff</label>
             <select class="form-select" name="partner">
                 <option value="">All</option>
                 @foreach (var p in Model.Partners)
@@ -70,141 +76,137 @@
                 }
             </select>
         </div>
-        <div class="col-md-2 d-flex align-items-end gap-2">
-            <button class="btn btn-primary flex-grow-1" type="submit">Apply</button>
+        <div class="col-md-2 d-flex align-items-end">
+            <button class="btn btn-primary w-100" type="submit">Apply</button>
         </div>
     </div>
     @if (!string.IsNullOrEmpty(Model.Month) || !string.IsNullOrEmpty(Model.Branch) || !string.IsNullOrEmpty(Model.Partner))
     {
-        <div class="mt-2"><a asp-action="Index" class="small">Clear filters</a></div>
+        <div class="sq-filters-foot"><a asp-action="Index">Clear filters</a></div>
     }
 </form>
 
 @if (Model.Total == 0)
 {
     <div class="sq-empty">
-        <div class="sq-empty-emoji">📊</div>
+        <svg class="sq-empty-icon" viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M7 20v-6M12 20V8M17 20v-11"></path></svg>
         <div class="sq-empty-title">No data for these filters</div>
-        <div class="sq-empty-sub">Adjust month, branch, or partner above.</div>
+        <div class="sq-empty-sub">Adjust month, branch, or SQ staff above.</div>
     </div>
 }
 else
 {
-    <div class="row g-2 mb-4">
+    <div class="sq-kpis sq-frame">
         @{
             var kpis = new (string Label, string Value, string CssClass)[]
             {
-                ("Total cases",       Model.Total.ToString(),                            "text-primary"),
+                ("Total cases",       Model.Total.ToString(),                            ""),
                 ("Resolution rate",   $"{Model.ResolutionRate}%",                        ResolutionColor(Model.ResolutionRate)),
                 ("SLA compliance",    $"{Model.SlaCompliance}%",                         SlaColor(Model.SlaCompliance)),
-                ("Avg branch rating", Model.AvgBranchRating > 0 ? $"{Model.AvgBranchRating:0.0}/5" : "—", "text-warning"),
+                ("Avg branch rating", Model.AvgBranchRating > 0 ? $"{Model.AvgBranchRating:0.0}/5" : "—", ""),
                 ("SLA breached",      Model.Breached.ToString(),                         BreachedColor(Model.Breached)),
-                ("Open cases",        Model.Open.ToString(),                             "text-warning"),
+                ("Open cases",        Model.Open.ToString(),                             "sq-warn"),
             };
         }
         @foreach (var k in kpis)
         {
-            <div class="col-6 col-md-4 col-lg-2">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body py-3">
-                        <div class="h3 mb-1 @k.CssClass">@k.Value</div>
-                        <div class="small text-muted">@k.Label</div>
-                    </div>
-                </div>
+            <div class="sq-kpi">
+                <span class="sq-kpi-value @k.CssClass">@k.Value</span>
+                <span class="sq-kpi-label">@k.Label</span>
             </div>
         }
     </div>
 
-    <div class="card mb-3">
-        <div class="card-body">
-            <h2 class="h6 mb-3">🏢 Branch Overview</h2>
-            @{
-                var maxBranchTotal = Model.ByBranch.Count > 0 ? Model.ByBranch.Max(b => b.Total) : 1;
-            }
-            @if (!Model.ByBranch.Any())
-            {
-                <div class="text-muted small text-center py-3">No branch data</div>
-            }
-            else
-            {
-                foreach (var b in Model.ByBranch)
-                {
-                    var w = Math.Max(2, (int)Math.Round(b.Total / (double)maxBranchTotal * 100));
-                    <div class="d-flex align-items-center gap-2 mb-2 small">
-                        <div class="text-end text-truncate" style="width:160px" title="@b.Name">@b.Name</div>
-                        <div class="flex-grow-1">
-                            <div class="bg-primary rounded" style="height:10px;width:@(w)%;min-width:2px"></div>
-                        </div>
-                        <span class="fw-bold text-muted" style="width:32px;text-align:right">@b.Total</span>
-                        <span class="fw-bold @BranchResolutionTextColor(b.ResolutionRate)" style="width:42px;text-align:right">@b.ResolutionRate%</span>
-                        <span class="text-muted" style="width:50px;text-align:right">@(b.AvgBranchRating > 0 ? $"{b.AvgBranchRating:0.0}★" : "—")</span>
-                    </div>
-                }
-            }
-        </div>
-    </div>
-
-    <div class="row g-3">
+    <div class="row g-4">
         <div class="col-lg-7">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h2 class="h6 mb-3">🔎 Root Cause Distribution</h2>
-                    @if (!Model.RootCauseDistribution.Any())
-                    {
-                        <div class="text-muted small text-center py-3">No root causes recorded yet</div>
-                    }
-                    else
-                    {
-                        var i = 0;
-                        foreach (var r in Model.RootCauseDistribution)
-                        {
-                            var color = rootCausePalette[i % rootCausePalette.Length];
-                            <div class="mb-3">
-                                <div class="d-flex justify-content-between small mb-1">
-                                    <span class="fw-semibold" style="color:@color">@r.Name</span>
-                                    <span class="fw-bold">@r.Count <span class="text-muted fw-normal">(@r.Percent%)</span></span>
-                                </div>
-                                <div class="bg-light rounded" style="height:12px">
-                                    <div class="rounded" style="height:100%;width:@(r.Percent)%;background:@color"></div>
-                                </div>
-                            </div>
-                            i++;
-                        }
-                    }
+            <div class="sq-panel sq-frame h-100">
+                <div class="sq-panel-head">
+                    <h2>Branch overview</h2>
+                    <span class="sq-panel-note">@Model.ByBranch.Count branches</span>
                 </div>
+                @{
+                    var maxBranchTotal = Model.ByBranch.Count > 0 ? Model.ByBranch.Max(b => b.Total) : 1;
+                }
+                @if (!Model.ByBranch.Any())
+                {
+                    <div class="sq-panel-note text-center py-3">No branch data</div>
+                }
+                else
+                {
+                    <div class="sq-bar-head">
+                        <span>Branch</span><span>Volume</span><span class="text-end">Cases</span><span class="text-end">Resolved</span><span class="text-end">Rating</span>
+                    </div>
+                    foreach (var b in Model.ByBranch)
+                    {
+                        var w = Math.Max(2, (int)Math.Round(b.Total / (double)maxBranchTotal * 100));
+                        <div class="sq-bar-row">
+                            <span class="sq-bar-name" title="@b.Name">@b.Name</span>
+                            <span class="sq-bar-track"><span class="sq-bar-fill" style="width:@(w)%"></span></span>
+                            <span class="sq-bar-total">@b.Total</span>
+                            <span class="sq-bar-num @BranchResolutionTextColor(b.ResolutionRate)">@b.ResolutionRate%</span>
+                            <span class="sq-bar-num sq-cell-muted">@(b.AvgBranchRating > 0 ? $"{b.AvgBranchRating:0.0}★" : "—")</span>
+                        </div>
+                    }
+                }
             </div>
         </div>
         <div class="col-lg-5">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h2 class="h6 mb-3">👥 Partner Performance</h2>
-                    <div class="table-responsive">
-                        <table class="table table-sm align-middle mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Partner</th>
-                                    <th class="text-center">Total</th>
-                                    <th class="text-center">Done</th>
-                                    <th class="text-center">Pending</th>
-                                    <th class="text-center">SLA %</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var p in Model.ByPartner)
-                                {
-                                    <tr>
-                                        <td><strong>@p.Partner</strong></td>
-                                        <td class="text-center fw-bold">@p.Total</td>
-                                        <td class="text-center fw-bold text-success">@p.Done</td>
-                                        <td class="text-center fw-bold text-warning">@p.Pending</td>
-                                        <td class="text-center fw-bold @PartnerSlaColor(p.SlaRate)">@p.SlaRate%</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
+            <div class="sq-panel sq-frame h-100">
+                <div class="sq-panel-head">
+                    <h2>Root cause distribution</h2>
                 </div>
+                @if (!Model.RootCauseDistribution.Any())
+                {
+                    <div class="sq-panel-note text-center py-3">No root causes recorded yet</div>
+                }
+                else
+                {
+                    var i = 0;
+                    foreach (var r in Model.RootCauseDistribution)
+                    {
+                        var color = rootCausePalette[i % rootCausePalette.Length];
+                        <div class="sq-dist-row">
+                            <span class="sq-swatch" style="background:@color"></span>
+                            <span class="sq-dist-label">@r.Name</span>
+                            <span class="sq-dist-count">@r.Count</span>
+                            <span class="sq-dist-pct">@r.Percent%</span>
+                        </div>
+                        <div class="sq-dist-track">
+                            <span class="sq-dist-fill" style="width:@(r.Percent)%;background:@color"></span>
+                        </div>
+                        i++;
+                    }
+                }
             </div>
         </div>
+    </div>
+
+    <div class="sq-panel sq-frame mt-4">
+        <div class="sq-panel-head">
+            <h2>SQ staff performance</h2>
+        </div>
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>SQ staff</th>
+                    <th class="text-end">Total</th>
+                    <th class="text-end">Done</th>
+                    <th class="text-end">Open</th>
+                    <th class="text-end">SLA %</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in Model.ByPartner)
+                {
+                    <tr>
+                        <td class="fw-semibold text-sq-navy">@p.Partner</td>
+                        <td class="text-end sq-num">@p.Total</td>
+                        <td class="text-end sq-num sq-cell-muted">@p.Done</td>
+                        <td class="text-end sq-num sq-warn">@p.Pending</td>
+                        <td class="text-end sq-num @PartnerSlaColor(p.SlaRate)">@p.SlaRate%</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
 }

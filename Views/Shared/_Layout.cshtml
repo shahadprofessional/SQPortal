@@ -1,63 +1,97 @@
+@{
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? string.Empty;
+
+    string NavClass(bool active) => active ? "sq-nav-link active" : "sq-nav-link";
+
+    var navDashboard = NavClass(currentController == "Dashboard");
+    var navCases = NavClass(currentController == "Cases" && currentAction != "Create");
+    var navCreate = NavClass(currentController == "Cases" && currentAction == "Create");
+    var navAnalytics = NavClass(currentController == "Analytics");
+    var navWeekly = NavClass(currentController == "Weekly");
+    var navSettings = NavClass(currentController == "Settings");
+
+    // No sign-in yet — fall back to a placeholder until authentication lands.
+    var userName = !string.IsNullOrWhiteSpace(User?.Identity?.Name) ? User!.Identity!.Name! : "Guest";
+    var initials = string.Concat(userName
+        .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+        .Take(2)
+        .Select(part => char.ToUpperInvariant(part[0])));
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - SQPortal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@@400;500;600;700&amp;family=Barlow+Condensed:wght@@500;600;700&amp;display=swap" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body class="bg-light">
-    @{
-        // No sign-in yet — fall back to a placeholder until authentication lands.
-        var userName = !string.IsNullOrWhiteSpace(User?.Identity?.Name) ? User!.Identity!.Name! : "Guest";
-        var initials = string.Concat(userName
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Take(2)
-            .Select(part => char.ToUpperInvariant(part[0])));
-    }
-    <nav class="navbar navbar-dark sq-navbar mb-4">
-        <div class="container sq-navbar-inner">
-            <a class="navbar-brand mb-0" asp-controller="Dashboard" asp-action="Index">SQPortal</a>
-            <ul class="navbar-nav flex-row flex-wrap justify-content-center sq-navbar-tabs">
-                <li class="nav-item">
-                    <a class="nav-link" asp-controller="Dashboard" asp-action="Index">📊 Dashboard</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" asp-controller="Cases" asp-action="Index">
-                        📋 Cases @await Component.InvokeAsync("CasesCount")
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" asp-controller="Cases" asp-action="Create">➕ Add Case</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" asp-controller="Analytics" asp-action="Index">📈 Analytics</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" asp-controller="Weekly" asp-action="Index">💌 Weekly</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" asp-controller="Settings" asp-action="Index">⚙ Settings</a>
-                </li>
-            </ul>
+<body>
+    <header class="sq-topbar">
+        <div class="sq-topbar-inner">
+            <a class="sq-brand" asp-controller="Dashboard" asp-action="Index">
+                <span class="sq-mark">SQ</span>
+                <span>
+                    <span class="sq-brand-name d-block">SQPortal</span>
+                    <span class="sq-brand-sub d-block">Service Quality</span>
+                </span>
+            </a>
+
+            <nav class="sq-nav">
+                <a class="@navDashboard" asp-controller="Dashboard" asp-action="Index">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"></path></svg>
+                    <span>Dashboard</span>
+                </a>
+                <a class="@navCases" asp-controller="Cases" asp-action="Index">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>
+                    <span>Cases</span>
+                    @await Component.InvokeAsync("CasesCount")
+                </a>
+                <a class="@navCreate" asp-controller="Cases" asp-action="Create">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
+                    <span>Add case</span>
+                </a>
+                <a class="@navAnalytics" asp-controller="Analytics" asp-action="Index">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M7 20v-6M12 20V8M17 20v-11"></path></svg>
+                    <span>Analytics</span>
+                </a>
+                <a class="@navWeekly" asp-controller="Weekly" asp-action="Index">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18v12H3zM3 6l9 7 9-7"></path></svg>
+                    <span>Weekly</span>
+                </a>
+                <a class="@navSettings" asp-controller="Settings" asp-action="Index">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M7 15v4"></path></svg>
+                    <span>Settings</span>
+                </a>
+            </nav>
+
             <div class="sq-user" title="Signed in as @userName">
-                <span class="sq-user-avatar">@initials</span>
-                <span class="sq-user-name">@userName</span>
+                <div>
+                    <div class="sq-user-name">@userName</div>
+                    <div class="sq-user-sub">Signed in</div>
+                </div>
+                <span class="sq-avatar">@initials</span>
             </div>
         </div>
-    </nav>
+    </header>
 
-    <main class="container pb-5">
+    <main class="sq-main">
         @RenderBody()
     </main>
 
     <div class="toast-container sq-toasts">
         @if (TempData["StatusMessage"] is string statusMessage)
         {
-            <div class="toast align-items-center text-bg-success border-0 sq-auto-toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast border-0 sq-auto-toast" role="alert" aria-live="assertive" aria-atomic="true">
                 <div class="d-flex">
-                    <div class="toast-body">✓ @statusMessage</div>
+                    <div class="toast-body">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+                        <span>@statusMessage</span>
+                    </div>
                     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                 </div>
             </div>

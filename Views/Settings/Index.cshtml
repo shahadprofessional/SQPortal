@@ -5,69 +5,67 @@
 
 @Html.AntiForgeryToken()
 
-<h1 class="h4 mb-3">⚙ Settings</h1>
-
-<!-- ============ Partners ============ -->
-<div class="card mb-4">
-    <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center pb-3 mb-3 border-bottom">
-            <h2 class="h6 mb-0">👤 Partners</h2>
-            <div class="text-muted small">Edit display name and email. The internal partner key cannot be changed.</div>
-        </div>
-
-        <div class="table-responsive">
-            <table class="table align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th style="width:120px">Key</th>
-                        <th>Full Name</th>
-                        <th>Email</th>
-                        <th style="width:140px" class="text-end"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var p in Model.Partners)
-                    {
-                        <tr data-partner="@p.Name">
-                            <td class="fw-semibold">@p.Name</td>
-                            <td><input class="form-control form-control-sm js-partner-fullname" value="@p.FullName" /></td>
-                            <td><input class="form-control form-control-sm js-partner-email" type="email" value="@p.Email" /></td>
-                            <td class="text-end">
-                                <button type="button" class="btn btn-sm btn-primary js-partner-save" data-partner="@p.Name">Save</button>
-                                <span class="ms-1 small text-success js-partner-saved d-none">✓</span>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+<div class="sq-page-head">
+    <div>
+        <div class="sq-kicker">Configuration</div>
+        <h1 class="sq-title">Settings</h1>
     </div>
+    <div class="sq-page-meta">@Model.Branches.Count branches · @Model.Partners.Count staff</div>
 </div>
 
-<!-- ============ Branches ============ -->
-<div class="card mb-4">
-    <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center pb-3 mb-3 border-bottom">
-            <h2 class="h6 mb-0">🏢 Branches</h2>
-            <div class="text-muted small">Add, rename, or remove. Renaming cascades to all referencing cases.</div>
-        </div>
+<!-- ============ Partners ============ -->
+<div class="sq-panel sq-frame mb-4">
+    <div class="sq-panel-head">
+        <h2>SQ staff</h2>
+        <span class="sq-panel-note">Display name and email are editable; the key is fixed.</span>
+    </div>
 
-        <form asp-action="AddBranch" method="post" class="row g-2 mb-3">
-            @Html.AntiForgeryToken()
-            <div class="col-md-6">
+    <table class="table align-middle mb-0">
+        <thead>
+            <tr>
+                <th style="width:120px">Key</th>
+                <th>Full name</th>
+                <th>Email</th>
+                <th style="width:140px"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in Model.Partners)
+            {
+                <tr data-partner="@p.Name">
+                    <td class="fw-semibold text-sq-navy">@p.Name</td>
+                    <td><input class="form-control form-control-sm js-partner-fullname" value="@p.FullName" /></td>
+                    <td><input class="form-control form-control-sm js-partner-email" type="email" value="@p.Email" /></td>
+                    <td class="text-end">
+                        <button type="button" class="btn btn-sm btn-primary js-partner-save" data-partner="@p.Name">Save</button>
+                        <span class="ms-1 badge-sq badge-sq-tint js-partner-saved d-none">Saved</span>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<div class="row g-4">
+    <!-- ============ Branches ============ -->
+    <div class="col-lg-5">
+        <div class="sq-panel sq-frame h-100">
+            <div class="sq-panel-head">
+                <h2>Branches</h2>
+                <span class="sq-panel-note">@Model.Branches.Count on file</span>
+            </div>
+
+            <form asp-action="AddBranch" method="post" class="d-flex gap-2 mb-3">
+                @Html.AntiForgeryToken()
                 <input class="form-control" name="name" placeholder="New branch name" required maxlength="100" />
-            </div>
-            <div class="col-md-2">
-                <button class="btn btn-primary w-100" type="submit">+ Add Branch</button>
-            </div>
-        </form>
+                <button class="btn btn-primary" type="submit">Add</button>
+            </form>
 
-        <div class="table-responsive">
-            <table class="table align-middle">
-                <thead class="table-light">
+            <table class="table align-middle mb-0">
+                <thead>
                     <tr>
                         <th>Name</th>
-                        <th style="width:220px" class="text-end"></th>
+                        <th style="width:180px"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -79,7 +77,7 @@
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="oldName" value="@b" />
                                     <input class="form-control form-control-sm" name="newName" value="@b" required maxlength="100" />
-                                    <button class="btn btn-sm btn-outline-primary" type="submit">Save</button>
+                                    <button class="btn btn-sm btn-outline-secondary" type="submit">Save</button>
                                 </form>
                             </td>
                             <td class="text-end">
@@ -96,32 +94,27 @@
             </table>
         </div>
     </div>
-</div>
 
-<!-- ============ Branch ↔ Partner Assignments ============ -->
-<div class="card">
-    <div class="card-body">
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 pb-3 mb-3 border-bottom">
-            <h2 class="h6 mb-0">🔗 Branch — SQ Staff Assignment</h2>
-            <form asp-action="ResetDefaults" method="post" onsubmit="return confirm('Reset all branch assignments to defaults?');">
-                @Html.AntiForgeryToken()
-                <button type="submit" class="btn btn-outline-secondary btn-sm">🔄 Reset to Default</button>
-            </form>
-        </div>
+    <!-- ============ Branch ↔ Partner Assignments ============ -->
+    <div class="col-lg-7">
+        <div class="sq-panel sq-frame h-100">
+            <div class="sq-panel-head">
+                <h2>Branch — SQ staff assignment</h2>
+                <form asp-action="ResetDefaults" method="post" onsubmit="return confirm('Reset all branch assignments to defaults?');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">Reset defaults</button>
+                </form>
+            </div>
 
-        <div class="alert alert-info py-2 small d-flex gap-2 align-items-center">
-            <span>ℹ️</span>
-            <span>Change who handles each branch. Saves automatically.</span>
-        </div>
+            <div class="sq-panel-note mb-3">Change who handles each branch. Saves automatically.</div>
 
-        <div class="d-none alert alert-success py-2 small mb-3" id="saveIndicator">✓ Saved</div>
+            <div class="d-none alert alert-success py-2 mb-3" id="saveIndicator">Saved</div>
 
-        <div class="table-responsive">
-            <table class="table align-middle">
-                <thead class="table-light">
+            <table class="table align-middle mb-0">
+                <thead>
                     <tr>
                         <th>Branch</th>
-                        <th>SQ Staff</th>
+                        <th>SQ staff</th>
                         <th>Email</th>
                     </tr>
                 </thead>
@@ -145,7 +138,7 @@
                                     }
                                 </select>
                             </td>
-                            <td class="text-muted small js-email">@(string.IsNullOrEmpty(row.PartnerEmail) ? "—" : row.PartnerEmail)</td>
+                            <td class="sq-cell-muted js-email">@(string.IsNullOrEmpty(row.PartnerEmail) ? "—" : row.PartnerEmail)</td>
                         </tr>
                     }
                 </tbody>

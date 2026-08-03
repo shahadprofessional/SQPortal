@@ -4,116 +4,142 @@
     var today = DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd");
 }
 
-<h1 class="h3 mb-3">Add new case</h1>
+<div class="sq-page-head">
+    <div>
+        <div class="sq-kicker">Intake</div>
+        <h1 class="sq-title">Add new case</h1>
+    </div>
+    <div class="sq-page-meta">SLA: 1 working day from the feedback date</div>
+</div>
 
 @if (!string.IsNullOrEmpty(Model.DuplicateWarning))
 {
     <div class="alert alert-warning">@Model.DuplicateWarning</div>
 }
 
-<form id="caseForm" asp-action="Create" method="post" class="card card-body bg-white shadow-sm" novalidate>
+<form id="caseForm" asp-action="Create" method="post" novalidate>
     @Html.AntiForgeryToken()
-    <div asp-validation-summary="All" class="text-danger mb-3" id="validationSummary"></div>
+    <div asp-validation-summary="All" class="text-danger" id="validationSummary"></div>
 
-    <h2 class="h6 text-muted">Customer &amp; case info</h2>
-    <div class="row g-3 mb-3">
-        <div class="col-md-4">
-            <label asp-for="CustomerName" class="form-label"></label>
-            <input asp-for="CustomerName" class="form-control js-letters-only"
-                   pattern="[A-Za-z ]+" maxlength="200" required
-                   data-error-label="Customer name"
-                   title="Letters and spaces only" />
+    <div class="sq-panel sq-frame mb-4">
+        <div class="sq-step">
+            <span class="sq-step-num">01</span>
+            <h2>Customer &amp; case</h2>
+            <span class="sq-step-rule"></span>
         </div>
-        <div class="col-md-3">
-            <label asp-for="CustomerPhone" class="form-label"></label>
-            <input asp-for="CustomerPhone" class="form-control js-digits-only" id="customerPhone"
-                   inputmode="numeric" pattern="[0-9]{8}" minlength="8" maxlength="8" required
-                   data-error-label="Customer phone"
-                   title="Exactly 8 digits" />
-            <div id="dupWarning" class="text-warning small mt-1"></div>
-        </div>
-        <div class="col-md-2">
-            <label asp-for="TicketNumber" class="form-label"></label>
-            <input asp-for="TicketNumber" class="form-control js-digits-only"
-                   inputmode="numeric" pattern="[0-9]*" maxlength="60"
-                   data-error-label="Ticket number"
-                   title="Digits only" />
-        </div>
-        <div class="col-md-3">
-            <label asp-for="Date" class="form-label">Date</label>
-            <input asp-for="Date" class="form-control" max="@today" required
-                   data-error-label="Date" />
-        </div>
-        <div class="col-md-4">
-            <label asp-for="Branch" class="form-label"></label>
-            <select asp-for="Branch" class="form-select" id="branchSelect" required data-error-label="Branch">
-                <option value="">-- Select --</option>
-                @foreach (var b in Model.Branches)
-                {
-                    <option value="@b">@b</option>
-                }
-            </select>
-        </div>
-        <div class="col-md-3">
-            <label class="form-label">Assigned partner</label>
-            <input class="form-control" id="assignedPartner" value="@Model.AssignedPartner" readonly />
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label asp-for="CustomerName" class="form-label"></label>
+                <input asp-for="CustomerName" class="form-control js-letters-only"
+                       pattern="[A-Za-z ]+" maxlength="200" required
+                       data-error-label="Customer name"
+                       title="Letters and spaces only" />
+            </div>
+            <div class="col-md-3">
+                <label asp-for="CustomerPhone" class="form-label"></label>
+                <input asp-for="CustomerPhone" class="form-control js-digits-only" id="customerPhone"
+                       inputmode="numeric" pattern="[0-9]{8}" minlength="8" maxlength="8" required
+                       data-error-label="Customer phone"
+                       title="Exactly 8 digits" />
+                <div id="dupWarning" class="text-warning small mt-1"></div>
+            </div>
+            <div class="col-md-2">
+                <label asp-for="TicketNumber" class="form-label"></label>
+                <input asp-for="TicketNumber" class="form-control js-digits-only"
+                       inputmode="numeric" pattern="[0-9]*" maxlength="60"
+                       data-error-label="Ticket number"
+                       title="Digits only" />
+            </div>
+            <div class="col-md-3">
+                <label asp-for="Date" class="form-label">Date</label>
+                <input asp-for="Date" class="form-control" max="@today" required
+                       data-error-label="Date" />
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Branch" class="form-label"></label>
+                <select asp-for="Branch" class="form-select" id="branchSelect" required data-error-label="Branch">
+                    <option value="">-- Select --</option>
+                    @foreach (var b in Model.Branches)
+                    {
+                        <option value="@b">@b</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Assigned SQ staff</label>
+                <input class="form-control" id="assignedPartner" value="@Model.AssignedPartner" readonly />
+            </div>
         </div>
     </div>
 
-    <h2 class="h6 text-muted">Branch feedback (optional)</h2>
-    <div class="row g-3 mb-3">
-        <div class="col-md-2">
-            <label asp-for="BranchRating" class="form-label"></label>
-            <select asp-for="BranchRating" class="form-select">
-                <option value="0">Not rated</option>
-                <option value="1">1 - Very Poor</option>
-                <option value="2">2 - Poor</option>
-                <option value="3">3 - Fair</option>
-                <option value="4">4 - Good</option>
-                <option value="5">5 - Excellent</option>
-            </select>
+    <div class="sq-panel sq-frame mb-4">
+        <div class="sq-step">
+            <span class="sq-step-num">02</span>
+            <h2>Branch feedback</h2>
+            <span class="sq-step-rule"></span>
+            <span class="sq-step-note">Optional — at least one rating required</span>
         </div>
-        <div class="col-md-10">
-            <label asp-for="BranchComment" class="form-label"></label>
-            <input asp-for="BranchComment" class="form-control js-comment"
-                   pattern="[A-Za-z0-9 &amp;+#]*"
-                   data-error-label="Branch comment"
-                   title="Letters, numbers, spaces, and the symbols & + # only" />
-        </div>
-    </div>
-
-    <h2 class="h6 text-muted">Staff feedback (optional)</h2>
-    <div class="row g-3 mb-3">
-        <div class="col-md-3">
-            <label asp-for="StaffName" class="form-label"></label>
-            <input asp-for="StaffName" class="form-control js-letters-only"
-                   pattern="[A-Za-z ]*" maxlength="200"
-                   data-error-label="Staff name"
-                   title="Letters and spaces only" />
-        </div>
-        <div class="col-md-2">
-            <label asp-for="StaffRating" class="form-label"></label>
-            <select asp-for="StaffRating" class="form-select">
-                <option value="0">Not rated</option>
-                <option value="1">1 - Very Poor</option>
-                <option value="2">2 - Poor</option>
-                <option value="3">3 - Fair</option>
-                <option value="4">4 - Good</option>
-                <option value="5">5 - Excellent</option>
-            </select>
-        </div>
-        <div class="col-md-7">
-            <label asp-for="StaffComment" class="form-label"></label>
-            <input asp-for="StaffComment" class="form-control js-comment"
-                   pattern="[A-Za-z0-9 &amp;+#]*"
-                   data-error-label="Staff comment"
-                   title="Letters, numbers, spaces, and the symbols & + # only" />
+        <div class="row g-3">
+            <div class="col-md-2">
+                <label asp-for="BranchRating" class="form-label"></label>
+                <select asp-for="BranchRating" class="form-select">
+                    <option value="0">Not rated</option>
+                    <option value="1">1 - Very Poor</option>
+                    <option value="2">2 - Poor</option>
+                    <option value="3">3 - Fair</option>
+                    <option value="4">4 - Good</option>
+                    <option value="5">5 - Excellent</option>
+                </select>
+            </div>
+            <div class="col-md-10">
+                <label asp-for="BranchComment" class="form-label"></label>
+                <input asp-for="BranchComment" class="form-control js-comment"
+                       pattern="[A-Za-z0-9 &amp;+#]*"
+                       data-error-label="Branch comment"
+                       title="Letters, numbers, spaces, and the symbols & + # only" />
+            </div>
         </div>
     </div>
 
-    <div class="d-flex gap-2 justify-content-end">
-        <button type="reset" class="btn btn-sm btn-outline-danger" id="clearBtn">Clear</button>
-        <button type="submit" class="btn btn-primary">Save case</button>
+    <div class="sq-panel sq-frame">
+        <div class="sq-step">
+            <span class="sq-step-num">03</span>
+            <h2>Staff feedback</h2>
+            <span class="sq-step-rule"></span>
+            <span class="sq-step-note">Optional</span>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label asp-for="StaffName" class="form-label"></label>
+                <input asp-for="StaffName" class="form-control js-letters-only"
+                       pattern="[A-Za-z ]*" maxlength="200"
+                       data-error-label="Staff name"
+                       title="Letters and spaces only" />
+            </div>
+            <div class="col-md-2">
+                <label asp-for="StaffRating" class="form-label"></label>
+                <select asp-for="StaffRating" class="form-select">
+                    <option value="0">Not rated</option>
+                    <option value="1">1 - Very Poor</option>
+                    <option value="2">2 - Poor</option>
+                    <option value="3">3 - Fair</option>
+                    <option value="4">4 - Good</option>
+                    <option value="5">5 - Excellent</option>
+                </select>
+            </div>
+            <div class="col-md-7">
+                <label asp-for="StaffComment" class="form-label"></label>
+                <input asp-for="StaffComment" class="form-control js-comment"
+                       pattern="[A-Za-z0-9 &amp;+#]*"
+                       data-error-label="Staff comment"
+                       title="Letters, numbers, spaces, and the symbols & + # only" />
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 justify-content-end mt-4">
+        <button type="reset" class="btn btn-outline-secondary" id="clearBtn">Clear</button>
+        <button type="submit" class="btn btn-primary sq-frame sq-frame-light">Save case</button>
     </div>
 </form>
 
