@@ -35,6 +35,15 @@
         return data;
     }
 
+    // The three headline counters lead; the rest ride underneath as a minor row.
+    var heroKeys = new[] { DashboardCards.Total, DashboardCards.Pending, DashboardCards.Breached };
+    var heroCards = Model.Cards.Where(c => heroKeys.Contains(c.Key)).ToList();
+    var minorCards = Model.Cards.Where(c => !heroKeys.Contains(c.Key)).ToList();
+
+    string HeroTone(string key) =>
+        key == DashboardCards.Breached ? "is-alert" :
+        key == DashboardCards.Pending ? "is-warn" : "";
+
     var returnUrl = Url.Action("Index", "Dashboard", new
     {
         card = Model.SelectedCard,
@@ -46,64 +55,90 @@
     });
 }
 
-<h1 class="h3 mb-3">Dashboard <span class="text-muted fs-6">@Model.Today.ToString("yyyy-MM-dd")</span></h1>
+<div class="sq-page-head">
+    <div>
+        <div class="sq-kicker">Service quality</div>
+        <h1 class="sq-title">Dashboard</h1>
+    </div>
+    <div class="sq-page-meta">@Model.Today.ToString("yyyy-MM-dd") · @Model.TotalItems cases in view</div>
+</div>
 
-<div class="row g-2 mb-4">
-    @foreach (var card in Model.Cards)
+<div class="sq-hero-grid">
+    @foreach (var card in heroCards)
     {
-        <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-            <a class="stat-card stat-card-link @card.Accent @(card.IsSelected ? "stat-card-active" : "")"
-               asp-action="Index"
-               asp-route-card="@card.Key"
-               asp-route-search="@Model.Search"
-               asp-route-month="@Model.Month"
-               asp-route-status="@Model.Status"
-               asp-route-rootCause="@Model.RootCause"
-               title="@card.Hint"
-               aria-current="@(card.IsSelected ? "true" : null)">
-                <div class="stat-value">@card.Value</div>
-                <div class="stat-label">@card.Label</div>
-            </a>
-        </div>
+        var heroClasses = "sq-hero sq-frame " + HeroTone(card.Key) + (card.IsSelected ? " is-selected" : "");
+        <a class="@heroClasses"
+           asp-action="Index"
+           asp-route-card="@card.Key"
+           asp-route-search="@Model.Search"
+           asp-route-month="@Model.Month"
+           asp-route-status="@Model.Status"
+           asp-route-rootCause="@Model.RootCause"
+           title="@card.Hint"
+           aria-current="@(card.IsSelected ? "true" : null)">
+            <div class="sq-hero-top">
+                <span class="sq-hero-value">@card.Value</span>
+                <span class="sq-hero-label">@card.Label</span>
+            </div>
+            <div class="sq-hero-hint">@card.Hint</div>
+        </a>
+    }
+</div>
+
+<div class="sq-minor-grid">
+    @foreach (var card in minorCards)
+    {
+        var minorClasses = "sq-minor" + (card.IsSelected ? " is-selected" : "");
+        <a class="@minorClasses"
+           asp-action="Index"
+           asp-route-card="@card.Key"
+           asp-route-search="@Model.Search"
+           asp-route-month="@Model.Month"
+           asp-route-status="@Model.Status"
+           asp-route-rootCause="@Model.RootCause"
+           title="@card.Hint"
+           aria-current="@(card.IsSelected ? "true" : null)">
+            <span class="sq-minor-label">@card.Label</span>
+            <span class="sq-minor-value">@card.Value</span>
+        </a>
     }
 </div>
 
 @if (Model.RepeatCustomers.Any())
 {
-    <div class="card mb-4" style="border-left: 4px solid #FCD34D;">
-        <div class="card-body py-2">
-            <div class="d-flex align-items-center flex-wrap gap-2">
-                <strong class="me-2 text-sq-navy">🔄 Repeat customers</strong>
-                @foreach (var r in Model.RepeatCustomers)
-                {
-                    <span class="repeat-pill">
-                        <span>@r.Label</span>
-                        <span class="repeat-pill-sub">@r.Sub</span>
-                        <span class="repeat-pill-count">@r.Count</span>
-                    </span>
-                }
-            </div>
-        </div>
+    <div class="sq-repeat-bar">
+        <span class="sq-repeat-bar-title">Repeat customers</span>
+        @foreach (var r in Model.RepeatCustomers)
+        {
+            <span class="repeat-pill">
+                <span>@r.Label</span>
+                <span class="repeat-pill-sub">@r.Sub</span>
+                <span class="repeat-pill-count">@r.Count</span>
+            </span>
+        }
     </div>
 }
 
-<div class="d-flex justify-content-between align-items-center mb-2">
-    <h2 class="h5 mb-0">
+<div class="sq-section-head">
+    <h2 class="sq-section-title">
         @Model.SelectedCardLabel
-        <span class="text-muted small">(@Model.TotalItems)</span>
+        <span class="sq-count">(@Model.TotalItems)</span>
     </h2>
-    <a class="small" asp-controller="Cases" asp-action="Index">Open in Cases &rarr;</a>
+    <a class="sq-section-link" asp-controller="Cases" asp-action="Index">
+        Open in Cases
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+    </a>
 </div>
 
-<form method="get" asp-action="Index" class="card card-body mb-3">
+<form method="get" asp-action="Index" class="sq-filters">
     <input type="hidden" name="card" value="@Model.SelectedCard" />
-    <div class="row g-2">
+    <div class="row g-3">
         <div class="col-md-4">
-            <label class="form-label small text-muted">Search</label>
-            <input class="form-control" name="search" value="@Model.Search" placeholder="Search" />
+            <label class="form-label">Search</label>
+            <input class="form-control" name="search" value="@Model.Search" placeholder="Customer, phone, branch, staff, ticket" />
         </div>
         <div class="col-md-2">
-            <label class="form-label small text-muted">Month</label>
+            <label class="form-label">Month</label>
             <select class="form-select" name="month">
                 <option value="">All</option>
                 @foreach (var m in Model.Months)
@@ -120,7 +155,7 @@
             </select>
         </div>
         <div class="col-md-2">
-            <label class="form-label small text-muted">Status</label>
+            <label class="form-label">Status</label>
             <select class="form-select" name="status">
                 <option value="">All</option>
                 @foreach (var status in Enum.GetValues<FollowUpStatus>())
@@ -137,7 +172,7 @@
             </select>
         </div>
         <div class="col-md-3">
-            <label class="form-label small text-muted">Root cause</label>
+            <label class="form-label">Root cause</label>
             <select class="form-select" name="rootCause">
                 <option value="">All</option>
                 @foreach (var r in Model.RootCauseOptions)
@@ -167,8 +202,8 @@
     </div>
     @if (Model.HasFilters)
     {
-        <div class="mt-2">
-            <a asp-action="Index" asp-route-card="@Model.SelectedCard" class="small">Clear filters</a>
+        <div class="sq-filters-foot">
+            <a asp-action="Index" asp-route-card="@Model.SelectedCard">Clear filters</a>
         </div>
     }
 </form>
@@ -176,16 +211,16 @@
 @if (!Model.Items.Any())
 {
     <div class="sq-empty">
-        <div class="sq-empty-emoji">🔍</div>
-        <div class="sq-empty-title">No cases in “@Model.SelectedCardLabel”</div>
+        <svg class="sq-empty-icon" viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4.3-4.3"></path></svg>
+        <div class="sq-empty-title">Nothing in “@Model.SelectedCardLabel”</div>
         <div class="sq-empty-sub">Try another card, or clear the filters.</div>
     </div>
 }
 else
 {
     @Html.AntiForgeryToken()
-    <div class="sq-case-scroll bg-white rounded shadow-sm">
-        <table class="table table-sm table-hover align-middle mb-0 sq-case-table sq-centered">
+    <div class="sq-case-scroll">
+        <table class="table table-hover align-middle mb-0 sq-case-table sq-centered">
             <colgroup>
                 <col style="width: 76px;" />
                 <col style="width: 96px;" />
@@ -196,9 +231,9 @@ else
                 <col style="width: 100px;" />
                 <col style="width: 284px;" />
             </colgroup>
-            <thead class="table-light">
+            <thead>
                 <tr>
-                    <th>Case ID</th>
+                    <th>Case</th>
                     <th>Date</th>
                     <th>Customer</th>
                     <th>Branch</th>
@@ -221,18 +256,18 @@ else
                         data-case-id="@c.Id"
                         data-case-label="@c.CaseNumber"
                         tabindex="0" role="button"
-                        title="Open case (details coming soon)">
-                        <td class="text-monospace">@c.CaseNumber</td>
-                        <td class="text-nowrap">@c.Date.ToString("yyyy-MM-dd")</td>
+                        title="Open case">
+                        <td class="sq-id">@c.CaseNumber</td>
+                        <td class="sq-num text-nowrap">@c.Date.ToString("yyyy-MM-dd")</td>
                         <td>
                             @c.CustomerName
                             @if (IsRepeat(c))
                             {
-                                <span class="repeat-marker" title="Repeat customer">🔄</span>
+                                <span class="repeat-marker" title="Repeat customer">↻</span>
                             }
                         </td>
                         <td>@c.Branch</td>
-                        <td class="small">@rootCauses</td>
+                        <td class="sq-cell-muted">@rootCauses</td>
                         <td>
                             <span class="badge-sq @(c.FollowUpStatus == FollowUpStatus.Completed ? "badge-sq-completed" : "badge-sq-pending")">
                                 @c.FollowUpStatus
@@ -245,7 +280,7 @@ else
                             }
                             else
                             {
-                                <span class="text-muted small text-nowrap">Due @c.DueDate.ToString("MM-dd")</span>
+                                <span class="sq-cell-muted sq-num text-nowrap">Due @c.DueDate.ToString("MM-dd")</span>
                             }
                         </td>
                         <td>
@@ -260,16 +295,16 @@ else
                                 </form>
                                 @if (!string.IsNullOrEmpty(mailto))
                                 {
-                                    <a class="btn btn-sm btn-outline-primary js-email-btn @(c.EmailSent ? "btn-email-sent" : "")"
+                                    <a class="btn btn-sm btn-outline-secondary js-email-btn @(c.EmailSent ? "btn-email-sent" : "")"
                                        href="@mailto" data-case-id="@c.Id"
                                        title="@(c.EmailSent ? "Email already sent" : "Send partner email")">
-                                        @(c.EmailSent ? "✓ Email" : "📧 Email")
+                                        @(c.EmailSent ? "Sent" : "Email")
                                     </a>
                                 }
                                 else
                                 {
-                                    <button class="btn btn-sm btn-outline-primary" type="button" disabled
-                                            title="No partner email on file">📧 Email</button>
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" disabled
+                                            title="No partner email on file">Email</button>
                                 }
                             </div>
                         </td>
@@ -280,8 +315,8 @@ else
     </div>
 
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
-        <div class="small text-muted">
-            Showing @Model.FirstItemOnPage–@Model.LastItemOnPage of @Model.TotalItems
+        <div class="sq-table-foot">
+            Showing @Model.FirstItemOnPage–@Model.LastItemOnPage of @Model.TotalItems · press any record for the full case
         </div>
         @if (Model.TotalPages > 1)
         {
@@ -293,7 +328,7 @@ else
                 <ul class="pagination pagination-sm mb-0">
                     <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
                         <a class="page-link" asp-action="Index"
-                           asp-all-route-data="@RouteFor(Math.Max(1, Model.Page - 1))">Previous</a>
+                           asp-all-route-data="@RouteFor(Math.Max(1, Model.Page - 1))">Prev</a>
                     </li>
 
                     @if (windowStart > 1)
@@ -339,7 +374,10 @@ else
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Case details <span class="text-muted" id="caseDetailId"></span></h5>
+                <h5 class="modal-title">
+                    <span class="sq-modal-kicker">Case record</span>
+                    <span id="caseDetailId"></span>
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" id="caseDetailBody"></div>
@@ -361,7 +399,7 @@ else
         function markEmailSent(id) {
             document.querySelectorAll('.js-email-btn[data-case-id="' + id + '"]').forEach(function (el) {
                 el.classList.add('btn-email-sent');
-                el.textContent = '✓ Email';
+                el.textContent = 'Sent';
                 el.setAttribute('title', 'Email already sent');
             });
         }
