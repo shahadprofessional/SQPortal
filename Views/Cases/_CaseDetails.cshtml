@@ -17,13 +17,14 @@
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
         <span class="sq-detail-number">#@c.CaseNumber</span>
         <span class="badge-sq @(c.FollowUpStatus == FollowUpStatus.Completed ? "badge-sq-completed" : "badge-sq-pending")">
-            @c.FollowUpStatus
+            Follow-up: @c.FollowUpStatus
         </span>
         @if (Model.SlaBreached)
         {
             <span class="badge-sq badge-sq-breached">SLA breached</span>
         }
-        <span class="badge-sq @validationClass">@c.CaseValidation</span>
+        @* Validation is its own axis — spell it out so it doesn't read as a second status *@
+        <span class="badge-sq @validationClass">Validation: @DisplayHelpers.ValidationLabel(c.CaseValidation)</span>
         @if (Model.IsRepeatCustomer)
         {
             <span class="badge-sq badge-sq-pending">🔄 Repeat customer</span>
@@ -123,7 +124,7 @@
     <div class="row g-3 sq-detail-grid">
         <div class="col-md-3">
             <div class="sq-detail-label">Case validation</div>
-            <div class="sq-detail-value">@c.CaseValidation</div>
+            <div class="sq-detail-value">@DisplayHelpers.ValidationLabel(c.CaseValidation)</div>
         </div>
         <div class="col-md-9">
             <div class="sq-detail-label">Root causes</div>

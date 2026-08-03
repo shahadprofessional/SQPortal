@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Html;
 using SQPortal.Models.Entities;
+using SQPortal.Models.Enums;
 
 namespace SQPortal.Helpers;
 
@@ -30,6 +31,18 @@ public static class DisplayHelpers
         }
         return yyyyMm;
     }
+
+    /// <summary>
+    /// Readable name for the validation state. This is a separate axis from
+    /// FollowUpStatus — a case stays "Under review" until someone marks it
+    /// valid or not valid, however the follow-up ended.
+    /// </summary>
+    public static string ValidationLabel(CaseValidation validation) => validation switch
+    {
+        CaseValidation.Valid => "Valid",
+        CaseValidation.NotValid => "Not valid",
+        _ => "Under review"
+    };
 
     public static string ShortId(string id) =>
         string.IsNullOrEmpty(id) ? string.Empty :
