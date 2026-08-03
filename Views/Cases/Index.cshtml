@@ -148,7 +148,7 @@ else
                     var mailto = string.IsNullOrEmpty(partnerEmail) ? string.Empty : DisplayHelpers.BuildLowRatingMailto(c, partnerEmail, partnerFullName);
                     var rowClasses = (row.SlaBreached ? "tr-breached" : "") + (IsRepeat(c) ? " tr-repeat" : "");
                     <tr data-case-id="@c.Id" class="@rowClasses.Trim()">
-                        <td class="text-monospace small">@DisplayHelpers.ShortId(c.Id)</td>
+                        <td class="text-monospace small">@c.CaseNumber</td>
                         <td>@c.Date.ToString("yyyy-MM-dd")</td>
                         <td>
                             @c.CustomerName
