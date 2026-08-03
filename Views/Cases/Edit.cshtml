@@ -1,152 +1,183 @@
 @model EditCaseViewModel
 @{
     ViewData["Title"] = "Edit Case";
+    var shortId = Model.Id.Length >= 6 ? Model.Id[^6..].ToUpper() : Model.Id.ToUpper();
 }
 
-<h1 class="h3 mb-3">Edit case <span class="text-muted fs-6">@(Model.Id.Length >= 6 ? Model.Id[^6..].ToUpper() : Model.Id.ToUpper())</span></h1>
+<div class="sq-page-head">
+    <div>
+        <div class="sq-kicker">Case record</div>
+        <h1 class="sq-title">Edit case <span class="sq-count">@shortId</span></h1>
+    </div>
+    <div class="sq-page-meta">SLA: 1 working day from the feedback date</div>
+</div>
 
-<form asp-action="Edit" method="post" class="card card-body bg-white shadow-sm">
+<form asp-action="Edit" method="post">
     @Html.AntiForgeryToken()
     <input type="hidden" asp-for="Id" />
-    <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
-    <h2 class="h6 text-muted">Customer &amp; case info</h2>
-    <div class="row g-3 mb-3">
-        <div class="col-md-4">
-            <label asp-for="CustomerName" class="form-label"></label>
-            <input asp-for="CustomerName" class="form-control" />
-            <span asp-validation-for="CustomerName" class="text-danger small"></span>
+    <div class="sq-panel sq-frame mb-4">
+        <div class="sq-step">
+            <span class="sq-step-num">01</span>
+            <h2>Customer &amp; case</h2>
+            <span class="sq-step-rule"></span>
         </div>
-        <div class="col-md-3">
-            <label asp-for="CustomerPhone" class="form-label"></label>
-            <input asp-for="CustomerPhone" class="form-control" />
-            <span asp-validation-for="CustomerPhone" class="text-danger small"></span>
-        </div>
-        <div class="col-md-2">
-            <label asp-for="TicketNumber" class="form-label"></label>
-            <input asp-for="TicketNumber" class="form-control" />
-        </div>
-        <div class="col-md-3">
-            <label asp-for="Date" class="form-label"></label>
-            <input asp-for="Date" class="form-control" />
-        </div>
-        <div class="col-md-4">
-            <label asp-for="Branch" class="form-label"></label>
-            <select asp-for="Branch" class="form-select">
-                @foreach (var b in Model.Branches)
-                {
-                    <option value="@b">@b</option>
-                }
-            </select>
-        </div>
-        <div class="col-md-3">
-            <label asp-for="BusinessPartner" class="form-label"></label>
-            <select asp-for="BusinessPartner" class="form-select">
-                @foreach (var p in Model.Partners)
-                {
-                    <option value="@p">@p</option>
-                }
-            </select>
-        </div>
-        <div class="col-md-2">
-            <label asp-for="DueDate" class="form-label"></label>
-            <input asp-for="DueDate" class="form-control" />
-        </div>
-    </div>
-
-    <h2 class="h6 text-muted">Ratings</h2>
-    <div class="row g-3 mb-3">
-        <div class="col-md-2">
-            <label asp-for="BranchRating" class="form-label"></label>
-            <select asp-for="BranchRating" class="form-select">
-                <option value="0">Not rated</option>
-                <option value="1">1 - Very Poor</option>
-                <option value="2">2 - Poor</option>
-                <option value="3">3 - Fair</option>
-                <option value="4">4 - Good</option>
-                <option value="5">5 - Excellent</option>
-            </select>
-        </div>
-        <div class="col-md-10">
-            <label asp-for="BranchComment" class="form-label"></label>
-            <input asp-for="BranchComment" class="form-control" />
-        </div>
-        <div class="col-md-3">
-            <label asp-for="StaffName" class="form-label"></label>
-            <input asp-for="StaffName" class="form-control" />
-        </div>
-        <div class="col-md-2">
-            <label asp-for="StaffRating" class="form-label"></label>
-            <select asp-for="StaffRating" class="form-select">
-                <option value="0">Not rated</option>
-                <option value="1">1 - Very Poor</option>
-                <option value="2">2 - Poor</option>
-                <option value="3">3 - Fair</option>
-                <option value="4">4 - Good</option>
-                <option value="5">5 - Excellent</option>
-            </select>
-        </div>
-        <div class="col-md-7">
-            <label asp-for="StaffComment" class="form-label"></label>
-            <input asp-for="StaffComment" class="form-control" />
-        </div>
-    </div>
-
-    <h2 class="h6 text-muted">Follow-up</h2>
-    <div class="row g-3 mb-3">
-        <div class="col-md-3">
-            <label asp-for="FollowUpStatus" class="form-label"></label>
-            <select asp-for="FollowUpStatus" class="form-select">
-                @foreach (var status in Enum.GetValues<FollowUpStatus>())
-                {
-                    <option value="@status">@status</option>
-                }
-            </select>
-        </div>
-        <div class="col-md-3">
-            <label asp-for="FollowUpDate" class="form-label"></label>
-            <input asp-for="FollowUpDate" class="form-control" />
-        </div>
-        <div class="col-md-6">
-            <label asp-for="FollowUpNotes" class="form-label"></label>
-            <input asp-for="FollowUpNotes" class="form-control" />
-        </div>
-    </div>
-
-    <h2 class="h6 text-muted">Validation</h2>
-    <div class="row g-3 mb-3">
-        <div class="col-md-3">
-            <label asp-for="CaseValidation" class="form-label"></label>
-            <select asp-for="CaseValidation" class="form-select">
-                @foreach (var v in Enum.GetValues<CaseValidation>())
-                {
-                    <option value="@v">@v</option>
-                }
-            </select>
-        </div>
-        <div class="col-md-12">
-            <label class="form-label">Root causes</label>
-            <div class="row g-2">
-                @foreach (var rc in Model.RootCauseOptions)
-                {
-                    var checkedAttr = Model.RootCauses.Contains(rc);
-                    <div class="col-md-4 form-check">
-                        <input class="form-check-input" type="checkbox" name="RootCauses" value="@rc" id="rc_@rc.GetHashCode()" @(checkedAttr ? "checked" : "") />
-                        <label class="form-check-label" for="rc_@rc.GetHashCode()">@rc</label>
-                    </div>
-                }
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label asp-for="CustomerName" class="form-label"></label>
+                <input asp-for="CustomerName" class="form-control" />
+                <span asp-validation-for="CustomerName" class="text-danger small"></span>
             </div>
-            <label asp-for="OtherRootCause" class="form-label mt-2">Other (free text)</label>
-            <input asp-for="OtherRootCause" class="form-control" />
-        </div>
-        <div class="col-md-12">
-            <label asp-for="ValidationNotes" class="form-label"></label>
-            <textarea asp-for="ValidationNotes" class="form-control" rows="2"></textarea>
+            <div class="col-md-3">
+                <label asp-for="CustomerPhone" class="form-label"></label>
+                <input asp-for="CustomerPhone" class="form-control" />
+                <span asp-validation-for="CustomerPhone" class="text-danger small"></span>
+            </div>
+            <div class="col-md-2">
+                <label asp-for="TicketNumber" class="form-label"></label>
+                <input asp-for="TicketNumber" class="form-control" />
+            </div>
+            <div class="col-md-3">
+                <label asp-for="Date" class="form-label"></label>
+                <input asp-for="Date" class="form-control" />
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Branch" class="form-label"></label>
+                <select asp-for="Branch" class="form-select">
+                    @foreach (var b in Model.Branches)
+                    {
+                        <option value="@b">@b</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="BusinessPartner" class="form-label"></label>
+                <select asp-for="BusinessPartner" class="form-select">
+                    @foreach (var p in Model.Partners)
+                    {
+                        <option value="@p">@p</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label asp-for="DueDate" class="form-label"></label>
+                <input asp-for="DueDate" class="form-control" />
+            </div>
         </div>
     </div>
 
-    <div class="d-flex gap-2 justify-content-end">
-        <a asp-action="Index" class="btn btn-link">Cancel</a>
-        <button type="submit" class="btn btn-primary">Save changes</button>
+    <div class="sq-panel sq-frame mb-4">
+        <div class="sq-step">
+            <span class="sq-step-num">02</span>
+            <h2>Ratings</h2>
+            <span class="sq-step-rule"></span>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-2">
+                <label asp-for="BranchRating" class="form-label"></label>
+                <select asp-for="BranchRating" class="form-select">
+                    <option value="0">Not rated</option>
+                    <option value="1">1 - Very Poor</option>
+                    <option value="2">2 - Poor</option>
+                    <option value="3">3 - Fair</option>
+                    <option value="4">4 - Good</option>
+                    <option value="5">5 - Excellent</option>
+                </select>
+            </div>
+            <div class="col-md-10">
+                <label asp-for="BranchComment" class="form-label"></label>
+                <input asp-for="BranchComment" class="form-control" />
+            </div>
+            <div class="col-md-3">
+                <label asp-for="StaffName" class="form-label"></label>
+                <input asp-for="StaffName" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label asp-for="StaffRating" class="form-label"></label>
+                <select asp-for="StaffRating" class="form-select">
+                    <option value="0">Not rated</option>
+                    <option value="1">1 - Very Poor</option>
+                    <option value="2">2 - Poor</option>
+                    <option value="3">3 - Fair</option>
+                    <option value="4">4 - Good</option>
+                    <option value="5">5 - Excellent</option>
+                </select>
+            </div>
+            <div class="col-md-7">
+                <label asp-for="StaffComment" class="form-label"></label>
+                <input asp-for="StaffComment" class="form-control" />
+            </div>
+        </div>
+    </div>
+
+    <div class="sq-panel sq-frame mb-4">
+        <div class="sq-step">
+            <span class="sq-step-num">03</span>
+            <h2>Follow-up</h2>
+            <span class="sq-step-rule"></span>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label asp-for="FollowUpStatus" class="form-label"></label>
+                <select asp-for="FollowUpStatus" class="form-select">
+                    @foreach (var status in Enum.GetValues<FollowUpStatus>())
+                    {
+                        <option value="@status">@status</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="FollowUpDate" class="form-label"></label>
+                <input asp-for="FollowUpDate" class="form-control" />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="FollowUpNotes" class="form-label"></label>
+                <input asp-for="FollowUpNotes" class="form-control" />
+            </div>
+        </div>
+    </div>
+
+    <div class="sq-panel sq-frame">
+        <div class="sq-step">
+            <span class="sq-step-num">04</span>
+            <h2>Validation &amp; root causes</h2>
+            <span class="sq-step-rule"></span>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label asp-for="CaseValidation" class="form-label"></label>
+                <select asp-for="CaseValidation" class="form-select">
+                    @foreach (var v in Enum.GetValues<CaseValidation>())
+                    {
+                        <option value="@v">@v</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-12">
+                <label class="form-label">Root causes</label>
+                <div class="sq-chips">
+                    @foreach (var rc in Model.RootCauseOptions)
+                    {
+                        var checkedAttr = Model.RootCauses.Contains(rc);
+                        <label class="sq-chip">
+                            <input type="checkbox" name="RootCauses" value="@rc" id="rc_@rc.GetHashCode()" @(checkedAttr ? "checked" : "") />
+                            <span>@rc</span>
+                        </label>
+                    }
+                </div>
+                <label asp-for="OtherRootCause" class="form-label mt-3">Other (free text)</label>
+                <input asp-for="OtherRootCause" class="form-control" />
+            </div>
+            <div class="col-md-12">
+                <label asp-for="ValidationNotes" class="form-label"></label>
+                <textarea asp-for="ValidationNotes" class="form-control" rows="2"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 justify-content-end mt-4">
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary sq-frame sq-frame-light">Save changes</button>
     </div>
 </form>

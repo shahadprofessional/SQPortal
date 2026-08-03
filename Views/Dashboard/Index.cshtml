@@ -21,61 +21,78 @@
     }
 }
 
-<h1 class="h3 mb-3">Dashboard <span class="text-muted fs-6">@Model.Today.ToString("yyyy-MM-dd")</span></h1>
+<div class="sq-page-head">
+    <div>
+        <div class="sq-kicker">Service quality</div>
+        <h1 class="sq-title">Dashboard</h1>
+    </div>
+    <div class="sq-page-meta">@Model.Today.ToString("yyyy-MM-dd") · @Model.Total cases on file</div>
+</div>
 
-<div class="row g-2 mb-4">
-    @{
-        var stats = new (string Label, int Value, string Accent)[]
-        {
-            ("Total",         Model.Total,       "accent-navy"),
-            ("This month",    Model.Month,       "accent-navy"),
-            ("Pending",       Model.Pending,     "accent-amber"),
-            ("SLA breached",  Model.Breached,    Model.Breached > 0 ? "accent-red" : "accent-green"),
-            ("Completed",     Model.Done,        "accent-green"),
-            ("Valid",         Model.Valid,       "accent-green"),
-            ("Not valid",     Model.NotValid,    "accent-gray"),
-            ("Under review",  Model.UnderReview, "accent-indigo"),
-            ("Staff issues",  Model.StaffIssues, "accent-orange"),
-            ("Branch issues", Model.BranchIssues,"accent-orange"),
-        };
-    }
-    @foreach (var s in stats)
+@{
+    var heroes = new (string Label, int Value, string Hint, string Tone)[]
     {
-        <div class="col-6 col-md-3 col-lg-2">
-            <div class="stat-card @s.Accent">
-                <div class="stat-value">@s.Value</div>
-                <div class="stat-label">@s.Label</div>
+        ("Total",        Model.Total,    "All cases on file",           ""),
+        ("Pending",      Model.Pending,  "Follow-up not completed yet", "is-warn"),
+        ("SLA breached", Model.Breached, "Follow-up past its due date", Model.Breached > 0 ? "is-alert" : ""),
+    };
+    var minors = new (string Label, int Value)[]
+    {
+        ("This month",    Model.Month),
+        ("Completed",     Model.Done),
+        ("Valid",         Model.Valid),
+        ("Not valid",     Model.NotValid),
+        ("Under review",  Model.UnderReview),
+        ("Staff issues",  Model.StaffIssues),
+        ("Branch issues", Model.BranchIssues),
+    };
+}
+
+<div class="sq-hero-grid">
+    @foreach (var h in heroes)
+    {
+        <div class="sq-hero sq-frame @h.Tone">
+            <div class="sq-hero-top">
+                <span class="sq-hero-value">@h.Value</span>
+                <span class="sq-hero-label">@h.Label</span>
             </div>
+            <div class="sq-hero-hint">@h.Hint</div>
+        </div>
+    }
+</div>
+
+<div class="sq-minor-grid">
+    @foreach (var m in minors)
+    {
+        <div class="sq-minor">
+            <span class="sq-minor-label">@m.Label</span>
+            <span class="sq-minor-value">@m.Value</span>
         </div>
     }
 </div>
 
 @if (Model.RepeatCustomers.Any())
 {
-    <div class="card mb-4" style="border-left: 4px solid #FCD34D;">
-        <div class="card-body py-2">
-            <div class="d-flex align-items-center flex-wrap gap-2">
-                <strong class="me-2 text-sq-navy">🔄 Repeat customers</strong>
-                @foreach (var r in Model.RepeatCustomers)
-                {
-                    <span class="repeat-pill">
-                        <span>@r.Label</span>
-                        <span class="repeat-pill-sub">@r.Sub</span>
-                        <span class="repeat-pill-count">@r.Count</span>
-                    </span>
-                }
-            </div>
-        </div>
+    <div class="sq-repeat-bar">
+        <span class="sq-repeat-bar-title">Repeat customers</span>
+        @foreach (var r in Model.RepeatCustomers)
+        {
+            <span class="repeat-pill">
+                <span>@r.Label</span>
+                <span class="repeat-pill-sub">@r.Sub</span>
+                <span class="repeat-pill-count">@r.Count</span>
+            </span>
+        }
     </div>
 }
 
-<div class="d-flex justify-content-between align-items-center mb-2">
-    <h2 class="h5 mb-0">Urgent <span class="text-muted small">(@Model.Urgent.Count)</span></h2>
+<div class="sq-section-head">
+    <h2 class="sq-section-title">Urgent <span class="sq-count">(@Model.Urgent.Count)</span></h2>
 </div>
 @if (!Model.Urgent.Any())
 {
     <div class="sq-empty sq-empty-success mb-4">
-        <div class="sq-empty-emoji">✅</div>
+        <svg class="sq-empty-icon" viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
         <div class="sq-empty-title">No urgent cases</div>
         <div class="sq-empty-sub">Nothing overdue or due today.</div>
     </div>
@@ -83,20 +100,20 @@
 else
 {
     @Html.AntiForgeryToken()
-    <div class="table-responsive bg-white rounded shadow-sm mb-4 border-start border-danger border-4">
-        <table class="table table-sm table-hover align-middle mb-0">
-            <thead class="table-light">
+    <div class="sq-table-wrap mb-4">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
                 <tr>
-                    <th>ID</th>
+                    <th>Case</th>
                     <th>Date</th>
                     <th>Customer</th>
                     <th>Phone</th>
                     <th>Branch</th>
-                    <th class="text-center">Branch ★</th>
+                    <th>Branch ★</th>
                     <th>Staff</th>
-                    <th>Partner</th>
+                    <th>SQ staff</th>
                     <th>SLA</th>
-                    <th></th>
+                    <th class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -108,18 +125,18 @@ else
                     var mailto = string.IsNullOrEmpty(partnerEmail) ? string.Empty : DisplayHelpers.BuildLowRatingMailto(c, partnerEmail, partnerFullName);
                     var rowClasses = (row.SlaBreached ? "tr-breached" : "") + (IsRepeat(c) ? " tr-repeat" : "");
                     <tr data-case-id="@c.Id" class="@rowClasses.Trim()">
-                        <td class="text-monospace small">@DisplayHelpers.ShortId(c.Id)</td>
-                        <td>@c.Date.ToString("yyyy-MM-dd")</td>
+                        <td class="sq-id">@DisplayHelpers.ShortId(c.Id)</td>
+                        <td class="sq-num">@c.Date.ToString("yyyy-MM-dd")</td>
                         <td>
                             @c.CustomerName
                             @if (IsRepeat(c))
                             {
-                                <span class="repeat-marker" title="Repeat customer">🔄</span>
+                                <span class="repeat-marker" title="Repeat customer">↻</span>
                             }
                         </td>
-                        <td>@c.CustomerPhone</td>
+                        <td class="sq-num">@c.CustomerPhone</td>
                         <td>@c.Branch</td>
-                        <td class="text-center">@DisplayHelpers.Stars(c.BranchRating)</td>
+                        <td>@DisplayHelpers.Stars(c.BranchRating)</td>
                         <td>@c.StaffName</td>
                         <td>@c.BusinessPartner</td>
                         <td>
@@ -132,15 +149,17 @@ else
                                 <span class="badge-sq badge-sq-pending">Due @c.DueDate.ToString("MM-dd")</span>
                             }
                         </td>
-                        <td class="text-end text-nowrap">
-                            <a class="btn btn-sm btn-outline-secondary" asp-controller="Cases" asp-action="Edit" asp-route-id="@c.Id">Edit</a>
-                            @if (!string.IsNullOrEmpty(mailto))
-                            {
-                                <a class="btn btn-sm btn-outline-primary js-email-btn @(c.EmailSent ? "btn-email-sent" : "")"
-                                   href="@mailto" data-case-id="@c.Id" title="@(c.EmailSent ? "Email already sent" : "Send partner email")">
-                                    @(c.EmailSent ? "✓ Email" : "📧 Email")
-                                </a>
-                            }
+                        <td>
+                            <div class="sq-row-actions">
+                                <a class="btn btn-sm btn-outline-secondary btn-row" asp-controller="Cases" asp-action="Edit" asp-route-id="@c.Id">Edit</a>
+                                @if (!string.IsNullOrEmpty(mailto))
+                                {
+                                    <a class="btn btn-sm btn-outline-secondary btn-row js-email-btn @(c.EmailSent ? "btn-email-sent" : "")"
+                                       href="@mailto" data-case-id="@c.Id" title="@(c.EmailSent ? "Email already sent" : "Send partner email")">
+                                        @(c.EmailSent ? "Sent" : "Email")
+                                    </a>
+                                }
+                            </div>
                         </td>
                     </tr>
                 }
@@ -149,32 +168,35 @@ else
     </div>
 }
 
-<div class="d-flex justify-content-between align-items-center mb-2">
-    <h2 class="h5 mb-0">Recent</h2>
-    <a class="small" asp-controller="Cases" asp-action="Index">View all cases &rarr;</a>
+<div class="sq-section-head">
+    <h2 class="sq-section-title">Recent</h2>
+    <a class="sq-section-link" asp-controller="Cases" asp-action="Index">
+        Open in Cases
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+    </a>
 </div>
 @if (!Model.Recent.Any())
 {
     <div class="sq-empty">
-        <div class="sq-empty-emoji">📋</div>
+        <svg class="sq-empty-icon" viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>
         <div class="sq-empty-title">No cases yet</div>
         <div class="sq-empty-sub"><a asp-controller="Cases" asp-action="Create">Add the first one</a> to get started.</div>
     </div>
 }
 else
 {
-    <div class="table-responsive bg-white rounded shadow-sm">
-        <table class="table table-sm table-hover align-middle mb-0">
-            <thead class="table-light">
+    <div class="sq-table-wrap">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
                 <tr>
                     <th>Date</th>
                     <th>Customer</th>
                     <th>Branch</th>
-                    <th class="text-center">Branch ★</th>
-                    <th class="text-center">Staff ★</th>
+                    <th>Branch ★</th>
+                    <th>Staff ★</th>
                     <th>Status</th>
                     <th class="text-end">Age</th>
-                    <th></th>
+                    <th class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -183,25 +205,27 @@ else
                     var c = row.Case;
                     var rowClasses = IsRepeat(c) ? "tr-repeat" : "";
                     <tr class="@rowClasses">
-                        <td>@c.Date.ToString("yyyy-MM-dd")</td>
+                        <td class="sq-num">@c.Date.ToString("yyyy-MM-dd")</td>
                         <td>
                             @c.CustomerName
                             @if (IsRepeat(c))
                             {
-                                <span class="repeat-marker" title="Repeat customer">🔄</span>
+                                <span class="repeat-marker" title="Repeat customer">↻</span>
                             }
                         </td>
                         <td>@c.Branch</td>
-                        <td class="text-center">@DisplayHelpers.Stars(c.BranchRating)</td>
-                        <td class="text-center">@DisplayHelpers.Stars(c.StaffRating)</td>
+                        <td>@DisplayHelpers.Stars(c.BranchRating)</td>
+                        <td>@DisplayHelpers.Stars(c.StaffRating)</td>
                         <td>
                             <span class="badge-sq @(c.FollowUpStatus == FollowUpStatus.Completed ? "badge-sq-completed" : "badge-sq-pending")">
                                 @c.FollowUpStatus
                             </span>
                         </td>
-                        <td class="text-end">@row.AgeDays d</td>
-                        <td class="text-end">
-                            <a class="btn btn-sm btn-outline-secondary" asp-controller="Cases" asp-action="Edit" asp-route-id="@c.Id">Edit</a>
+                        <td class="text-end sq-num">@row.AgeDays d</td>
+                        <td>
+                            <div class="sq-row-actions">
+                                <a class="btn btn-sm btn-outline-secondary btn-row" asp-controller="Cases" asp-action="Edit" asp-route-id="@c.Id">Edit</a>
+                            </div>
                         </td>
                     </tr>
                 }
@@ -222,7 +246,7 @@ else
                 if (!id) return;
                 // Optimistic update — match the prototype's immediate-feedback behavior
                 btn.classList.add('btn-email-sent');
-                btn.textContent = '✓ Email';
+                btn.textContent = 'Sent';
                 btn.setAttribute('title', 'Email already sent');
                 var body = new URLSearchParams({ id: id, __RequestVerificationToken: token });
                 fetch('@Url.Action("MarkEmailSent", "Cases")', {

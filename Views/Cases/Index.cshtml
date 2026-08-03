@@ -22,26 +22,37 @@
     }
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h3 mb-0">Cases <span class="text-muted fs-6">(@Model.Count)</span></h1>
+<div class="sq-page-head">
     <div>
-        <a class="btn btn-outline-secondary" asp-action="ExportCsv"
-           asp-route-search="@Model.Search"
-           asp-route-month="@Model.Month"
-           asp-route-followUpStatus="@Model.FollowUpStatus"
-           asp-route-rootCause="@Model.RootCause">Export CSV</a>
-        <a class="btn btn-primary" asp-action="Create">+ New case</a>
+        <div class="sq-kicker">Records</div>
+        <h1 class="sq-title">Cases</h1>
     </div>
+    <div class="sq-page-meta">@Model.Count records</div>
 </div>
 
-<form method="get" class="card card-body mb-3">
-    <div class="row g-2">
+<div class="d-flex justify-content-end align-items-center gap-2 flex-wrap mb-3">
+    <a class="btn btn-outline-secondary" asp-action="ExportCsv"
+       asp-route-search="@Model.Search"
+       asp-route-month="@Model.Month"
+       asp-route-followUpStatus="@Model.FollowUpStatus"
+       asp-route-rootCause="@Model.RootCause">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 11l5 5 5-5M4 21h16"></path></svg>
+        Export CSV
+    </a>
+    <a class="btn btn-primary sq-frame sq-frame-light" asp-action="Create">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
+        New case
+    </a>
+</div>
+
+<form method="get" class="sq-filters">
+    <div class="row g-3">
         <div class="col-md-4">
-            <label class="form-label small text-muted">Search</label>
+            <label class="form-label">Search</label>
             <input class="form-control" name="search" value="@Model.Search" placeholder="Customer, phone, branch, staff, ticket" />
         </div>
         <div class="col-md-2">
-            <label class="form-label small text-muted">Month</label>
+            <label class="form-label">Month</label>
             <select class="form-select" name="month">
                 <option value="">All</option>
                 @foreach (var m in Model.Months)
@@ -58,7 +69,7 @@
             </select>
         </div>
         <div class="col-md-2">
-            <label class="form-label small text-muted">Follow-up</label>
+            <label class="form-label">Follow-up</label>
             <select class="form-select" name="followUpStatus">
                 <option value="">All</option>
                 @foreach (var status in Enum.GetValues<FollowUpStatus>())
@@ -75,7 +86,7 @@
             </select>
         </div>
         <div class="col-md-3">
-            <label class="form-label small text-muted">Root cause</label>
+            <label class="form-label">Root cause</label>
             <select class="form-select" name="rootCause">
                 <option value="">All</option>
                 @foreach (var r in Model.RootCauseOptions)
@@ -103,40 +114,40 @@
             <button class="btn btn-primary w-100" type="submit">Filter</button>
         </div>
     </div>
-    <div class="mt-2">
-        <a asp-action="Index" class="small">Clear filters</a>
+    <div class="sq-filters-foot">
+        <a asp-action="Index">Clear filters</a>
     </div>
 </form>
 
 @if (!Model.Cases.Any())
 {
     <div class="sq-empty">
-        <div class="sq-empty-emoji">🔍</div>
+        <svg class="sq-empty-icon" viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4.3-4.3"></path></svg>
         <div class="sq-empty-title">No cases match these filters</div>
-        <div class="sq-empty-sub">Try clearing a filter or adding a new case.</div>
+        <div class="sq-empty-sub">Try clearing a filter, or add a new case.</div>
     </div>
 }
 else
 {
     @Html.AntiForgeryToken()
-    <div class="table-responsive bg-white rounded shadow-sm">
-        <table class="table table-sm table-hover align-middle mb-0">
-            <thead class="table-light">
+    <div class="sq-table-wrap">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
                 <tr>
-                    <th>ID</th>
+                    <th>Case</th>
                     <th>Date</th>
                     <th>Customer</th>
                     <th>Phone</th>
                     <th>Branch</th>
-                    <th class="text-center">Branch ★</th>
+                    <th>Branch ★</th>
                     <th>Staff</th>
-                    <th class="text-center">Staff ★</th>
-                    <th>Partner</th>
+                    <th>Staff ★</th>
+                    <th>SQ staff</th>
                     <th>Status</th>
                     <th>SLA</th>
                     <th class="text-end">Age</th>
                     <th>Root causes</th>
-                    <th></th>
+                    <th class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -148,20 +159,20 @@ else
                     var mailto = string.IsNullOrEmpty(partnerEmail) ? string.Empty : DisplayHelpers.BuildLowRatingMailto(c, partnerEmail, partnerFullName);
                     var rowClasses = (row.SlaBreached ? "tr-breached" : "") + (IsRepeat(c) ? " tr-repeat" : "");
                     <tr data-case-id="@c.Id" class="@rowClasses.Trim()">
-                        <td class="text-monospace small">@DisplayHelpers.ShortId(c.Id)</td>
-                        <td>@c.Date.ToString("yyyy-MM-dd")</td>
+                        <td class="sq-id">@DisplayHelpers.ShortId(c.Id)</td>
+                        <td class="sq-num">@c.Date.ToString("yyyy-MM-dd")</td>
                         <td>
                             @c.CustomerName
                             @if (IsRepeat(c))
                             {
-                                <span class="repeat-marker" title="Repeat customer">🔄</span>
+                                <span class="repeat-marker" title="Repeat customer">↻</span>
                             }
                         </td>
-                        <td>@c.CustomerPhone</td>
+                        <td class="sq-num">@c.CustomerPhone</td>
                         <td>@c.Branch</td>
-                        <td class="text-center">@DisplayHelpers.Stars(c.BranchRating)</td>
+                        <td>@DisplayHelpers.Stars(c.BranchRating)</td>
                         <td>@c.StaffName</td>
-                        <td class="text-center">@DisplayHelpers.Stars(c.StaffRating)</td>
+                        <td>@DisplayHelpers.Stars(c.StaffRating)</td>
                         <td>@c.BusinessPartner</td>
                         <td>
                             <span class="badge-sq @(c.FollowUpStatus == FollowUpStatus.Completed ? "badge-sq-completed" : "badge-sq-pending")">
@@ -175,25 +186,27 @@ else
                             }
                             else
                             {
-                                <span class="text-muted small">@c.DueDate.ToString("MM-dd")</span>
+                                <span class="sq-cell-muted sq-num">Due @c.DueDate.ToString("MM-dd")</span>
                             }
                         </td>
-                        <td class="text-end">@row.AgeDays d</td>
-                        <td class="small">@string.Join(", ", c.RootCauses)</td>
-                        <td class="text-end text-nowrap">
-                            <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@c.Id">Edit</a>
-                            @if (!string.IsNullOrEmpty(mailto))
-                            {
-                                <a class="btn btn-sm btn-outline-primary js-email-btn @(c.EmailSent ? "btn-email-sent" : "")"
-                                   href="@mailto" data-case-id="@c.Id" title="@(c.EmailSent ? "Email already sent" : "Send partner email")">
-                                    @(c.EmailSent ? "✓ Email" : "📧 Email")
-                                </a>
-                            }
-                            <form asp-action="Delete" asp-route-id="@c.Id" method="post" class="d-inline"
-                                  onsubmit="return confirm('Delete this case? This cannot be undone.');">
-                                @Html.AntiForgeryToken()
-                                <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
-                            </form>
+                        <td class="text-end sq-num">@row.AgeDays d</td>
+                        <td class="sq-cell-muted">@string.Join(", ", c.RootCauses)</td>
+                        <td>
+                            <div class="sq-row-actions">
+                                <a class="btn btn-sm btn-outline-secondary btn-row" asp-action="Edit" asp-route-id="@c.Id">Edit</a>
+                                @if (!string.IsNullOrEmpty(mailto))
+                                {
+                                    <a class="btn btn-sm btn-outline-secondary btn-row js-email-btn @(c.EmailSent ? "btn-email-sent" : "")"
+                                       href="@mailto" data-case-id="@c.Id" title="@(c.EmailSent ? "Email already sent" : "Send partner email")">
+                                        @(c.EmailSent ? "Sent" : "Email")
+                                    </a>
+                                }
+                                <form asp-action="Delete" asp-route-id="@c.Id" method="post"
+                                      onsubmit="return confirm('Delete this case? This cannot be undone.');">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn-sm btn-outline-danger btn-row" type="submit">Del</button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 }
@@ -214,7 +227,7 @@ else
                 if (!id) return;
                 // Optimistic update — match the prototype's immediate-feedback behavior
                 btn.classList.add('btn-email-sent');
-                btn.textContent = '✓ Email';
+                btn.textContent = 'Sent';
                 btn.setAttribute('title', 'Email already sent');
                 var body = new URLSearchParams({ id: id, __RequestVerificationToken: token });
                 fetch('@Url.Action("MarkEmailSent", "Cases")', {
