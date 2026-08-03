@@ -121,7 +121,7 @@
             <select asp-for="CaseValidation" class="form-select">
                 @foreach (var v in Enum.GetValues<CaseValidation>())
                 {
-                    <option value="@v">@v</option>
+                    <option value="@v">@DisplayHelpers.ValidationLabel(v)</option>
                 }
             </select>
         </div>

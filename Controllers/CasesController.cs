@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SQPortal.Data;
+using SQPortal.Helpers;
 using SQPortal.Models.Entities;
 using SQPortal.Models.Enums;
 using SQPortal.Models.ViewModels.Cases;
@@ -105,6 +106,45 @@ public class CasesController : Controller
         }
 
         return Json(new { id, emailSent = true });
+    }
+
+    /// <summary>
+    /// Single case, read-only. Returns just the panel when called with partial=1
+    /// (the dashboard pulls it into a dialog), otherwise a full page.
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> Details(string id, string? returnUrl = null, bool partial = false)
+    {
+        var entity = await _db.Cases.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
+        if (entity == null) return NotFound();
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var partner = await _db.Partners.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Name == entity.BusinessPartner);
+
+        var allCases = await _db.Cases.AsNoTracking().ToListAsync();
+        var repeats = _repeats.Detect(allCases, today);
+        var isRepeat = repeats.Any(r =>
+            (r.MatchType == "Phone" && r.Sub.Replace("📞 ", string.Empty).Trim() == (entity.CustomerPhone ?? string.Empty).Trim()) ||
+            (r.MatchType == "Name" && string.Equals(r.Label.Trim(), (entity.CustomerName ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase)));
+
+        var (rootCauses, other) = SplitRootCauses(entity.RootCauses);
+
+        var vm = new CaseDetailsViewModel
+        {
+            Case = entity,
+            AgeDays = today.DayNumber - entity.Date.DayNumber,
+            SlaBreached = _sla.IsBreached(entity.DueDate, entity.FollowUpStatus, today),
+            IsRepeatCustomer = isRepeat,
+            PartnerFullName = partner?.FullName ?? string.Empty,
+            PartnerEmail = partner?.Email ?? string.Empty,
+            Mailto = partner == null ? string.Empty : DisplayHelpers.BuildLowRatingMailto(entity, partner.Email, partner.FullName),
+            ReturnUrl = !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) ? returnUrl : null,
+            RootCauses = rootCauses,
+            OtherRootCause = other
+        };
+
+        return partial ? PartialView("_CaseDetails", vm) : View(vm);
     }
 
     [HttpGet]
