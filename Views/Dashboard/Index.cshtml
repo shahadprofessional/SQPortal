@@ -336,15 +336,13 @@ else
 }
 
 <div class="modal fade" id="caseDetailModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Case <span class="text-monospace" id="caseDetailId"></span></h5>
+                <h5 class="modal-title">Case details <span class="text-muted" id="caseDetailId"></span></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <p class="mb-0 text-muted">Full case details are coming soon.</p>
-            </div>
+            <div class="modal-body" id="caseDetailBody"></div>
         </div>
     </div>
 </div>
@@ -352,14 +350,72 @@ else
 @section Scripts {
 <script>
     (function () {
-        // Pressable records — the detail view lands later; for now confirm the press target.
+        var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
+        var token = tokenEl ? tokenEl.value : '';
+        var markEmailUrl = '@Url.Action("MarkEmailSent", "Cases")';
+        var detailsUrl = '@Url.Action("Details", "Cases")';
+        // JSON-encoded: the URL carries & separators that HTML encoding would mangle.
+        var returnUrl = @Json.Serialize(returnUrl ?? string.Empty);
+
+        // Marks every button for this case — the row and the open dialog stay in step.
+        function markEmailSent(id) {
+            document.querySelectorAll('.js-email-btn[data-case-id="' + id + '"]').forEach(function (el) {
+                el.classList.add('btn-email-sent');
+                el.textContent = '✓ Email';
+                el.setAttribute('title', 'Email already sent');
+            });
+        }
+
+        function bindEmailButtons(root) {
+            root.querySelectorAll('.js-email-btn').forEach(function (btn) {
+                if (btn.dataset.bound) return;
+                btn.dataset.bound = '1';
+                btn.addEventListener('click', function () {
+                    var id = btn.getAttribute('data-case-id');
+                    if (!id || !token) return;
+                    // Optimistic update — match the prototype's immediate-feedback behavior
+                    markEmailSent(id);
+                    var body = new URLSearchParams({ id: id, __RequestVerificationToken: token });
+                    fetch(markEmailUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: body.toString()
+                    }).catch(function () { /* leave UI optimistic; will reconcile on next page load */ });
+                });
+            });
+        }
+
+        // Pressable records — the whole case opens in a dialog.
         var modalEl = document.getElementById('caseDetailModal');
+        var bodyEl = document.getElementById('caseDetailBody');
         var labelEl = document.getElementById('caseDetailId');
 
         function openCase(tr) {
             if (!modalEl || !window.bootstrap) return;
-            labelEl.textContent = tr.getAttribute('data-case-label') || '';
+            var id = tr.getAttribute('data-case-id');
+            if (!id) return;
+
+            labelEl.textContent = '#' + (tr.getAttribute('data-case-label') || '');
+            bodyEl.innerHTML = '<div class="text-center text-muted py-5">Loading…</div>';
             bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+            var url = detailsUrl
+                + '?id=' + encodeURIComponent(id)
+                + '&partial=true'
+                + '&returnUrl=' + encodeURIComponent(returnUrl);
+
+            fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function (r) {
+                    if (!r.ok) throw new Error(r.status);
+                    return r.text();
+                })
+                .then(function (html) {
+                    bodyEl.innerHTML = html;
+                    bindEmailButtons(bodyEl);
+                })
+                .catch(function () {
+                    bodyEl.innerHTML = '<div class="text-danger py-4 text-center">Could not load this case. Please try again.</div>';
+                });
         }
 
         document.querySelectorAll('tr.sq-row-pressable').forEach(function (tr) {
@@ -377,25 +433,7 @@ else
             });
         });
 
-        var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
-        if (!tokenEl) return;
-        var token = tokenEl.value;
-        document.querySelectorAll('.js-email-btn').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                var id = btn.getAttribute('data-case-id');
-                if (!id) return;
-                // Optimistic update — match the prototype's immediate-feedback behavior
-                btn.classList.add('btn-email-sent');
-                btn.textContent = '✓ Email';
-                btn.setAttribute('title', 'Email already sent');
-                var body = new URLSearchParams({ id: id, __RequestVerificationToken: token });
-                fetch('@Url.Action("MarkEmailSent", "Cases")', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: body.toString()
-                }).catch(function () { /* leave UI optimistic; will reconcile on next page load */ });
-            });
-        });
+        bindEmailButtons(document);
     })();
 </script>
 }

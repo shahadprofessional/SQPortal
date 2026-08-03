@@ -1,0 +1,13 @@
+@model CaseDetailsViewModel
+@{
+    ViewData["Title"] = $"Case #{Model.Case.CaseNumber}";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Case details</h1>
+    <a class="small" asp-controller="Cases" asp-action="Index">&larr; Back to cases</a>
+</div>
+
+<div class="card card-body bg-white shadow-sm">
+    <partial name="_CaseDetails" model="Model" />
+</div>

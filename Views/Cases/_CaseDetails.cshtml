@@ -1,0 +1,176 @@
+@model CaseDetailsViewModel
+@{
+    var c = Model.Case;
+    string Val(string? v) => string.IsNullOrWhiteSpace(v) ? "—" : v;
+    string Rating(int r) => r <= 0 ? "Not rated" : $"{r}/5";
+
+    var validationClass = c.CaseValidation switch
+    {
+        CaseValidation.Valid => "badge-sq-valid",
+        CaseValidation.NotValid => "badge-sq-notvalid",
+        _ => "badge-sq-underreview"
+    };
+}
+
+<div class="sq-case-details" data-case-id="@c.Id">
+
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <span class="sq-detail-number">#@c.CaseNumber</span>
+        <span class="badge-sq @(c.FollowUpStatus == FollowUpStatus.Completed ? "badge-sq-completed" : "badge-sq-pending")">
+            @c.FollowUpStatus
+        </span>
+        @if (Model.SlaBreached)
+        {
+            <span class="badge-sq badge-sq-breached">SLA breached</span>
+        }
+        <span class="badge-sq @validationClass">@c.CaseValidation</span>
+        @if (Model.IsRepeatCustomer)
+        {
+            <span class="badge-sq badge-sq-pending">🔄 Repeat customer</span>
+        }
+        @if (c.EmailSent)
+        {
+            <span class="badge-sq badge-sq-completed">✓ Partner emailed</span>
+        }
+        <span class="text-muted small ms-auto">@Model.AgeDays day(s) old</span>
+    </div>
+
+    <h3 class="sq-detail-section">Customer &amp; case info</h3>
+    <div class="row g-3 sq-detail-grid">
+        <div class="col-md-4">
+            <div class="sq-detail-label">Customer name</div>
+            <div class="sq-detail-value">@Val(c.CustomerName)</div>
+        </div>
+        <div class="col-md-3">
+            <div class="sq-detail-label">Customer phone</div>
+            <div class="sq-detail-value">@Val(c.CustomerPhone)</div>
+        </div>
+        <div class="col-md-2">
+            <div class="sq-detail-label">Ticket number</div>
+            <div class="sq-detail-value">@Val(c.TicketNumber)</div>
+        </div>
+        <div class="col-md-3">
+            <div class="sq-detail-label">Date</div>
+            <div class="sq-detail-value">@c.Date.ToString("yyyy-MM-dd")</div>
+        </div>
+        <div class="col-md-4">
+            <div class="sq-detail-label">Branch</div>
+            <div class="sq-detail-value">@Val(c.Branch)</div>
+        </div>
+        <div class="col-md-3">
+            <div class="sq-detail-label">Business partner</div>
+            <div class="sq-detail-value">
+                @Val(c.BusinessPartner)
+                @if (!string.IsNullOrWhiteSpace(Model.PartnerFullName))
+                {
+                    <span class="text-muted small d-block">@Model.PartnerFullName · @Model.PartnerEmail</span>
+                }
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="sq-detail-label">Due date</div>
+            <div class="sq-detail-value">@c.DueDate.ToString("yyyy-MM-dd")</div>
+        </div>
+    </div>
+
+    <h3 class="sq-detail-section">Ratings</h3>
+    <div class="row g-3 sq-detail-grid">
+        <div class="col-md-2">
+            <div class="sq-detail-label">Branch rating</div>
+            <div class="sq-detail-value">
+                @DisplayHelpers.Stars(c.BranchRating)
+                <span class="text-muted small d-block">@Rating(c.BranchRating)</span>
+            </div>
+        </div>
+        <div class="col-md-10">
+            <div class="sq-detail-label">Branch comment</div>
+            <div class="sq-detail-value">@Val(c.BranchComment)</div>
+        </div>
+        <div class="col-md-3">
+            <div class="sq-detail-label">Staff name</div>
+            <div class="sq-detail-value">@Val(c.StaffName)</div>
+        </div>
+        <div class="col-md-2">
+            <div class="sq-detail-label">Staff rating</div>
+            <div class="sq-detail-value">
+                @DisplayHelpers.Stars(c.StaffRating)
+                <span class="text-muted small d-block">@Rating(c.StaffRating)</span>
+            </div>
+        </div>
+        <div class="col-md-7">
+            <div class="sq-detail-label">Staff comment</div>
+            <div class="sq-detail-value">@Val(c.StaffComment)</div>
+        </div>
+    </div>
+
+    <h3 class="sq-detail-section">Follow-up</h3>
+    <div class="row g-3 sq-detail-grid">
+        <div class="col-md-3">
+            <div class="sq-detail-label">Follow-up status</div>
+            <div class="sq-detail-value">@c.FollowUpStatus</div>
+        </div>
+        <div class="col-md-3">
+            <div class="sq-detail-label">Follow-up date</div>
+            <div class="sq-detail-value">@(c.FollowUpDate?.ToString("yyyy-MM-dd") ?? "—")</div>
+        </div>
+        <div class="col-md-6">
+            <div class="sq-detail-label">Follow-up notes</div>
+            <div class="sq-detail-value">@Val(c.FollowUpNotes)</div>
+        </div>
+    </div>
+
+    <h3 class="sq-detail-section">Validation</h3>
+    <div class="row g-3 sq-detail-grid">
+        <div class="col-md-3">
+            <div class="sq-detail-label">Case validation</div>
+            <div class="sq-detail-value">@c.CaseValidation</div>
+        </div>
+        <div class="col-md-9">
+            <div class="sq-detail-label">Root causes</div>
+            <div class="sq-detail-value">
+                @if (Model.RootCauses.Any())
+                {
+                    foreach (var rc in Model.RootCauses)
+                    {
+                        <span class="sq-detail-chip">@rc</span>
+                    }
+                }
+                else if (string.IsNullOrWhiteSpace(Model.OtherRootCause))
+                {
+                    <text>—</text>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.OtherRootCause))
+                {
+                    <span class="sq-detail-chip">Other: @Model.OtherRootCause</span>
+                }
+            </div>
+        </div>
+        <div class="col-md-12">
+            <div class="sq-detail-label">Validation notes</div>
+            <div class="sq-detail-value">@Val(c.ValidationNotes)</div>
+        </div>
+    </div>
+
+    <div class="sq-detail-actions">
+        <a class="btn btn-outline-secondary" asp-controller="Cases" asp-action="Edit" asp-route-id="@c.Id">Edit</a>
+        <form asp-controller="Cases" asp-action="Delete" asp-route-id="@c.Id" method="post"
+              onsubmit="return confirm('Delete this case? This cannot be undone.');">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+            <button class="btn btn-outline-danger" type="submit">Delete</button>
+        </form>
+        @if (!string.IsNullOrEmpty(Model.Mailto))
+        {
+            <a class="btn btn-outline-primary js-email-btn @(c.EmailSent ? "btn-email-sent" : "")"
+               href="@Model.Mailto" data-case-id="@c.Id"
+               title="@(c.EmailSent ? "Email already sent" : "Send partner email")">
+                @(c.EmailSent ? "✓ Email" : "📧 Email")
+            </a>
+        }
+        else
+        {
+            <button class="btn btn-outline-primary" type="button" disabled
+                    title="No partner email on file">📧 Email</button>
+        }
+    </div>
+</div>
