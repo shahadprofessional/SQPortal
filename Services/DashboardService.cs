@@ -48,11 +48,18 @@ public class DashboardService
         var cards = BuildCards(filtered, today, selectedCard);
         var slice = ForCard(filtered, selectedCard, today);
 
-        var totalItems = slice.Count;
+        // Breached first, then everything still pending, completed last.
+        var ordered = slice
+            .OrderBy(c => UrgencyRank(c, today))
+            .ThenByDescending(c => c.Date)
+            .ThenByDescending(c => c.Id)
+            .ToList();
+
+        var totalItems = ordered.Count;
         var totalPages = Math.Max(1, (int)Math.Ceiling(totalItems / (double)DashboardQuery.PageSize));
         var page = Math.Clamp(query.Page < 1 ? 1 : query.Page, 1, totalPages);
 
-        var items = slice
+        var items = ordered
             .Skip((page - 1) * DashboardQuery.PageSize)
             .Take(DashboardQuery.PageSize)
             .Select(c => ToRow(c, today))
@@ -169,6 +176,13 @@ public class DashboardService
         DashboardCards.NotValid => cases.Where(c => c.CaseValidation == CaseValidation.NotValid).ToList(),
         _ => cases.ToList()
     };
+
+    /// <summary>0 = SLA breached and still open, 1 = pending, 2 = completed.</summary>
+    private int UrgencyRank(FeedbackCase c, DateOnly today)
+    {
+        if (_sla.IsBreached(c.DueDate, c.FollowUpStatus, today)) return 0;
+        return c.FollowUpStatus == FollowUpStatus.Completed ? 2 : 1;
+    }
 
     private CaseRow ToRow(FeedbackCase c, DateOnly today) => new()
     {
