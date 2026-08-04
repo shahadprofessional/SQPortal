@@ -47,7 +47,7 @@
         }
     </form>
 </div>
-<div class="sq-weekly-note">Auto-generated from cases rated 1–2★</div>
+<div class="sq-weekly-note">Auto-generated from cases rated 1–2★ that are completed and validated</div>
 
 @if (Model.TotalPoorCases > 0)
 {
@@ -62,8 +62,8 @@
 {
     <div class="sq-empty sq-empty-success">
         <svg class="sq-empty-icon" viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
-        <div class="sq-empty-title">No poor ratings this period</div>
-        <div class="sq-empty-sub">Nothing flagged 1–2★ in this date range.</div>
+        <div class="sq-empty-title">Nothing to report this period</div>
+        <div class="sq-empty-sub">No completed, validated 1–2★ cases in this date range.</div>
     </div>
 }
 else
