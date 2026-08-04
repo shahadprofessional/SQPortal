@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using SQPortal.Data;
 using SQPortal.Models.Entities;
+using SQPortal.Models.Enums;
 using SQPortal.Models.ViewModels.Weekly;
 
 namespace SQPortal.Services;
@@ -32,9 +33,14 @@ public class WeeklyReportService
             .AsNoTracking()
             .ToDictionaryAsync(a => a.BranchName, a => a.AssignedPartner);
 
+        // A branch only hears about a case once the SQ team has finished the
+        // follow-up and judged the complaint genuine. Anything still pending or
+        // not marked valid stays out of the report and out of the emails.
         var poorCases = await _db.Cases
             .AsNoTracking()
-            .Where(c => c.Date >= start && c.Date <= end)
+            .Where(c => c.Date >= start && c.Date <= end
+                     && c.FollowUpStatus == FollowUpStatus.Completed
+                     && c.CaseValidation == CaseValidation.Valid)
             .ToListAsync();
 
         var filtered = poorCases
