@@ -6,7 +6,7 @@
 
 <div class="sq-page-head">
     <div>
-        <div class="sq-kicker">Intake</div>
+        <div class="sq-kicker">New case</div>
         <h1 class="sq-title">Add new case</h1>
     </div>
     <div class="sq-page-meta">SLA: 1 working day from the feedback date</div>
@@ -234,6 +234,8 @@
 
         form.addEventListener('submit', function (e) {
             var errors = [];
+            summary.innerHTML = '';
+            summary.classList.add('validation-summary-valid');
             // Iterate validated inputs/selects in DOM order
             form.querySelectorAll('[data-error-label]').forEach(function (el) {
                 var msg = fieldError(el);
@@ -258,6 +260,9 @@
                 ul += '<li>' + safe + '</li>';
             });
             ul += '</ul>';
+            // The server-rendered wrapper starts out "valid", which keeps it hidden —
+            // drop that before showing the errors we just found.
+            summary.classList.remove('validation-summary-valid');
             summary.innerHTML = ul;
             summary.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });

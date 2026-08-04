@@ -649,9 +649,16 @@ textarea.form-control {
     outline-offset: 2px;
 }
 
-/* Validation summary */
-.validation-summary-errors,
-#validationSummary ul {
+/* Validation summary — the tag helper always emits a <ul>, even with nothing in
+   it, which used to leave an empty red bar at the top of the form. Hide the
+   block while it is valid, and paint the box on the list rather than the
+   wrapper so an error summary is one box, not a box inside a box. */
+.validation-summary-valid {
+    display: none;
+}
+#validationSummary ul,
+.validation-summary-errors ul,
+ul.validation-summary-errors {
     border: 1px solid var(--sq-red-line);
     background: var(--sq-red-bg);
     color: #7F2A24;
