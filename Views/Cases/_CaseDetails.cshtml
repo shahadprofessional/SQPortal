@@ -28,10 +28,6 @@
         }
         @* Validation is its own axis — spell it out so it doesn't read as a second status *@
         <span class="badge-sq @validationClass">Validation: @DisplayHelpers.ValidationLabel(c.CaseValidation)</span>
-        @if (Model.IsRepeatCustomer)
-        {
-            <span class="badge-sq badge-sq-gold">Repeat customer</span>
-        }
         @if (c.EmailSent)
         {
             <span class="badge-sq badge-sq-tint">Partner emailed</span>

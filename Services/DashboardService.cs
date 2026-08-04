@@ -14,13 +14,11 @@ public class DashboardService
 
     private readonly SQPortalDbContext _db;
     private readonly SlaService _sla;
-    private readonly RepeatCustomerService _repeats;
 
-    public DashboardService(SQPortalDbContext db, SlaService sla, RepeatCustomerService repeats)
+    public DashboardService(SQPortalDbContext db, SlaService sla)
     {
         _db = db;
         _sla = sla;
-        _repeats = repeats;
     }
 
     public async Task<DashboardViewModel> BuildAsync(DashboardQuery query, DateOnly today)
@@ -30,16 +28,6 @@ public class DashboardService
             .OrderByDescending(c => c.Date)
             .ThenByDescending(c => c.Id)
             .ToListAsync();
-
-        var repeats = _repeats.Detect(allCases, today);
-        var flaggedPhones = new HashSet<string>(
-            repeats.Where(r => r.MatchType == "Phone")
-                   .Select(r => r.Sub.Replace("📞 ", string.Empty).Trim()),
-            StringComparer.Ordinal);
-        var flaggedNames = new HashSet<string>(
-            repeats.Where(r => r.MatchType == "Name")
-                   .Select(r => r.Label.Trim().ToLowerInvariant()),
-            StringComparer.Ordinal);
 
         // Filters narrow the pool first, so the card counts always describe the list the user is looking at.
         var filtered = ApplyFilters(allCases, query);
@@ -83,11 +71,8 @@ public class DashboardService
             RootCause = query.RootCause,
             Months = monthOptions,
             RootCauseOptions = LookupData.RootCauses,
-            RepeatCustomers = repeats.ToList(),
             PartnerEmails = dbPartners.ToDictionary(p => p.Name, p => p.Email),
             PartnerFullNames = dbPartners.ToDictionary(p => p.Name, p => p.FullName),
-            FlaggedPhones = flaggedPhones,
-            FlaggedNames = flaggedNames
         };
     }
 

@@ -17,20 +17,17 @@ public class CasesController : Controller
     private readonly SlaService _sla;
     private readonly PartnerAssignmentService _partners;
     private readonly DuplicateDetectionService _duplicates;
-    private readonly RepeatCustomerService _repeats;
 
     public CasesController(
         SQPortalDbContext db,
         SlaService sla,
         PartnerAssignmentService partners,
-        DuplicateDetectionService duplicates,
-        RepeatCustomerService repeats)
+        DuplicateDetectionService duplicates)
     {
         _db = db;
         _sla = sla;
         _partners = partners;
         _duplicates = duplicates;
-        _repeats = repeats;
     }
 
     [HttpPost]
@@ -63,12 +60,6 @@ public class CasesController : Controller
         var partner = await _db.Partners.AsNoTracking()
             .FirstOrDefaultAsync(p => p.Name == entity.BusinessPartner);
 
-        var allCases = await _db.Cases.AsNoTracking().ToListAsync();
-        var repeats = _repeats.Detect(allCases, today);
-        var isRepeat = repeats.Any(r =>
-            (r.MatchType == "Phone" && r.Sub.Replace("📞 ", string.Empty).Trim() == (entity.CustomerPhone ?? string.Empty).Trim()) ||
-            (r.MatchType == "Name" && string.Equals(r.Label.Trim(), (entity.CustomerName ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase)));
-
         var (rootCauses, other) = SplitRootCauses(entity.RootCauses);
 
         var vm = new CaseDetailsViewModel
@@ -76,7 +67,6 @@ public class CasesController : Controller
             Case = entity,
             AgeDays = today.DayNumber - entity.Date.DayNumber,
             SlaBreached = _sla.IsBreached(entity.DueDate, entity.FollowUpStatus, today),
-            IsRepeatCustomer = isRepeat,
             PartnerFullName = partner?.FullName ?? string.Empty,
             PartnerEmail = partner?.Email ?? string.Empty,
             Mailto = partner == null ? string.Empty : DisplayHelpers.BuildLowRatingMailto(entity, partner.Email, partner.FullName),

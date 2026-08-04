@@ -39,10 +39,6 @@ public class DashboardViewModel
     public IEnumerable<string> Months { get; set; } = Array.Empty<string>();
     public IEnumerable<string> RootCauseOptions { get; set; } = Array.Empty<string>();
 
-    public List<RepeatCustomerViewModel> RepeatCustomers { get; set; } = new();
-
     public IDictionary<string, string> PartnerEmails { get; set; } = new Dictionary<string, string>();
     public IDictionary<string, string> PartnerFullNames { get; set; } = new Dictionary<string, string>();
-    public IReadOnlyCollection<string> FlaggedPhones { get; set; } = Array.Empty<string>();
-    public IReadOnlyCollection<string> FlaggedNames { get; set; } = Array.Empty<string>();
 }
