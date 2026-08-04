@@ -9,7 +9,6 @@ public class CaseDetailsViewModel
 
     public int AgeDays { get; set; }
     public bool SlaBreached { get; set; }
-    public bool IsRepeatCustomer { get; set; }
 
     public string PartnerFullName { get; set; } = string.Empty;
     public string PartnerEmail { get; set; } = string.Empty;

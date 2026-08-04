@@ -2,13 +2,6 @@
 @{
     ViewData["Title"] = "Dashboard";
 
-    bool IsRepeat(FeedbackCase c)
-    {
-        var phone = (c.CustomerPhone ?? "").Trim();
-        if (!string.IsNullOrEmpty(phone) && Model.FlaggedPhones.Contains(phone)) return true;
-        var name = (c.CustomerName ?? "").Trim().ToLowerInvariant();
-        return !string.IsNullOrEmpty(name) && Model.FlaggedNames.Contains(name);
-    }
     string PartnerEmail(string? partner)
     {
         if (string.IsNullOrEmpty(partner)) return string.Empty;
@@ -118,21 +111,6 @@
         </a>
     }
 </div>
-
-@if (Model.RepeatCustomers.Any())
-{
-    <div class="sq-repeat-bar">
-        <span class="sq-repeat-bar-title">Repeat customers</span>
-        @foreach (var r in Model.RepeatCustomers)
-        {
-            <span class="repeat-pill">
-                <span>@r.Label</span>
-                <span class="repeat-pill-sub">@r.Sub</span>
-                <span class="repeat-pill-count">@r.Count</span>
-            </span>
-        }
-    </div>
-}
 
 <div class="sq-section-head">
     <h2 class="sq-section-title">
@@ -262,21 +240,15 @@ else
                     var partnerFullName = PartnerFullName(c.BusinessPartner);
                     var mailto = string.IsNullOrEmpty(partnerEmail) ? string.Empty : DisplayHelpers.BuildLowRatingMailto(c, partnerEmail, partnerFullName);
                     var rootCauses = c.RootCauses.Any() ? string.Join(", ", c.RootCauses) : "—";
-                    var rowClasses = (row.SlaBreached ? "tr-breached" : "") + (IsRepeat(c) ? " tr-repeat" : "");
-                    <tr class="sq-row-pressable @rowClasses.Trim()"
+                    var rowClasses = row.SlaBreached ? "tr-breached" : "";
+                    <tr class="sq-row-pressable @rowClasses"
                         data-case-id="@c.Id"
                         data-case-label="@c.CaseNumber"
                         tabindex="0" role="button"
                         title="Open case">
                         <td class="sq-id">@c.CaseNumber</td>
                         <td class="sq-num text-nowrap">@c.Date.ToString("yyyy-MM-dd")</td>
-                        <td>
-                            @c.CustomerName
-                            @if (IsRepeat(c))
-                            {
-                                <span class="repeat-marker" title="Repeat customer">↻</span>
-                            }
-                        </td>
+                        <td>@c.CustomerName</td>
                         <td>@c.Branch</td>
                         <td class="sq-cell-muted">@rootCauses</td>
                         <td>
