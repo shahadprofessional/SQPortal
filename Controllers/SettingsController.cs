@@ -119,9 +119,11 @@ public class SettingsController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        // Name is the primary key, so a rename is a remove + insert, then a cascade
-        // over everything that stores the key as text: FeedbackCase.BusinessPartner
-        // and BranchPartnerAssignment.AssignedPartner.
+        // Name is the primary key, so a rename is a remove + insert.
+        //
+        // Branch assignments follow the rename — they say who handles a branch from
+        // now on. Cases do NOT: a case records who actually handled it, so a case
+        // Elena worked keeps her name even after the roster moves on to Dawood.
         await using var tx = await _db.Database.BeginTransactionAsync();
 
         _db.Partners.Remove(partner);
@@ -135,18 +137,59 @@ public class SettingsController : Controller
         });
         await _db.SaveChangesAsync();
 
-        var cases = await _db.Cases.Where(c => c.BusinessPartner == oldTrim).ToListAsync();
-        foreach (var c in cases) c.BusinessPartner = newTrim;
-
         var assignments = await _db.BranchAssignments.Where(a => a.AssignedPartner == oldTrim).ToListAsync();
         foreach (var a in assignments) a.AssignedPartner = newTrim;
 
         await _db.SaveChangesAsync();
         await tx.CommitAsync();
 
+        var keptCases = await _db.Cases.CountAsync(c => c.BusinessPartner == oldTrim);
+        var kept = keptCases == 0
+            ? string.Empty
+            : $" {keptCases} past case{(keptCases == 1 ? "" : "s")} stay with \"{oldTrim}\".";
+
         TempData["StatusMessage"] =
-            $"Renamed \"{oldTrim}\" to \"{newTrim}\" ({cases.Count} case{(cases.Count == 1 ? "" : "s")}, " +
-            $"{assignments.Count} branch{(assignments.Count == 1 ? "" : "es")} updated).";
+            $"Renamed \"{oldTrim}\" to \"{newTrim}\" — " +
+            $"{assignments.Count} branch{(assignments.Count == 1 ? "" : "es")} now assigned to them.{kept}";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeletePartner(string name)
+    {
+        var trim = (name ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(trim))
+        {
+            TempData["StatusMessage"] = "Staff key required.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var partner = await _db.Partners.FirstOrDefaultAsync(p => p.Name == trim);
+        if (partner == null)
+        {
+            TempData["StatusMessage"] = $"Staff member \"{trim}\" not found.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // Past cases keep their handler's name — removing someone from the roster
+        // is not a reason to rewrite what happened. Their branches fall back to
+        // unassigned so the next case prompts for a new owner.
+        var caseCount = await _db.Cases.CountAsync(c => c.BusinessPartner == trim);
+
+        var assignments = await _db.BranchAssignments.Where(a => a.AssignedPartner == trim).ToListAsync();
+        _db.BranchAssignments.RemoveRange(assignments);
+        _db.Partners.Remove(partner);
+        await _db.SaveChangesAsync();
+
+        var freed = assignments.Count == 0
+            ? string.Empty
+            : $" {assignments.Count} branch{(assignments.Count == 1 ? "" : "es")} lost their owner — reassign them below.";
+        var kept = caseCount == 0
+            ? string.Empty
+            : $" {caseCount} past case{(caseCount == 1 ? "" : "s")} keep their name.";
+
+        TempData["StatusMessage"] = $"Removed \"{trim}\".{freed}{kept}";
         return RedirectToAction(nameof(Index));
     }
 

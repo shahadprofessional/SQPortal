@@ -17,7 +17,7 @@
 <div class="sq-panel sq-frame mb-4">
     <div class="sq-panel-head">
         <h2>SQ staff</h2>
-        <span class="sq-panel-note">Every field is editable. Renaming a key updates the cases and branches that use it.</span>
+        <span class="sq-panel-note">Every field is editable. Renaming or removing someone moves their branches only — past cases keep the name they were handled under.</span>
     </div>
 
     <form asp-action="AddPartner" method="post" class="row g-3 mb-3">
@@ -52,7 +52,15 @@
                 <input class="form-control form-control-sm" name="newName" value="@p.Name" required maxlength="40" aria-label="Key" />
                 <input class="form-control form-control-sm" name="fullName" value="@p.FullName" maxlength="200" aria-label="Full name" />
                 <input class="form-control form-control-sm" name="email" type="email" value="@p.Email" maxlength="200" aria-label="Email" />
-                <button class="btn btn-sm btn-primary" type="submit">Save</button>
+                <div class="sq-staff-actions">
+                    <button class="btn btn-sm btn-primary" type="submit">Save</button>
+                    @* Same form, different target — a nested <form> for delete is not valid HTML *@
+                    <button class="btn btn-sm btn-outline-danger" type="submit" formnovalidate
+                            formaction="@Url.Action("DeletePartner", "Settings")"
+                            onclick="return confirm('Remove &quot;@p.Name&quot; from the SQ team? Past cases keep their name; their branches become unassigned.');">
+                        Delete
+                    </button>
+                </div>
             </form>
         }
     </div>

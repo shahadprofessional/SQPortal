@@ -683,9 +683,16 @@ ul.validation-summary-errors {
 .sq-staff-head,
 .sq-staff-row {
     display: grid;
-    grid-template-columns: 160px minmax(0, 1fr) minmax(0, 1fr) 120px;
+    grid-template-columns: 160px minmax(0, 1fr) minmax(0, 1fr) 190px;
     gap: 16px;
     align-items: center;
+}
+.sq-staff-actions {
+    display: flex;
+    gap: 8px;
+}
+.sq-staff-actions .btn {
+    flex: 1 1 0;
 }
 .sq-staff-head {
     padding: 10px 0;
