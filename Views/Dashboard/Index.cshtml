@@ -20,18 +20,22 @@
         return Model.PartnerFullNames.TryGetValue(partner, out var n) ? n : string.Empty;
     }
 
-    // Card + active filters + page, ready for asp-all-route-data on the pagination links.
-    Dictionary<string, string> RouteFor(int page)
+    // The selected card plus the active filters — what "the list you're looking at" means.
+    Dictionary<string, string> FilterRoute()
     {
-        var data = new Dictionary<string, string>
-        {
-            ["card"] = Model.SelectedCard,
-            ["page"] = page.ToString()
-        };
+        var data = new Dictionary<string, string> { ["card"] = Model.SelectedCard };
         if (!string.IsNullOrWhiteSpace(Model.Search)) data["search"] = Model.Search;
         if (!string.IsNullOrWhiteSpace(Model.Month)) data["month"] = Model.Month;
         if (Model.Status.HasValue) data["status"] = Model.Status.Value.ToString();
         if (!string.IsNullOrWhiteSpace(Model.RootCause)) data["rootCause"] = Model.RootCause;
+        return data;
+    }
+
+    // Same, with a page — ready for asp-all-route-data on the pagination links.
+    Dictionary<string, string> RouteFor(int page)
+    {
+        var data = FilterRoute();
+        data["page"] = page.ToString();
         return data;
     }
 
@@ -61,6 +65,17 @@
         <h1 class="sq-title">Dashboard</h1>
     </div>
     <div class="sq-page-meta">@Model.Today.ToString("yyyy-MM-dd") · @Model.TotalItems cases in view</div>
+</div>
+
+<div class="d-flex justify-content-end align-items-center gap-2 flex-wrap mb-3">
+    <a class="btn btn-outline-secondary" asp-action="ExportCsv" asp-all-route-data="@FilterRoute()">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 11l5 5 5-5M4 21h16"></path></svg>
+        Export CSV
+    </a>
+    <a class="btn btn-primary sq-frame sq-frame-light" asp-controller="Cases" asp-action="Create">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
+        New case
+    </a>
 </div>
 
 <div class="sq-hero-grid">
@@ -124,10 +139,6 @@
         @Model.SelectedCardLabel
         <span class="sq-count">(@Model.TotalItems)</span>
     </h2>
-    <a class="sq-section-link" asp-controller="Cases" asp-action="Index">
-        Open in Cases
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
-    </a>
 </div>
 
 <form method="get" asp-action="Index" class="sq-filters">

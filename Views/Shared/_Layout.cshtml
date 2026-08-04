@@ -4,8 +4,10 @@
 
     string NavClass(bool active) => active ? "sq-nav-link active" : "sq-nav-link";
 
-    var navDashboard = NavClass(currentController == "Dashboard");
-    var navCases = NavClass(currentController == "Cases" && currentAction != "Create");
+    // Cases has no tab of its own any more — its list lives on the dashboard, so
+    // viewing or editing a case keeps the Dashboard tab lit.
+    var navDashboard = NavClass(currentController == "Dashboard"
+        || (currentController == "Cases" && currentAction != "Create"));
     var navCreate = NavClass(currentController == "Cases" && currentAction == "Create");
     var navAnalytics = NavClass(currentController == "Analytics");
     var navWeekly = NavClass(currentController == "Weekly");
@@ -45,11 +47,6 @@
                 <a class="@navDashboard" asp-controller="Dashboard" asp-action="Index">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"></path></svg>
                     <span>Dashboard</span>
-                </a>
-                <a class="@navCases" asp-controller="Cases" asp-action="Index">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>
-                    <span>Cases</span>
-                    @await Component.InvokeAsync("CasesCount")
                 </a>
                 <a class="@navCreate" asp-controller="Cases" asp-action="Create">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
