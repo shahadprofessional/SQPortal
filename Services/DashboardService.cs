@@ -46,14 +46,7 @@ public class DashboardService
 
         var selectedCard = DashboardCards.Normalize(query.Card);
         var cards = BuildCards(filtered, today, selectedCard);
-        var slice = ForCard(filtered, selectedCard, today);
-
-        // Breached first, then everything still pending, completed last.
-        var ordered = slice
-            .OrderBy(c => UrgencyRank(c, today))
-            .ThenByDescending(c => c.Date)
-            .ThenByDescending(c => c.Id)
-            .ToList();
+        var ordered = Sort(ForCard(filtered, selectedCard, today), today);
 
         var totalItems = ordered.Count;
         var totalPages = Math.Max(1, (int)Math.Ceiling(totalItems / (double)DashboardQuery.PageSize));
@@ -97,6 +90,25 @@ public class DashboardService
             FlaggedNames = flaggedNames
         };
     }
+
+    /// <summary>
+    /// Every case behind the current card and filters, in list order and without
+    /// paging — what an export of "the list you're looking at" should contain.
+    /// </summary>
+    public async Task<List<FeedbackCase>> GetCasesAsync(DashboardQuery query, DateOnly today)
+    {
+        var allCases = await _db.Cases.AsNoTracking().ToListAsync();
+        var filtered = ApplyFilters(allCases, query);
+        var slice = ForCard(filtered, DashboardCards.Normalize(query.Card), today);
+        return Sort(slice, today);
+    }
+
+    /// <summary>Breached first, then everything still pending, completed last.</summary>
+    private List<FeedbackCase> Sort(List<FeedbackCase> cases, DateOnly today) => cases
+        .OrderBy(c => UrgencyRank(c, today))
+        .ThenByDescending(c => c.Date)
+        .ThenByDescending(c => c.Id)
+        .ToList();
 
     private static List<FeedbackCase> ApplyFilters(List<FeedbackCase> cases, DashboardQuery query)
     {
