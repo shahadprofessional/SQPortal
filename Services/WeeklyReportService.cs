@@ -54,9 +54,9 @@ public class WeeklyReportService
             .OrderByDescending(g => g.Count())
             .Select(g =>
             {
-                var partner = assignments.TryGetValue(g.Key, out var p)
-                    ? p
-                    : LookupData.DefaultPartnerForBranch(g.Key);
+                // No hardcoded fallback — a branch is either assigned in Settings or
+                // has nobody, and an unassigned branch simply has no recipient.
+                var partner = assignments.TryGetValue(g.Key, out var p) ? p : string.Empty;
                 var partnerEmail = partnerEmails.TryGetValue(partner, out var e) ? e : string.Empty;
                 var cases = g.ToList();
                 var staff = cases

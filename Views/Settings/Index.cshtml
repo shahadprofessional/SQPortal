@@ -17,33 +17,45 @@
 <div class="sq-panel sq-frame mb-4">
     <div class="sq-panel-head">
         <h2>SQ staff</h2>
-        <span class="sq-panel-note">Display name and email are editable; the key is fixed.</span>
+        <span class="sq-panel-note">Every field is editable. Renaming a key updates the cases and branches that use it.</span>
     </div>
 
-    <table class="table align-middle mb-0">
-        <thead>
-            <tr>
-                <th style="width:120px">Key</th>
-                <th>Full name</th>
-                <th>Email</th>
-                <th style="width:140px"></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var p in Model.Partners)
-            {
-                <tr data-partner="@p.Name">
-                    <td class="fw-semibold text-sq-navy">@p.Name</td>
-                    <td><input class="form-control form-control-sm js-partner-fullname" value="@p.FullName" /></td>
-                    <td><input class="form-control form-control-sm js-partner-email" type="email" value="@p.Email" /></td>
-                    <td class="text-end">
-                        <button type="button" class="btn btn-sm btn-primary js-partner-save" data-partner="@p.Name">Save</button>
-                        <span class="ms-1 badge-sq badge-sq-tint js-partner-saved d-none">Saved</span>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <form asp-action="AddPartner" method="post" class="row g-3 mb-3">
+        @Html.AntiForgeryToken()
+        <div class="col-md-2">
+            <input class="form-control" name="name" placeholder="Key" required maxlength="40" />
+        </div>
+        <div class="col-md-4">
+            <input class="form-control" name="fullName" placeholder="Full name" maxlength="200" />
+        </div>
+        <div class="col-md-4">
+            <input class="form-control" name="email" type="email" placeholder="Email" maxlength="200" />
+        </div>
+        <div class="col-md-2 d-grid">
+            <button class="btn btn-primary" type="submit">Add staff</button>
+        </div>
+    </form>
+
+    @* Rows are forms, so they are laid out as a grid rather than a table *@
+    <div class="sq-staff-grid">
+        <div class="sq-staff-head">
+            <div>Key</div>
+            <div>Full name</div>
+            <div>Email</div>
+            <div></div>
+        </div>
+        @foreach (var p in Model.Partners)
+        {
+            <form asp-action="UpdatePartner" method="post" class="sq-staff-row">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="name" value="@p.Name" />
+                <input class="form-control form-control-sm" name="newName" value="@p.Name" required maxlength="40" aria-label="Key" />
+                <input class="form-control form-control-sm" name="fullName" value="@p.FullName" maxlength="200" aria-label="Full name" />
+                <input class="form-control form-control-sm" name="email" type="email" value="@p.Email" maxlength="200" aria-label="Email" />
+                <button class="btn btn-sm btn-primary" type="submit">Save</button>
+            </form>
+        }
+    </div>
 </div>
 
 <div class="row g-4">
@@ -100,10 +112,6 @@
         <div class="sq-panel sq-frame h-100">
             <div class="sq-panel-head">
                 <h2>Branch — SQ staff assignment</h2>
-                <form asp-action="ResetDefaults" method="post" onsubmit="return confirm('Reset all branch assignments to defaults?');">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="btn btn-sm btn-outline-secondary">Reset defaults</button>
-                </form>
             </div>
 
             <div class="sq-panel-note mb-3">Change who handles each branch. Saves automatically.</div>
@@ -160,38 +168,8 @@
             indicatorTimer = setTimeout(function () { indicator.classList.add('d-none'); }, 1500);
         }
 
-        // Partner edit (AJAX)
-        document.querySelectorAll('.js-partner-save').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                var row = btn.closest('tr');
-                var name = btn.getAttribute('data-partner');
-                var fullName = row.querySelector('.js-partner-fullname').value;
-                var email = row.querySelector('.js-partner-email').value;
-                var savedFlag = row.querySelector('.js-partner-saved');
-
-                btn.disabled = true;
-                var body = new URLSearchParams({ name: name, fullName: fullName, email: email, __RequestVerificationToken: token });
-                fetch('@Url.Action("UpdatePartner", "Settings")', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: body.toString()
-                })
-                .then(function (r) { if (!r.ok) throw new Error('Save failed'); return r.json(); })
-                .then(function (data) {
-                    // Update any assignments-table email cells that show this partner
-                    document.querySelectorAll('.js-partner').forEach(function (sel) {
-                        if (sel.value === data.name) {
-                            var emailCell = sel.closest('tr').querySelector('.js-email');
-                            if (emailCell) emailCell.textContent = data.email || '—';
-                        }
-                    });
-                    savedFlag.classList.remove('d-none');
-                    setTimeout(function () { savedFlag.classList.add('d-none'); }, 1500);
-                })
-                .catch(function () { alert('Failed to save partner. Please try again.'); })
-                .finally(function () { btn.disabled = false; });
-            });
-        });
+        // Staff rows post normally and reload the page — a key rename rewrites the
+        // assignment dropdowns too, which is more than a DOM patch can keep honest.
 
         // Assignment auto-save (existing behavior)
         document.querySelectorAll('.js-partner').forEach(function (sel) {
