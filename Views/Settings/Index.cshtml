@@ -55,7 +55,7 @@
                 <span class="sq-panel-note">@Model.Branches.Count on file</span>
             </div>
 
-            <form asp-action="AddBranch" method="post" class="d-flex gap-2 mb-3">
+            <form asp-action="AddBranch" method="post" class="d-flex gap-3 mb-3">
                 @Html.AntiForgeryToken()
                 <input class="form-control" name="name" placeholder="New branch name" required maxlength="100" />
                 <button class="btn btn-primary" type="submit">Add</button>
@@ -73,7 +73,7 @@
                     {
                         <tr>
                             <td>
-                                <form asp-action="RenameBranch" method="post" class="d-flex gap-2">
+                                <form asp-action="RenameBranch" method="post" class="d-flex gap-3">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="oldName" value="@b" />
                                     <input class="form-control form-control-sm" name="newName" value="@b" required maxlength="100" />

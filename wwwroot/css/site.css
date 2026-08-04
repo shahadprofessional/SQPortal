@@ -38,6 +38,12 @@
 
     --sq-head: 'Barlow Condensed', system-ui, sans-serif;
     --sq-font: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+    /* Registration marks (see .sq-frame) */
+    --sq-mark-gap: 5px;
+    --sq-mark-arm: 11px;
+    --sq-mark-ink: rgba(29, 31, 32, 0.55);
+    --sq-mark-ink-light: rgba(255, 255, 255, 0.75);
 }
 
 /* --------------------------------------------------------------- base --- */
@@ -80,36 +86,41 @@ a.text-muted:hover {
     background: rgba(27, 102, 171, 0.18);
 }
 
-/* Registration marks — the wireframe frame worn by panels, hero cards and
-   primary buttons. Four corner crosshairs drawn without extra markup. */
-.sq-frame {
+/* Registration marks — the wireframe frame worn by panels, hero cards and every
+   button. Four corner crosshairs drawn without extra markup.
+   --sq-mark-gap  how far along each edge a mark starts
+   --sq-mark-arm  how long each arm runs
+   --sq-mark-ink  the ink, flipped to white on solid fills */
+.sq-frame,
+.btn:not(.btn-link) {
     position: relative;
 }
-.sq-frame::after {
+.sq-frame::after,
+.btn:not(.btn-link)::after {
     content: "";
     position: absolute;
-    inset: -5px;
+    inset: calc(var(--sq-mark-gap) * -1);
     pointer-events: none;
-    color: rgba(29, 31, 32, 0.55);
+    color: var(--sq-mark-ink);
     background-image:
         linear-gradient(currentColor, currentColor), linear-gradient(currentColor, currentColor),
         linear-gradient(currentColor, currentColor), linear-gradient(currentColor, currentColor),
         linear-gradient(currentColor, currentColor), linear-gradient(currentColor, currentColor),
         linear-gradient(currentColor, currentColor), linear-gradient(currentColor, currentColor);
     background-size:
-        1px 11px, 11px 1px,
-        1px 11px, 11px 1px,
-        1px 11px, 11px 1px,
-        1px 11px, 11px 1px;
+        1px var(--sq-mark-arm), var(--sq-mark-arm) 1px,
+        1px var(--sq-mark-arm), var(--sq-mark-arm) 1px,
+        1px var(--sq-mark-arm), var(--sq-mark-arm) 1px,
+        1px var(--sq-mark-arm), var(--sq-mark-arm) 1px;
     background-repeat: no-repeat;
     background-position:
-        5px 0, 0 5px,
-        calc(100% - 5px) 0, 100% 5px,
-        5px 100%, 0 calc(100% - 5px),
-        calc(100% - 5px) 100%, 100% calc(100% - 5px);
+        var(--sq-mark-gap) 0, 0 var(--sq-mark-gap),
+        calc(100% - var(--sq-mark-gap)) 0, 100% var(--sq-mark-gap),
+        var(--sq-mark-gap) 100%, 0 calc(100% - var(--sq-mark-gap)),
+        calc(100% - var(--sq-mark-gap)) 100%, 100% calc(100% - var(--sq-mark-gap));
 }
 .sq-frame-light::after {
-    color: rgba(255, 255, 255, 0.75);
+    color: var(--sq-mark-ink-light);
 }
 
 /* ------------------------------------------------------------- shell ---- */
@@ -430,6 +441,31 @@ a.text-muted:hover {
     font-size: 11px;
     letter-spacing: 0.06em;
     padding: 6px 12px;
+    /* Shorter arms, tucked closer — full-size marks swamp a 28px-tall button */
+    --sq-mark-gap: 4px;
+    --sq-mark-arm: 8px;
+}
+
+/* Solid fills carry white marks; everything on white keeps the dark ink. */
+.btn-primary,
+.btn-danger,
+.btn-outline-primary:hover,
+.btn-outline-primary:active,
+.btn-outline-danger:hover,
+.btn-outline-danger:active {
+    --sq-mark-ink: var(--sq-mark-ink-light);
+}
+
+/* Yellow sits light enough to keep the dark marks — just soften them slightly
+   so they read as part of the accent rather than a border. */
+.btn-warning {
+    --sq-mark-ink: rgba(61, 47, 0, 0.55);
+}
+
+/* A disabled button shouldn't advertise itself with crisp marks */
+.btn:disabled,
+.btn.disabled {
+    --sq-mark-ink: rgba(29, 31, 32, 0.22);
 }
 
 .btn-primary {
@@ -528,7 +564,7 @@ a.text-muted:hover {
 }
 .sq-row-actions {
     display: flex;
-    gap: 5px;
+    gap: 12px;
     justify-content: flex-end;
     align-items: center;
 }
@@ -1276,13 +1312,13 @@ tr.sq-row-pressable:focus-visible {
     justify-content: center;
 }
 .sq-case-table .sq-row-actions .btn {
-    width: 82px;
-    flex: 0 0 82px;
+    width: 78px;
+    flex: 0 0 78px;
     padding-left: 0;
     padding-right: 0;
     text-align: center;
     white-space: nowrap;
-    overflow: hidden;
+    /* no overflow:hidden — it would clip the corner marks */
 }
 
 /* -------------------------------------------------------- pagination ---- */
@@ -1410,7 +1446,7 @@ tr.sq-row-pressable:focus-visible {
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    gap: 8px;
+    gap: 16px;
     margin: 26px -22px -22px;
     padding: 16px 22px;
     border-top: 1px solid var(--sq-line);
