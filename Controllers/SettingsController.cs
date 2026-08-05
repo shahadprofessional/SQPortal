@@ -38,15 +38,199 @@ public class SettingsController : Controller
             })
             .ToList();
 
+        var managers = await _db.Managers.AsNoTracking().OrderBy(m => m.Name).ToListAsync();
+        var managerEmails = managers.ToDictionary(m => m.Name, m => m.Email);
+        var managerNames = managers.Select(m => m.Name).ToList();
+        var managerAssignments = await _db.ManagerAssignments.AsNoTracking()
+            .ToDictionaryAsync(a => a.BranchName, a => a.AssignedManager);
+
+        var managerRows = branches
+            .Select(b =>
+            {
+                var manager = managerAssignments.TryGetValue(b, out var m)
+                    ? m
+                    : (managerNames.FirstOrDefault() ?? string.Empty);
+                return new BranchManagerRow
+                {
+                    Branch = b,
+                    Manager = manager,
+                    ManagerEmail = managerEmails.TryGetValue(manager, out var e) ? e : string.Empty
+                };
+            })
+            .ToList();
+
         var vm = new SettingsViewModel
         {
             Partners = partners.Select(p => new PartnerRow { Name = p.Name, FullName = p.FullName, Email = p.Email }).ToList(),
             Branches = branches,
             Assignments = assignmentRows,
-            PartnerEmails = partnerEmails
+            PartnerEmails = partnerEmails,
+            Managers = managers.Select(m => new PartnerRow { Name = m.Name, FullName = m.FullName, Email = m.Email }).ToList(),
+            ManagerAssignments = managerRows
         };
 
         return View(vm);
+    }
+
+    // ---------- Branch managers ----------
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddManager(string name, string fullName, string email)
+    {
+        var trimmed = (name ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            TempData["StatusMessage"] = "Manager key cannot be empty.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (await _db.Managers.AnyAsync(m => m.Name == trimmed))
+        {
+            TempData["StatusMessage"] = $"Manager \"{trimmed}\" already exists.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        _db.Managers.Add(new BranchManager
+        {
+            Name = trimmed,
+            FullName = (fullName ?? string.Empty).Trim(),
+            Email = (email ?? string.Empty).Trim()
+        });
+        await _db.SaveChangesAsync();
+
+        TempData["StatusMessage"] = $"Manager \"{trimmed}\" added.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateManager(string name, string newName, string fullName, string email)
+    {
+        var oldTrim = (name ?? string.Empty).Trim();
+        var newTrim = (newName ?? string.Empty).Trim();
+
+        if (string.IsNullOrWhiteSpace(oldTrim) || string.IsNullOrWhiteSpace(newTrim))
+        {
+            TempData["StatusMessage"] = "Manager key cannot be empty.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var manager = await _db.Managers.FirstOrDefaultAsync(m => m.Name == oldTrim);
+        if (manager == null)
+        {
+            TempData["StatusMessage"] = $"Manager \"{oldTrim}\" not found.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var newFullName = (fullName ?? string.Empty).Trim();
+        var newEmail = (email ?? string.Empty).Trim();
+
+        if (oldTrim == newTrim)
+        {
+            manager.FullName = newFullName;
+            manager.Email = newEmail;
+            await _db.SaveChangesAsync();
+
+            TempData["StatusMessage"] = $"\"{oldTrim}\" updated.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (await _db.Managers.AnyAsync(m => m.Name == newTrim))
+        {
+            TempData["StatusMessage"] = $"Manager \"{newTrim}\" already exists.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // Same rules as the SQ side: the key is the primary key, so a rename is a
+        // remove + insert, and only the forward-looking assignments follow it.
+        await using var tx = await _db.Database.BeginTransactionAsync();
+
+        _db.Managers.Remove(manager);
+        await _db.SaveChangesAsync();
+
+        _db.Managers.Add(new BranchManager
+        {
+            Name = newTrim,
+            FullName = newFullName,
+            Email = newEmail
+        });
+        await _db.SaveChangesAsync();
+
+        var assignments = await _db.ManagerAssignments.Where(a => a.AssignedManager == oldTrim).ToListAsync();
+        foreach (var a in assignments) a.AssignedManager = newTrim;
+
+        await _db.SaveChangesAsync();
+        await tx.CommitAsync();
+
+        TempData["StatusMessage"] =
+            $"Renamed \"{oldTrim}\" to \"{newTrim}\" — " +
+            $"{assignments.Count} branch{(assignments.Count == 1 ? "" : "es")} now run by them.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteManager(string name)
+    {
+        var trim = (name ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(trim))
+        {
+            TempData["StatusMessage"] = "Manager key required.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var manager = await _db.Managers.FirstOrDefaultAsync(m => m.Name == trim);
+        if (manager == null)
+        {
+            TempData["StatusMessage"] = $"Manager \"{trim}\" not found.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var assignments = await _db.ManagerAssignments.Where(a => a.AssignedManager == trim).ToListAsync();
+        _db.ManagerAssignments.RemoveRange(assignments);
+        _db.Managers.Remove(manager);
+        await _db.SaveChangesAsync();
+
+        var freed = assignments.Count == 0
+            ? string.Empty
+            : $" {assignments.Count} branch{(assignments.Count == 1 ? "" : "es")} lost their manager — reassign them below.";
+
+        TempData["StatusMessage"] = $"Removed \"{trim}\".{freed}";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateManagerAssignment(string branch, string manager)
+    {
+        if (string.IsNullOrWhiteSpace(branch) || string.IsNullOrWhiteSpace(manager))
+        {
+            return BadRequest(new { error = "Branch and manager are required." });
+        }
+        if (!await _db.Branches.AnyAsync(b => b.Name == branch))
+        {
+            return BadRequest(new { error = "Unknown branch." });
+        }
+        if (!await _db.Managers.AnyAsync(m => m.Name == manager))
+        {
+            return BadRequest(new { error = "Unknown manager." });
+        }
+
+        var assignment = await _db.ManagerAssignments.FirstOrDefaultAsync(a => a.BranchName == branch);
+        if (assignment == null)
+        {
+            _db.ManagerAssignments.Add(new BranchManagerAssignment { BranchName = branch, AssignedManager = manager });
+        }
+        else
+        {
+            assignment.AssignedManager = manager;
+        }
+
+        await _db.SaveChangesAsync();
+
+        var email = (await _db.Managers.AsNoTracking().FirstOrDefaultAsync(m => m.Name == manager))?.Email ?? string.Empty;
+        return Json(new { branch, manager, email });
     }
 
     // ---------- SQ staff ----------
@@ -224,6 +408,16 @@ public class SettingsController : Controller
             });
         }
 
+        var firstManager = await _db.Managers.AsNoTracking().OrderBy(m => m.Name).Select(m => m.Name).FirstOrDefaultAsync();
+        if (!string.IsNullOrEmpty(firstManager))
+        {
+            _db.ManagerAssignments.Add(new BranchManagerAssignment
+            {
+                BranchName = trimmed,
+                AssignedManager = firstManager
+            });
+        }
+
         await _db.SaveChangesAsync();
         TempData["StatusMessage"] = $"Branch \"{trimmed}\" added.";
         return RedirectToAction(nameof(Index));
@@ -285,6 +479,19 @@ public class SettingsController : Controller
             });
         }
 
+        var managerAssignment = await _db.ManagerAssignments.FirstOrDefaultAsync(a => a.BranchName == oldTrim);
+        if (managerAssignment != null)
+        {
+            var manager = managerAssignment.AssignedManager;
+            _db.ManagerAssignments.Remove(managerAssignment);
+            await _db.SaveChangesAsync();
+            _db.ManagerAssignments.Add(new BranchManagerAssignment
+            {
+                BranchName = newTrim,
+                AssignedManager = manager
+            });
+        }
+
         await _db.SaveChangesAsync();
         await tx.CommitAsync();
 
@@ -319,6 +526,10 @@ public class SettingsController : Controller
 
         var assignment = await _db.BranchAssignments.FirstOrDefaultAsync(a => a.BranchName == trim);
         if (assignment != null) _db.BranchAssignments.Remove(assignment);
+
+        var managerAssignment = await _db.ManagerAssignments.FirstOrDefaultAsync(a => a.BranchName == trim);
+        if (managerAssignment != null) _db.ManagerAssignments.Remove(managerAssignment);
+
         _db.Branches.Remove(branch);
         await _db.SaveChangesAsync();
 

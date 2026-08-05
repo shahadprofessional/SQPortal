@@ -10,10 +10,192 @@
         <div class="sq-kicker">Configuration</div>
         <h1 class="sq-title">Settings</h1>
     </div>
-    <div class="sq-page-meta">@Model.Branches.Count branches · @Model.Partners.Count staff</div>
+    <div class="sq-page-meta">
+        @Model.Branches.Count branches · @Model.Managers.Count managers · @Model.Partners.Count SQ staff
+    </div>
 </div>
 
-<!-- ============ Partners ============ -->
+<div class="d-none alert alert-success py-2 mb-3" id="saveIndicator">Saved</div>
+
+<!-- ============ Branches ============ -->
+<div class="sq-panel sq-frame mb-4">
+    <div class="sq-panel-head">
+        <h2>Branches</h2>
+        <span class="sq-panel-note">@Model.Branches.Count on file</span>
+    </div>
+
+    <form asp-action="AddBranch" method="post" class="d-flex gap-3 mb-3">
+        @Html.AntiForgeryToken()
+        <input class="form-control" name="name" placeholder="New branch name" required maxlength="100" />
+        <button class="btn btn-primary" type="submit">Add</button>
+    </form>
+
+    <div class="sq-branch-grid">
+        @foreach (var b in Model.Branches)
+        {
+            <form asp-action="RenameBranch" method="post" class="sq-branch-row">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="oldName" value="@b" />
+                @* Delete posts this same form, and it binds "name" *@
+                <input type="hidden" name="name" value="@b" />
+                <input class="form-control form-control-sm" name="newName" value="@b" required maxlength="100" aria-label="Branch name" />
+                <div class="sq-staff-actions">
+                    <button class="btn btn-sm btn-primary" type="submit">Save</button>
+                    @* Same form, different target — a nested <form> for delete is not valid HTML *@
+                    <button class="btn btn-sm btn-outline-danger" type="submit" formnovalidate
+                            formaction="@Url.Action("DeleteBranch", "Settings")"
+                            onclick="return confirm('Delete branch &quot;@b&quot;? This is blocked if any cases reference it.');">
+                        Delete
+                    </button>
+                </div>
+            </form>
+        }
+    </div>
+</div>
+
+<!-- ============ Branch ↔ Manager assignment ============ -->
+<div class="sq-panel sq-frame mb-4">
+    <div class="sq-panel-head">
+        <h2>Branch — Managers staff assignment</h2>
+        <span class="sq-panel-note">Who runs each branch. Saves automatically.</span>
+    </div>
+
+    @if (!Model.Managers.Any())
+    {
+        <div class="sq-panel-note">Add a manager below before assigning branches.</div>
+    }
+    else
+    {
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Branch</th>
+                    <th>Manager</th>
+                    <th>Email</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.ManagerAssignments)
+                {
+                    <tr data-branch="@row.Branch">
+                        <td class="fw-semibold">@row.Branch</td>
+                        <td>
+                            <select class="form-select form-select-sm w-auto js-manager" data-branch="@row.Branch">
+                                @foreach (var m in Model.Managers)
+                                {
+                                    if (m.Name == row.Manager)
+                                    {
+                                        <option value="@m.Name" selected>@m.Name</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@m.Name">@m.Name</option>
+                                    }
+                                }
+                            </select>
+                        </td>
+                        <td class="sq-cell-muted js-manager-email">@(string.IsNullOrEmpty(row.ManagerEmail) ? "—" : row.ManagerEmail)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+<!-- ============ Managers ============ -->
+<div class="sq-panel sq-frame mb-4">
+    <div class="sq-panel-head">
+        <h2>Managers staff</h2>
+        <span class="sq-panel-note">Every field is editable. Renaming or removing someone moves their branches only.</span>
+    </div>
+
+    <form asp-action="AddManager" method="post" class="row g-3 mb-3">
+        @Html.AntiForgeryToken()
+        <div class="col-md-2">
+            <input class="form-control" name="name" placeholder="Key" required maxlength="40" />
+        </div>
+        <div class="col-md-4">
+            <input class="form-control" name="fullName" placeholder="Full name" maxlength="200" />
+        </div>
+        <div class="col-md-4">
+            <input class="form-control" name="email" type="email" placeholder="Email" maxlength="200" />
+        </div>
+        <div class="col-md-2 d-grid">
+            <button class="btn btn-primary" type="submit">Add manager</button>
+        </div>
+    </form>
+
+    <div class="sq-staff-grid">
+        <div class="sq-staff-head">
+            <div>Key</div>
+            <div>Full name</div>
+            <div>Email</div>
+            <div></div>
+        </div>
+        @foreach (var m in Model.Managers)
+        {
+            <form asp-action="UpdateManager" method="post" class="sq-staff-row">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="name" value="@m.Name" />
+                <input class="form-control form-control-sm" name="newName" value="@m.Name" required maxlength="40" aria-label="Key" />
+                <input class="form-control form-control-sm" name="fullName" value="@m.FullName" maxlength="200" aria-label="Full name" />
+                <input class="form-control form-control-sm" name="email" type="email" value="@m.Email" maxlength="200" aria-label="Email" />
+                <div class="sq-staff-actions">
+                    <button class="btn btn-sm btn-primary" type="submit">Save</button>
+                    <button class="btn btn-sm btn-outline-danger" type="submit" formnovalidate
+                            formaction="@Url.Action("DeleteManager", "Settings")"
+                            onclick="return confirm('Remove &quot;@m.Name&quot; from the managers? Their branches become unassigned.');">
+                        Delete
+                    </button>
+                </div>
+            </form>
+        }
+    </div>
+</div>
+
+<!-- ============ Branch ↔ SQ staff assignment ============ -->
+<div class="sq-panel sq-frame mb-4">
+    <div class="sq-panel-head">
+        <h2>Branch — SQ staff assignment</h2>
+        <span class="sq-panel-note">Who handles each branch. Saves automatically.</span>
+    </div>
+
+    <table class="table align-middle mb-0">
+        <thead>
+            <tr>
+                <th>Branch</th>
+                <th>SQ staff</th>
+                <th>Email</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in Model.Assignments)
+            {
+                <tr data-branch="@row.Branch">
+                    <td class="fw-semibold">@row.Branch</td>
+                    <td>
+                        <select class="form-select form-select-sm w-auto js-partner" data-branch="@row.Branch">
+                            @foreach (var p in Model.Partners)
+                            {
+                                if (p.Name == row.Partner)
+                                {
+                                    <option value="@p.Name" selected>@p.Name</option>
+                                }
+                                else
+                                {
+                                    <option value="@p.Name">@p.Name</option>
+                                }
+                            }
+                        </select>
+                    </td>
+                    <td class="sq-cell-muted js-email">@(string.IsNullOrEmpty(row.PartnerEmail) ? "—" : row.PartnerEmail)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<!-- ============ SQ staff ============ -->
 <div class="sq-panel sq-frame mb-4">
     <div class="sq-panel-head">
         <h2>SQ staff</h2>
@@ -54,7 +236,6 @@
                 <input class="form-control form-control-sm" name="email" type="email" value="@p.Email" maxlength="200" aria-label="Email" />
                 <div class="sq-staff-actions">
                     <button class="btn btn-sm btn-primary" type="submit">Save</button>
-                    @* Same form, different target — a nested <form> for delete is not valid HTML *@
                     <button class="btn btn-sm btn-outline-danger" type="submit" formnovalidate
                             formaction="@Url.Action("DeletePartner", "Settings")"
                             onclick="return confirm('Remove &quot;@p.Name&quot; from the SQ team? Past cases keep their name; their branches become unassigned.');">
@@ -63,103 +244,6 @@
                 </div>
             </form>
         }
-    </div>
-</div>
-
-<div class="row g-4">
-    <!-- ============ Branches ============ -->
-    <div class="col-lg-5">
-        <div class="sq-panel sq-frame h-100">
-            <div class="sq-panel-head">
-                <h2>Branches</h2>
-                <span class="sq-panel-note">@Model.Branches.Count on file</span>
-            </div>
-
-            <form asp-action="AddBranch" method="post" class="d-flex gap-2 mb-3">
-                @Html.AntiForgeryToken()
-                <input class="form-control" name="name" placeholder="New branch name" required maxlength="100" />
-                <button class="btn btn-primary" type="submit">Add</button>
-            </form>
-
-            <table class="table align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th style="width:180px"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var b in Model.Branches)
-                    {
-                        <tr>
-                            <td>
-                                <form asp-action="RenameBranch" method="post" class="d-flex gap-2">
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" name="oldName" value="@b" />
-                                    <input class="form-control form-control-sm" name="newName" value="@b" required maxlength="100" />
-                                    <button class="btn btn-sm btn-outline-secondary" type="submit">Save</button>
-                                </form>
-                            </td>
-                            <td class="text-end">
-                                <form asp-action="DeleteBranch" method="post" class="d-inline"
-                                      onsubmit="return confirm('Delete branch &quot;@b&quot;? This is blocked if any cases reference it.');">
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" name="name" value="@b" />
-                                    <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
-                                </form>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- ============ Branch ↔ Partner Assignments ============ -->
-    <div class="col-lg-7">
-        <div class="sq-panel sq-frame h-100">
-            <div class="sq-panel-head">
-                <h2>Branch — SQ staff assignment</h2>
-            </div>
-
-            <div class="sq-panel-note mb-3">Change who handles each branch. Saves automatically.</div>
-
-            <div class="d-none alert alert-success py-2 mb-3" id="saveIndicator">Saved</div>
-
-            <table class="table align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th>Branch</th>
-                        <th>SQ staff</th>
-                        <th>Email</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var row in Model.Assignments)
-                    {
-                        <tr data-branch="@row.Branch">
-                            <td class="fw-semibold">@row.Branch</td>
-                            <td>
-                                <select class="form-select form-select-sm w-auto js-partner" data-branch="@row.Branch">
-                                    @foreach (var p in Model.Partners)
-                                    {
-                                        if (p.Name == row.Partner)
-                                        {
-                                            <option value="@p.Name" selected>@p.Name</option>
-                                        }
-                                        else
-                                        {
-                                            <option value="@p.Name">@p.Name</option>
-                                        }
-                                    }
-                                </select>
-                            </td>
-                            <td class="sq-cell-muted js-email">@(string.IsNullOrEmpty(row.PartnerEmail) ? "—" : row.PartnerEmail)</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
     </div>
 </div>
 
@@ -176,32 +260,38 @@
             indicatorTimer = setTimeout(function () { indicator.classList.add('d-none'); }, 1500);
         }
 
-        // Staff rows post normally and reload the page — a key rename rewrites the
-        // assignment dropdowns too, which is more than a DOM patch can keep honest.
+        // Staff and manager rows post normally and reload the page — a key rename
+        // rewrites the assignment dropdowns too, which a DOM patch can't keep honest.
 
-        // Assignment auto-save (existing behavior)
-        document.querySelectorAll('.js-partner').forEach(function (sel) {
-            sel.addEventListener('change', function () {
-                var branch = sel.getAttribute('data-branch');
-                var partner = sel.value;
-                var emailCell = sel.closest('tr').querySelector('.js-email');
+        // Both assignment tables auto-save the same way; only the field names differ.
+        function bindAssignment(selector, url, valueField, emailCell) {
+            document.querySelectorAll(selector).forEach(function (sel) {
+                sel.addEventListener('change', function () {
+                    var branch = sel.getAttribute('data-branch');
+                    var cell = sel.closest('tr').querySelector(emailCell);
 
-                sel.disabled = true;
-                var body = new URLSearchParams({ branch: branch, partner: partner, __RequestVerificationToken: token });
-                fetch('@Url.Action("UpdateAssignment", "Settings")', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: body.toString()
-                })
-                .then(function (r) { if (!r.ok) throw new Error('Save failed'); return r.json(); })
-                .then(function (data) {
-                    emailCell.textContent = data.email || '—';
-                    flashIndicator();
-                })
-                .catch(function () { alert('Failed to save assignment. Please refresh and try again.'); })
-                .finally(function () { sel.disabled = false; });
+                    sel.disabled = true;
+                    var payload = { branch: branch, __RequestVerificationToken: token };
+                    payload[valueField] = sel.value;
+
+                    fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams(payload).toString()
+                    })
+                    .then(function (r) { if (!r.ok) throw new Error('Save failed'); return r.json(); })
+                    .then(function (data) {
+                        if (cell) cell.textContent = data.email || '—';
+                        flashIndicator();
+                    })
+                    .catch(function () { alert('Failed to save assignment. Please refresh and try again.'); })
+                    .finally(function () { sel.disabled = false; });
+                });
             });
-        });
+        }
+
+        bindAssignment('.js-manager', '@Url.Action("UpdateManagerAssignment", "Settings")', 'manager', '.js-manager-email');
+        bindAssignment('.js-partner', '@Url.Action("UpdateAssignment", "Settings")', 'partner', '.js-email');
     })();
 </script>
 }

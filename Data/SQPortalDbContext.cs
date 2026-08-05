@@ -14,6 +14,8 @@ public class SQPortalDbContext : DbContext
     public DbSet<BusinessPartner> Partners => Set<BusinessPartner>();
     public DbSet<BranchPartnerAssignment> BranchAssignments => Set<BranchPartnerAssignment>();
     public DbSet<Branch> Branches => Set<Branch>();
+    public DbSet<BranchManager> Managers => Set<BranchManager>();
+    public DbSet<BranchManagerAssignment> ManagerAssignments => Set<BranchManagerAssignment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

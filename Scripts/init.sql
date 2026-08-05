@@ -60,6 +60,29 @@ CREATE TABLE dbo.BranchAssignments
 GO
 
 -- ============================================================================
+-- Managers  (mirrors BranchManager.cs) — the branch side of a case
+-- ============================================================================
+CREATE TABLE dbo.Managers
+(
+    Name      NVARCHAR(40)  NOT NULL,
+    FullName  NVARCHAR(200) NOT NULL,
+    Email     NVARCHAR(200) NOT NULL,
+    CONSTRAINT PK_Managers PRIMARY KEY (Name)
+);
+GO
+
+-- ============================================================================
+-- ManagerAssignments  (mirrors BranchManagerAssignment.cs)
+-- ============================================================================
+CREATE TABLE dbo.ManagerAssignments
+(
+    BranchName       NVARCHAR(100) NOT NULL,
+    AssignedManager  NVARCHAR(40)  NOT NULL,
+    CONSTRAINT PK_ManagerAssignments PRIMARY KEY (BranchName)
+);
+GO
+
+-- ============================================================================
 -- Cases  (mirrors FeedbackCase.cs)
 -- RootCauses is stored as JSON text via an EF Core value converter
 -- (Data/SQPortalDbContext.cs::OnModelCreating). Hence NVARCHAR(MAX).

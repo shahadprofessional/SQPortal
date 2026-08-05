@@ -687,6 +687,21 @@ ul.validation-summary-errors {
     gap: 16px;
     align-items: center;
 }
+/* Branch rows are forms too — name plus the same action pair */
+.sq-branch-grid {
+    display: flex;
+    flex-direction: column;
+}
+.sq-branch-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 190px;
+    gap: 16px;
+    align-items: center;
+    padding: 11px 0;
+    margin: 0;
+    border-bottom: 1px solid var(--sq-line-soft);
+}
+
 .sq-staff-actions {
     display: flex;
     gap: 8px;
