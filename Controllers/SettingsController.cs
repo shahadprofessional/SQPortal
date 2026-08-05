@@ -28,7 +28,7 @@ public class SettingsController : Controller
             {
                 var partner = assignments.TryGetValue(b, out var p)
                     ? p
-                    : (partnerNames.FirstOrDefault() ?? LookupData.DefaultPartnerForBranch(b));
+                    : (partnerNames.FirstOrDefault() ?? string.Empty);
                 return new BranchAssignmentRow
                 {
                     Branch = b,
@@ -49,22 +49,148 @@ public class SettingsController : Controller
         return View(vm);
     }
 
-    // ---------- Partners ----------
+    // ---------- SQ staff ----------
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdatePartner(string name, string fullName, string email)
+    public async Task<IActionResult> AddPartner(string name, string fullName, string email)
     {
-        if (string.IsNullOrWhiteSpace(name)) return BadRequest(new { error = "Partner name is required." });
+        var trimmed = (name ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            TempData["StatusMessage"] = "Staff key cannot be empty.";
+            return RedirectToAction(nameof(Index));
+        }
 
-        var partner = await _db.Partners.FirstOrDefaultAsync(p => p.Name == name);
-        if (partner == null) return NotFound(new { error = "Unknown partner." });
+        if (await _db.Partners.AnyAsync(p => p.Name == trimmed))
+        {
+            TempData["StatusMessage"] = $"Staff member \"{trimmed}\" already exists.";
+            return RedirectToAction(nameof(Index));
+        }
 
-        partner.FullName = (fullName ?? string.Empty).Trim();
-        partner.Email = (email ?? string.Empty).Trim();
+        _db.Partners.Add(new BusinessPartner
+        {
+            Name = trimmed,
+            FullName = (fullName ?? string.Empty).Trim(),
+            Email = (email ?? string.Empty).Trim()
+        });
         await _db.SaveChangesAsync();
 
-        return Json(new { name = partner.Name, fullName = partner.FullName, email = partner.Email });
+        TempData["StatusMessage"] = $"Staff member \"{trimmed}\" added.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdatePartner(string name, string newName, string fullName, string email)
+    {
+        var oldTrim = (name ?? string.Empty).Trim();
+        var newTrim = (newName ?? string.Empty).Trim();
+
+        if (string.IsNullOrWhiteSpace(oldTrim) || string.IsNullOrWhiteSpace(newTrim))
+        {
+            TempData["StatusMessage"] = "Staff key cannot be empty.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var partner = await _db.Partners.FirstOrDefaultAsync(p => p.Name == oldTrim);
+        if (partner == null)
+        {
+            TempData["StatusMessage"] = $"Staff member \"{oldTrim}\" not found.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var newFullName = (fullName ?? string.Empty).Trim();
+        var newEmail = (email ?? string.Empty).Trim();
+
+        if (oldTrim == newTrim)
+        {
+            partner.FullName = newFullName;
+            partner.Email = newEmail;
+            await _db.SaveChangesAsync();
+
+            TempData["StatusMessage"] = $"\"{oldTrim}\" updated.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (await _db.Partners.AnyAsync(p => p.Name == newTrim))
+        {
+            TempData["StatusMessage"] = $"Staff member \"{newTrim}\" already exists.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // Name is the primary key, so a rename is a remove + insert.
+        //
+        // Branch assignments follow the rename — they say who handles a branch from
+        // now on. Cases do NOT: a case records who actually handled it, so a case
+        // Elena worked keeps her name even after the roster moves on to Dawood.
+        await using var tx = await _db.Database.BeginTransactionAsync();
+
+        _db.Partners.Remove(partner);
+        await _db.SaveChangesAsync();
+
+        _db.Partners.Add(new BusinessPartner
+        {
+            Name = newTrim,
+            FullName = newFullName,
+            Email = newEmail
+        });
+        await _db.SaveChangesAsync();
+
+        var assignments = await _db.BranchAssignments.Where(a => a.AssignedPartner == oldTrim).ToListAsync();
+        foreach (var a in assignments) a.AssignedPartner = newTrim;
+
+        await _db.SaveChangesAsync();
+        await tx.CommitAsync();
+
+        var keptCases = await _db.Cases.CountAsync(c => c.BusinessPartner == oldTrim);
+        var kept = keptCases == 0
+            ? string.Empty
+            : $" {keptCases} past case{(keptCases == 1 ? "" : "s")} stay with \"{oldTrim}\".";
+
+        TempData["StatusMessage"] =
+            $"Renamed \"{oldTrim}\" to \"{newTrim}\" — " +
+            $"{assignments.Count} branch{(assignments.Count == 1 ? "" : "es")} now assigned to them.{kept}";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeletePartner(string name)
+    {
+        var trim = (name ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(trim))
+        {
+            TempData["StatusMessage"] = "Staff key required.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var partner = await _db.Partners.FirstOrDefaultAsync(p => p.Name == trim);
+        if (partner == null)
+        {
+            TempData["StatusMessage"] = $"Staff member \"{trim}\" not found.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // Past cases keep their handler's name — removing someone from the roster
+        // is not a reason to rewrite what happened. Their branches fall back to
+        // unassigned so the next case prompts for a new owner.
+        var caseCount = await _db.Cases.CountAsync(c => c.BusinessPartner == trim);
+
+        var assignments = await _db.BranchAssignments.Where(a => a.AssignedPartner == trim).ToListAsync();
+        _db.BranchAssignments.RemoveRange(assignments);
+        _db.Partners.Remove(partner);
+        await _db.SaveChangesAsync();
+
+        var freed = assignments.Count == 0
+            ? string.Empty
+            : $" {assignments.Count} branch{(assignments.Count == 1 ? "" : "es")} lost their owner — reassign them below.";
+        var kept = caseCount == 0
+            ? string.Empty
+            : $" {caseCount} past case{(caseCount == 1 ? "" : "s")} keep their name.";
+
+        TempData["StatusMessage"] = $"Removed \"{trim}\".{freed}{kept}";
+        return RedirectToAction(nameof(Index));
     }
 
     // ---------- Branches ----------
@@ -88,13 +214,15 @@ public class SettingsController : Controller
 
         _db.Branches.Add(new Branch { Name = trimmed });
 
-        var defaultPartner = (await _db.Partners.AsNoTracking().OrderBy(p => p.Name).Select(p => p.Name).FirstOrDefaultAsync())
-            ?? LookupData.DefaultPartnerForBranch(trimmed);
-        _db.BranchAssignments.Add(new BranchPartnerAssignment
+        var firstPartner = await _db.Partners.AsNoTracking().OrderBy(p => p.Name).Select(p => p.Name).FirstOrDefaultAsync();
+        if (!string.IsNullOrEmpty(firstPartner))
         {
-            BranchName = trimmed,
-            AssignedPartner = defaultPartner
-        });
+            _db.BranchAssignments.Add(new BranchPartnerAssignment
+            {
+                BranchName = trimmed,
+                AssignedPartner = firstPartner
+            });
+        }
 
         await _db.SaveChangesAsync();
         TempData["StatusMessage"] = $"Branch \"{trimmed}\" added.";
@@ -232,35 +360,5 @@ public class SettingsController : Controller
 
         var email = (await _db.Partners.AsNoTracking().FirstOrDefaultAsync(p => p.Name == partner))?.Email ?? string.Empty;
         return Json(new { branch, partner, email });
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ResetDefaults()
-    {
-        var liveBranches = await _db.Branches.AsNoTracking().Select(b => b.Name).ToListAsync();
-        var existing = await _db.BranchAssignments.ToDictionaryAsync(a => a.BranchName);
-
-        foreach (var branchName in liveBranches)
-        {
-            var defaultPartner = LookupData.DefaultPartnerForBranch(branchName);
-            if (existing.TryGetValue(branchName, out var current))
-            {
-                current.AssignedPartner = defaultPartner;
-            }
-            else
-            {
-                _db.BranchAssignments.Add(new BranchPartnerAssignment
-                {
-                    BranchName = branchName,
-                    AssignedPartner = defaultPartner
-                });
-            }
-        }
-
-        await _db.SaveChangesAsync();
-
-        TempData["StatusMessage"] = "Branch assignments reset to defaults.";
-        return RedirectToAction(nameof(Index));
     }
 }

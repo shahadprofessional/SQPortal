@@ -675,6 +675,48 @@ ul.validation-summary-errors {
     color: var(--sq-red) !important;
 }
 
+/* SQ staff editor — each row is its own form, so it is a grid, not a table */
+.sq-staff-grid {
+    display: flex;
+    flex-direction: column;
+}
+.sq-staff-head,
+.sq-staff-row {
+    display: grid;
+    grid-template-columns: 160px minmax(0, 1fr) minmax(0, 1fr) 190px;
+    gap: 16px;
+    align-items: center;
+}
+.sq-staff-actions {
+    display: flex;
+    gap: 8px;
+}
+.sq-staff-actions .btn {
+    flex: 1 1 0;
+}
+.sq-staff-head {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--sq-line-strong);
+    color: var(--sq-muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+.sq-staff-row {
+    padding: 11px 0;
+    margin: 0;
+    border-bottom: 1px solid var(--sq-line-soft);
+}
+@media (max-width: 767.98px) {
+    .sq-staff-head {
+        display: none;
+    }
+    .sq-staff-row {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* ------------------------------------------------------------ tables ---- */
 
 .table {
