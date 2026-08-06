@@ -55,7 +55,10 @@
         }
     </form>
 </div>
-<div class="sq-weekly-note">Auto-generated from cases rated 1–2★ that are completed and validated · sent to branch managers</div>
+<div class="sq-weekly-note">
+    Auto-generated from cases rated 1–2★ that are completed and validated · sent to branch managers
+    · @Model.ManagerCount manager@(Model.ManagerCount == 1 ? "" : "s") on file, @Model.AssignmentCount branch assignment@(Model.AssignmentCount == 1 ? "" : "s")
+</div>
 
 @if (!Model.HasManagers)
 {

@@ -117,7 +117,8 @@ public class WeeklyReportService
             End = end,
             Branches = byBranch,
             TotalPoorCases = filtered.Count,
-            HasManagers = managers.Count > 0,
+            ManagerCount = managers.Count,
+            AssignmentCount = assignments.Count,
             RangeOptions = Ranges,
             CombinedPreviewText = combinedBody,
             CombinedMailtoLink = filtered.Count > 0 && combinedRecipients.Length > 0
