@@ -30,12 +30,19 @@ public class WeeklyReportService
 
         // This report goes to the branch, so the recipients are branch managers —
         // never the SQ staff who handled the cases.
-        var managers = await _db.Managers.AsNoTracking().ToListAsync();
+        var managers = await _db.Managers.AsNoTracking().OrderBy(m => m.Name).ToListAsync();
         var managerEmails = managers.ToDictionary(m => m.Name, m => m.Email);
         var managerFullNames = managers.ToDictionary(m => m.Name, m => m.FullName);
         var assignments = await _db.ManagerAssignments
             .AsNoTracking()
             .ToDictionaryAsync(a => a.BranchName, a => a.AssignedManager);
+
+        // Every branch has a manager, so resolve one here rather than trusting the
+        // assignment table to be complete. It can legitimately miss a branch: a case
+        // may name a branch that has since been deleted, and rows are only written
+        // for branches that exist. Falling back to the roster keeps the report
+        // sendable instead of silently losing a recipient.
+        var fallbackManager = managers.FirstOrDefault()?.Name ?? string.Empty;
 
         // A branch only hears about a case once the SQ team has finished the
         // follow-up and judged the complaint genuine. Anything still pending or
@@ -58,9 +65,9 @@ public class WeeklyReportService
             .OrderByDescending(g => g.Count())
             .Select(g =>
             {
-                // No hardcoded fallback — a branch is either assigned in Settings or
-                // has nobody, and an unassigned branch simply has no recipient.
-                var manager = assignments.TryGetValue(g.Key, out var m) ? m : string.Empty;
+                var manager = assignments.TryGetValue(g.Key, out var m) && !string.IsNullOrWhiteSpace(m)
+                    ? m
+                    : fallbackManager;
                 var managerEmail = managerEmails.TryGetValue(manager, out var e) ? e : string.Empty;
                 var managerFullName = managerFullNames.TryGetValue(manager, out var fn) ? fn : string.Empty;
                 var cases = g.ToList();
@@ -110,6 +117,7 @@ public class WeeklyReportService
             End = end,
             Branches = byBranch,
             TotalPoorCases = filtered.Count,
+            HasManagers = managers.Count > 0,
             RangeOptions = Ranges,
             CombinedPreviewText = combinedBody,
             CombinedMailtoLink = filtered.Count > 0 && combinedRecipients.Length > 0

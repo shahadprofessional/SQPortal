@@ -10,6 +10,12 @@ public class WeeklyReportViewModel
     public IReadOnlyList<RangeOption> RangeOptions { get; set; } = Array.Empty<RangeOption>();
     public string CombinedPreviewText { get; set; } = string.Empty;
     public string CombinedMailtoLink { get; set; } = string.Empty;
+
+    /// <summary>
+    /// False when the manager roster is empty — the one case where the report
+    /// genuinely has nobody to send to, and worth saying so plainly.
+    /// </summary>
+    public bool HasManagers { get; set; }
 }
 
 public record RangeOption(string Value, string Label);
