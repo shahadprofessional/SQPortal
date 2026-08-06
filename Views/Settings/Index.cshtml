@@ -80,7 +80,7 @@
                     <tr data-branch="@row.Branch">
                         <td class="fw-semibold">@row.Branch</td>
                         <td>
-                            <select class="form-select form-select-sm w-auto js-manager" data-branch="@row.Branch">
+                            <select class="form-select form-select-sm sq-assign-select js-manager" data-branch="@row.Branch">
                                 @foreach (var m in Model.Managers)
                                 {
                                     if (m.Name == row.Manager)
@@ -174,7 +174,7 @@
                 <tr data-branch="@row.Branch">
                     <td class="fw-semibold">@row.Branch</td>
                     <td>
-                        <select class="form-select form-select-sm w-auto js-partner" data-branch="@row.Branch">
+                        <select class="form-select form-select-sm sq-assign-select js-partner" data-branch="@row.Branch">
                             @foreach (var p in Model.Partners)
                             {
                                 if (p.Name == row.Partner)

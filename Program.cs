@@ -13,6 +13,7 @@ builder.Services.AddScoped<SlaService>();
 builder.Services.AddScoped<PartnerAssignmentService>();
 builder.Services.AddScoped<DuplicateDetectionService>();
 builder.Services.AddScoped<CsvExportService>();
+builder.Services.AddScoped<ManagerAssignmentService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<AnalyticsService>();
 builder.Services.AddScoped<WeeklyReportService>();
