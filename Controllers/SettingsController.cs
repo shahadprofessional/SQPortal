@@ -9,14 +9,19 @@ namespace SQPortal.Controllers;
 public class SettingsController : Controller
 {
     private readonly SQPortalDbContext _db;
+    private readonly ManagerAssignmentService _managerAssignments;
 
-    public SettingsController(SQPortalDbContext db)
+    public SettingsController(SQPortalDbContext db, ManagerAssignmentService managerAssignments)
     {
         _db = db;
+        _managerAssignments = managerAssignments;
     }
 
     public async Task<IActionResult> Index()
     {
+        // Every branch has a manager — write the rows rather than implying them.
+        await _managerAssignments.EnsureEveryBranchHasManagerAsync();
+
         var partners = await _db.Partners.AsNoTracking().OrderBy(p => p.Name).ToListAsync();
         var partnerEmails = partners.ToDictionary(p => p.Name, p => p.Email);
         var partnerNames = partners.Select(p => p.Name).ToList();
@@ -40,16 +45,15 @@ public class SettingsController : Controller
 
         var managers = await _db.Managers.AsNoTracking().OrderBy(m => m.Name).ToListAsync();
         var managerEmails = managers.ToDictionary(m => m.Name, m => m.Email);
-        var managerNames = managers.Select(m => m.Name).ToList();
         var managerAssignments = await _db.ManagerAssignments.AsNoTracking()
             .ToDictionaryAsync(a => a.BranchName, a => a.AssignedManager);
 
         var managerRows = branches
             .Select(b =>
             {
-                var manager = managerAssignments.TryGetValue(b, out var m)
-                    ? m
-                    : (managerNames.FirstOrDefault() ?? string.Empty);
+                // A row exists for every branch by now; the empty case only happens
+                // when no managers have been added yet.
+                var manager = managerAssignments.TryGetValue(b, out var m) ? m : string.Empty;
                 return new BranchManagerRow
                 {
                     Branch = b,
@@ -99,7 +103,12 @@ public class SettingsController : Controller
         });
         await _db.SaveChangesAsync();
 
-        TempData["StatusMessage"] = $"Manager \"{trimmed}\" added.";
+        var assigned = await _managerAssignments.EnsureEveryBranchHasManagerAsync();
+        var note = assigned == 0
+            ? string.Empty
+            : $" {assigned} branch{(assigned == 1 ? "" : "es")} assigned to them.";
+
+        TempData["StatusMessage"] = $"Manager \"{trimmed}\" added.{note}";
         return RedirectToAction(nameof(Index));
     }
 
@@ -187,16 +196,35 @@ public class SettingsController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        // Every branch keeps a manager, so hand this one's branches to whoever is
+        // left rather than leaving them with nobody. If they were the last manager
+        // there is nobody to hand over to, so the rows go with them.
         var assignments = await _db.ManagerAssignments.Where(a => a.AssignedManager == trim).ToListAsync();
-        _db.ManagerAssignments.RemoveRange(assignments);
+        var successor = await _db.Managers.AsNoTracking()
+            .Where(m => m.Name != trim)
+            .OrderBy(m => m.Name)
+            .Select(m => m.Name)
+            .FirstOrDefaultAsync();
+
+        if (string.IsNullOrEmpty(successor))
+        {
+            _db.ManagerAssignments.RemoveRange(assignments);
+        }
+        else
+        {
+            foreach (var a in assignments) a.AssignedManager = successor;
+        }
+
         _db.Managers.Remove(manager);
         await _db.SaveChangesAsync();
 
-        var freed = assignments.Count == 0
+        var handover = assignments.Count == 0
             ? string.Empty
-            : $" {assignments.Count} branch{(assignments.Count == 1 ? "" : "es")} lost their manager — reassign them below.";
+            : string.IsNullOrEmpty(successor)
+                ? $" {assignments.Count} branch{(assignments.Count == 1 ? " is" : "es are")} now without a manager — add one to reassign."
+                : $" {assignments.Count} branch{(assignments.Count == 1 ? "" : "es")} handed to \"{successor}\".";
 
-        TempData["StatusMessage"] = $"Removed \"{trim}\".{freed}";
+        TempData["StatusMessage"] = $"Removed \"{trim}\".{handover}";
         return RedirectToAction(nameof(Index));
     }
 

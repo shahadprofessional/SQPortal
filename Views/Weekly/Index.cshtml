@@ -55,7 +55,18 @@
         }
     </form>
 </div>
-<div class="sq-weekly-note">Auto-generated from cases rated 1–2★ that are completed and validated · sent to branch managers</div>
+<div class="sq-weekly-note">
+    Auto-generated from cases rated 1–2★ that are completed and validated · sent to branch managers
+    · @Model.ManagerCount manager@(Model.ManagerCount == 1 ? "" : "s") on file, @Model.AssignmentCount branch assignment@(Model.AssignmentCount == 1 ? "" : "s")
+</div>
+
+@if (!Model.HasManagers)
+{
+    <div class="alert alert-warning py-2 mt-2 mb-0">
+        No branch managers on file, so there is nobody to send to.
+        <a asp-controller="Settings" asp-action="Index">Add a manager in Settings</a> and they will be assigned to every branch.
+    </div>
+}
 
 @if (Model.TotalPoorCases > 0)
 {
@@ -87,13 +98,15 @@ else
                     <div class="sq-branch-sub">
                         @if (string.IsNullOrEmpty(b.Manager))
                         {
-                            <span>No manager assigned</span>
+                            <span>No branch manager on file — add one in Settings</span>
+                        }
+                        else if (string.IsNullOrEmpty(b.ManagerEmail))
+                        {
+                            <span>Branch manager: <strong>@b.Manager</strong> · no email on file</span>
                         }
                         else
                         {
-                            <span>
-                                Branch manager: <strong>@b.Manager</strong>@(string.IsNullOrEmpty(b.ManagerEmail) ? "" : " · " + b.ManagerEmail)
-                            </span>
+                            <span>Branch manager: <strong>@b.Manager</strong> · @b.ManagerEmail</span>
                         }
                     </div>
                 </div>
@@ -105,8 +118,10 @@ else
                     }
                     else
                     {
-                        <button class="btn btn-sm btn-outline-secondary" type="button" disabled
-                                title="Assign a manager with an email in Settings">Send report</button>
+                        var why = string.IsNullOrEmpty(b.Manager)
+                            ? "No branch manager on file — add one in Settings"
+                            : $"{b.Manager} has no email address — add one in Settings";
+                        <button class="btn btn-sm btn-outline-secondary" type="button" disabled title="@why">Send report</button>
                     }
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#@previewId">Preview</button>
                 </div>
