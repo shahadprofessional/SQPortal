@@ -39,15 +39,23 @@
         </select>
         @if (Model.TotalPoorCases > 0)
         {
-            <a class="btn btn-warning" href="@Model.CombinedMailtoLink">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18v12H3zM3 6l9 7 9-7"></path></svg>
-                Send combined
-            </a>
+            if (!string.IsNullOrEmpty(Model.CombinedMailtoLink))
+            {
+                <a class="btn btn-warning" href="@Model.CombinedMailtoLink">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18v12H3zM3 6l9 7 9-7"></path></svg>
+                    Send combined
+                </a>
+            }
+            else
+            {
+                <button class="btn btn-outline-secondary" type="button" disabled
+                        title="No branch in this report has a manager with an email">Send combined</button>
+            }
             <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#combinedPreview">Preview</button>
         }
     </form>
 </div>
-<div class="sq-weekly-note">Auto-generated from cases rated 1–2★ that are completed and validated</div>
+<div class="sq-weekly-note">Auto-generated from cases rated 1–2★ that are completed and validated · sent to branch managers</div>
 
 @if (Model.TotalPoorCases > 0)
 {
@@ -77,16 +85,29 @@ else
                 <div>
                     <div class="sq-branch-name">@b.Branch</div>
                     <div class="sq-branch-sub">
-                        SQ staff: <strong>@b.Partner</strong>
-                        @if (!string.IsNullOrEmpty(b.PartnerEmail))
+                        @if (string.IsNullOrEmpty(b.Manager))
                         {
-                            <span> · @b.PartnerEmail</span>
+                            <span>No manager assigned</span>
+                        }
+                        else
+                        {
+                            <span>
+                                Branch manager: <strong>@b.Manager</strong>@(string.IsNullOrEmpty(b.ManagerEmail) ? "" : " · " + b.ManagerEmail)
+                            </span>
                         }
                     </div>
                 </div>
                 <div class="d-flex gap-2 align-items-center flex-wrap">
                     <span class="badge-sq badge-sq-gold">@b.PoorCaseCount feedbacks</span>
-                    <a class="btn btn-sm btn-primary" href="@b.MailtoLink">Send report</a>
+                    @if (!string.IsNullOrEmpty(b.MailtoLink))
+                    {
+                        <a class="btn btn-sm btn-primary" href="@b.MailtoLink">Send report</a>
+                    }
+                    else
+                    {
+                        <button class="btn btn-sm btn-outline-secondary" type="button" disabled
+                                title="Assign a manager with an email in Settings">Send report</button>
+                    }
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#@previewId">Preview</button>
                 </div>
             </div>
