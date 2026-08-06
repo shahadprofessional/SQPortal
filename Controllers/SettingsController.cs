@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using SQPortal.Data;
 using SQPortal.Models.Entities;
 using SQPortal.Models.ViewModels.Settings;
+using SQPortal.Services;
 
 namespace SQPortal.Controllers;
 
