@@ -28,10 +28,14 @@ public class WeeklyReportService
     {
         var (start, end, normalizedRange) = ResolveRange(range, today);
 
-        var partnerEmails = await _db.Partners.AsNoTracking().ToDictionaryAsync(p => p.Name, p => p.Email);
-        var assignments = await _db.BranchAssignments
+        // This report goes to the branch, so the recipients are branch managers —
+        // never the SQ staff who handled the cases.
+        var managers = await _db.Managers.AsNoTracking().ToListAsync();
+        var managerEmails = managers.ToDictionary(m => m.Name, m => m.Email);
+        var managerFullNames = managers.ToDictionary(m => m.Name, m => m.FullName);
+        var assignments = await _db.ManagerAssignments
             .AsNoTracking()
-            .ToDictionaryAsync(a => a.BranchName, a => a.AssignedPartner);
+            .ToDictionaryAsync(a => a.BranchName, a => a.AssignedManager);
 
         // A branch only hears about a case once the SQ team has finished the
         // follow-up and judged the complaint genuine. Anything still pending or
@@ -56,8 +60,9 @@ public class WeeklyReportService
             {
                 // No hardcoded fallback — a branch is either assigned in Settings or
                 // has nobody, and an unassigned branch simply has no recipient.
-                var partner = assignments.TryGetValue(g.Key, out var p) ? p : string.Empty;
-                var partnerEmail = partnerEmails.TryGetValue(partner, out var e) ? e : string.Empty;
+                var manager = assignments.TryGetValue(g.Key, out var m) ? m : string.Empty;
+                var managerEmail = managerEmails.TryGetValue(manager, out var e) ? e : string.Empty;
+                var managerFullName = managerFullNames.TryGetValue(manager, out var fn) ? fn : string.Empty;
                 var cases = g.ToList();
                 var staff = cases
                     .Select(c => (c.StaffName ?? string.Empty).Trim())
@@ -67,8 +72,9 @@ public class WeeklyReportService
                 var item = new BranchReportItemViewModel
                 {
                     Branch = g.Key,
-                    Partner = partner,
-                    PartnerEmail = partnerEmail,
+                    Manager = manager,
+                    ManagerFullName = managerFullName,
+                    ManagerEmail = managerEmail,
                     Cases = cases,
                     StaffMentioned = staff,
                     BranchFeedbackCount = cases.Count(c => c.BranchRating > 0 && c.BranchRating <= 2),
@@ -79,13 +85,23 @@ public class WeeklyReportService
                 var subject = $"[SQ] Weekly Service Quality Summary | {item.Branch} | {start:yyyy-MM-dd} to {end:yyyy-MM-dd}";
 
                 item.PreviewText = section;
-                item.MailtoLink = BuildMailto(item.PartnerEmail, subject, emailBody);
+                // No manager, no mail — the view disables Send rather than opening
+                // a message addressed to nobody.
+                item.MailtoLink = string.IsNullOrWhiteSpace(item.ManagerEmail)
+                    ? string.Empty
+                    : BuildMailto(item.ManagerEmail, subject, emailBody);
                 return item;
             })
             .ToList();
 
         var combinedBody = BuildCombinedBody(byBranch, start, end, filtered.Count);
         var combinedSubject = $"[SQ] Weekly Service Quality Summary | {start:yyyy-MM-dd} to {end:yyyy-MM-dd}";
+
+        // One mail to every manager in this report — each address once.
+        var combinedRecipients = string.Join(",", byBranch
+            .Select(b => b.ManagerEmail)
+            .Where(e => !string.IsNullOrWhiteSpace(e))
+            .Distinct(StringComparer.OrdinalIgnoreCase));
 
         return new WeeklyReportViewModel
         {
@@ -96,8 +112,8 @@ public class WeeklyReportService
             TotalPoorCases = filtered.Count,
             RangeOptions = Ranges,
             CombinedPreviewText = combinedBody,
-            CombinedMailtoLink = filtered.Count > 0
-                ? BuildMailto(string.Empty, combinedSubject, combinedBody)
+            CombinedMailtoLink = filtered.Count > 0 && combinedRecipients.Length > 0
+                ? BuildMailto(combinedRecipients, combinedSubject, combinedBody)
                 : string.Empty
         };
     }
@@ -124,7 +140,10 @@ public class WeeklyReportService
 
         if (asFullEmail)
         {
-            sb.AppendLine("Dear Branch Manager,");
+            var greeting = string.IsNullOrWhiteSpace(item.ManagerFullName)
+                ? "Branch Manager"
+                : item.ManagerFullName;
+            sb.AppendLine($"Dear {greeting},");
             sb.AppendLine();
             sb.AppendLine("Customers receive a feedback message after each branch visit. Customers giving low ratings (1-2 stars) are contacted directly by the SQ team.");
             sb.AppendLine();
