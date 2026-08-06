@@ -688,25 +688,43 @@ ul.validation-summary-errors {
     align-items: center;
 }
 /* Assignment dropdowns: w-auto sized them to the arrow and clipped the name */
-.sq-assign-select {
-    width: auto;
-    min-width: 160px;
-    max-width: 100%;
-}
-
-/* Branch rows are forms too — name plus the same action pair */
+/* Branch rows are forms: name, manager, SQ owner, actions */
 .sq-branch-grid {
     display: flex;
     flex-direction: column;
 }
+.sq-branch-grid-head,
 .sq-branch-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 190px;
+    grid-template-columns: minmax(0, 1fr) 190px 190px 190px;
     gap: 16px;
     align-items: center;
+}
+.sq-branch-grid-head {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--sq-line-strong);
+    color: var(--sq-muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+.sq-branch-row {
     padding: 11px 0;
     margin: 0;
     border-bottom: 1px solid var(--sq-line-soft);
+}
+.sq-branch-row.sq-branch-add {
+    padding: 0 0 16px;
+    border-bottom: 0;
+}
+@media (max-width: 991.98px) {
+    .sq-branch-grid-head {
+        display: none;
+    }
+    .sq-branch-row {
+        grid-template-columns: 1fr;
+    }
 }
 
 .sq-staff-actions {

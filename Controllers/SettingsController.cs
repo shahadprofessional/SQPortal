@@ -24,54 +24,30 @@ public class SettingsController : Controller
         await _managerAssignments.EnsureEveryBranchHasManagerAsync();
 
         var partners = await _db.Partners.AsNoTracking().OrderBy(p => p.Name).ToListAsync();
-        var partnerEmails = partners.ToDictionary(p => p.Name, p => p.Email);
-        var partnerNames = partners.Select(p => p.Name).ToList();
-        var branches = await _db.Branches.AsNoTracking().OrderBy(b => b.Name).Select(b => b.Name).ToListAsync();
-        var assignments = await _db.BranchAssignments.AsNoTracking().ToDictionaryAsync(a => a.BranchName, a => a.AssignedPartner);
-
-        var assignmentRows = branches
-            .Select(b =>
-            {
-                var partner = assignments.TryGetValue(b, out var p)
-                    ? p
-                    : (partnerNames.FirstOrDefault() ?? string.Empty);
-                return new BranchAssignmentRow
-                {
-                    Branch = b,
-                    Partner = partner,
-                    PartnerEmail = partnerEmails.TryGetValue(partner, out var e) ? e : string.Empty
-                };
-            })
-            .ToList();
-
         var managers = await _db.Managers.AsNoTracking().OrderBy(m => m.Name).ToListAsync();
-        var managerEmails = managers.ToDictionary(m => m.Name, m => m.Email);
-        var managerAssignments = await _db.ManagerAssignments.AsNoTracking()
+        var branchNames = await _db.Branches.AsNoTracking().OrderBy(b => b.Name).Select(b => b.Name).ToListAsync();
+
+        var partnerOf = await _db.BranchAssignments.AsNoTracking()
+            .ToDictionaryAsync(a => a.BranchName, a => a.AssignedPartner);
+        var managerOf = await _db.ManagerAssignments.AsNoTracking()
             .ToDictionaryAsync(a => a.BranchName, a => a.AssignedManager);
 
-        var managerRows = branches
-            .Select(b =>
+        // One row per branch — the name and both owners, which used to be three
+        // separate tables listing the same branches.
+        var branchRows = branchNames
+            .Select(b => new BranchRow
             {
-                // A row exists for every branch by now; the empty case only happens
-                // when no managers have been added yet.
-                var manager = managerAssignments.TryGetValue(b, out var m) ? m : string.Empty;
-                return new BranchManagerRow
-                {
-                    Branch = b,
-                    Manager = manager,
-                    ManagerEmail = managerEmails.TryGetValue(manager, out var e) ? e : string.Empty
-                };
+                Name = b,
+                Manager = managerOf.TryGetValue(b, out var m) ? m : string.Empty,
+                Partner = partnerOf.TryGetValue(b, out var p) ? p : string.Empty
             })
             .ToList();
 
         var vm = new SettingsViewModel
         {
-            Partners = partners.Select(p => new PartnerRow { Name = p.Name, FullName = p.FullName, Email = p.Email }).ToList(),
-            Branches = branches,
-            Assignments = assignmentRows,
-            PartnerEmails = partnerEmails,
+            Branches = branchRows,
             Managers = managers.Select(m => new PartnerRow { Name = m.Name, FullName = m.FullName, Email = m.Email }).ToList(),
-            ManagerAssignments = managerRows
+            Partners = partners.Select(p => new PartnerRow { Name = p.Name, FullName = p.FullName, Email = p.Email }).ToList()
         };
 
         return View(vm);
@@ -229,38 +205,6 @@ public class SettingsController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateManagerAssignment(string branch, string manager)
-    {
-        if (string.IsNullOrWhiteSpace(branch) || string.IsNullOrWhiteSpace(manager))
-        {
-            return BadRequest(new { error = "Branch and manager are required." });
-        }
-        if (!await _db.Branches.AnyAsync(b => b.Name == branch))
-        {
-            return BadRequest(new { error = "Unknown branch." });
-        }
-        if (!await _db.Managers.AnyAsync(m => m.Name == manager))
-        {
-            return BadRequest(new { error = "Unknown manager." });
-        }
-
-        var assignment = await _db.ManagerAssignments.FirstOrDefaultAsync(a => a.BranchName == branch);
-        if (assignment == null)
-        {
-            _db.ManagerAssignments.Add(new BranchManagerAssignment { BranchName = branch, AssignedManager = manager });
-        }
-        else
-        {
-            assignment.AssignedManager = manager;
-        }
-
-        await _db.SaveChangesAsync();
-
-        var email = (await _db.Managers.AsNoTracking().FirstOrDefaultAsync(m => m.Name == manager))?.Email ?? string.Empty;
-        return Json(new { branch, manager, email });
-    }
 
     // ---------- SQ staff ----------
 
@@ -410,7 +354,7 @@ public class SettingsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> AddBranch(string name)
+    public async Task<IActionResult> AddBranch(string name, string? manager, string? partner)
     {
         var trimmed = (name ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(trimmed))
@@ -426,53 +370,29 @@ public class SettingsController : Controller
         }
 
         _db.Branches.Add(new Branch { Name = trimmed });
+        await _db.SaveChangesAsync();
 
-        var firstPartner = await _db.Partners.AsNoTracking().OrderBy(p => p.Name).Select(p => p.Name).FirstOrDefaultAsync();
-        if (!string.IsNullOrEmpty(firstPartner))
-        {
-            _db.BranchAssignments.Add(new BranchPartnerAssignment
-            {
-                BranchName = trimmed,
-                AssignedPartner = firstPartner
-            });
-        }
-
-        var firstManager = await _db.Managers.AsNoTracking().OrderBy(m => m.Name).Select(m => m.Name).FirstOrDefaultAsync();
-        if (!string.IsNullOrEmpty(firstManager))
-        {
-            _db.ManagerAssignments.Add(new BranchManagerAssignment
-            {
-                BranchName = trimmed,
-                AssignedManager = firstManager
-            });
-        }
-
+        await SetManagerAssignmentAsync(trimmed, await ResolveManagerAsync(manager));
+        await SetPartnerAssignmentAsync(trimmed, await ResolvePartnerAsync(partner));
         await _db.SaveChangesAsync();
         TempData["StatusMessage"] = $"Branch \"{trimmed}\" added.";
         return RedirectToAction(nameof(Index));
     }
 
+    /// <summary>
+    /// One row, one save: the branch name plus who manages it and who handles it
+    /// on the SQ side. The three used to live in three separate tables on the page.
+    /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RenameBranch(string oldName, string newName)
+    public async Task<IActionResult> UpdateBranch(string oldName, string newName, string? manager, string? partner)
     {
         var oldTrim = (oldName ?? string.Empty).Trim();
         var newTrim = (newName ?? string.Empty).Trim();
 
         if (string.IsNullOrWhiteSpace(oldTrim) || string.IsNullOrWhiteSpace(newTrim))
         {
-            TempData["StatusMessage"] = "Branch names cannot be empty.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        if (oldTrim == newTrim)
-        {
-            return RedirectToAction(nameof(Index));
-        }
-
-        if (await _db.Branches.AnyAsync(b => b.Name == newTrim))
-        {
-            TempData["StatusMessage"] = $"Branch \"{newTrim}\" already exists.";
+            TempData["StatusMessage"] = "Branch name cannot be empty.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -483,48 +403,49 @@ public class SettingsController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        // Branch.Name is the primary key; remove the old row and insert the new one,
-        // then cascade-update referencing tables (FeedbackCase.Branch, BranchPartnerAssignment.BranchName).
+        var renaming = oldTrim != newTrim;
+        if (renaming && await _db.Branches.AnyAsync(b => b.Name == newTrim))
+        {
+            TempData["StatusMessage"] = $"Branch \"{newTrim}\" already exists.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var chosenManager = await ResolveManagerAsync(manager);
+        var chosenPartner = await ResolvePartnerAsync(partner);
+        var caseCount = 0;
+
         await using var tx = await _db.Database.BeginTransactionAsync();
 
-        _db.Branches.Remove(existing);
-        await _db.SaveChangesAsync();
-        _db.Branches.Add(new Branch { Name = newTrim });
-        await _db.SaveChangesAsync();
-
-        var cases = await _db.Cases.Where(c => c.Branch == oldTrim).ToListAsync();
-        foreach (var c in cases) c.Branch = newTrim;
-
-        var assignment = await _db.BranchAssignments.FirstOrDefaultAsync(a => a.BranchName == oldTrim);
-        if (assignment != null)
+        if (renaming)
         {
-            var partner = assignment.AssignedPartner;
-            _db.BranchAssignments.Remove(assignment);
+            // Branch.Name is the primary key, so a rename is a remove + insert. Cases
+            // and both assignment tables store the name as text and have to follow.
+            _db.Branches.Remove(existing);
             await _db.SaveChangesAsync();
-            _db.BranchAssignments.Add(new BranchPartnerAssignment
-            {
-                BranchName = newTrim,
-                AssignedPartner = partner
-            });
+            _db.Branches.Add(new Branch { Name = newTrim });
+            await _db.SaveChangesAsync();
+
+            var cases = await _db.Cases.Where(c => c.Branch == oldTrim).ToListAsync();
+            foreach (var c in cases) c.Branch = newTrim;
+            caseCount = cases.Count;
+
+            var oldPartnerRow = await _db.BranchAssignments.FirstOrDefaultAsync(a => a.BranchName == oldTrim);
+            if (oldPartnerRow != null) _db.BranchAssignments.Remove(oldPartnerRow);
+
+            var oldManagerRow = await _db.ManagerAssignments.FirstOrDefaultAsync(a => a.BranchName == oldTrim);
+            if (oldManagerRow != null) _db.ManagerAssignments.Remove(oldManagerRow);
+
+            await _db.SaveChangesAsync();
         }
 
-        var managerAssignment = await _db.ManagerAssignments.FirstOrDefaultAsync(a => a.BranchName == oldTrim);
-        if (managerAssignment != null)
-        {
-            var manager = managerAssignment.AssignedManager;
-            _db.ManagerAssignments.Remove(managerAssignment);
-            await _db.SaveChangesAsync();
-            _db.ManagerAssignments.Add(new BranchManagerAssignment
-            {
-                BranchName = newTrim,
-                AssignedManager = manager
-            });
-        }
-
+        await SetManagerAssignmentAsync(newTrim, chosenManager);
+        await SetPartnerAssignmentAsync(newTrim, chosenPartner);
         await _db.SaveChangesAsync();
         await tx.CommitAsync();
 
-        TempData["StatusMessage"] = $"Renamed \"{oldTrim}\" to \"{newTrim}\" ({cases.Count} case{(cases.Count == 1 ? "" : "s")} updated).";
+        TempData["StatusMessage"] = renaming
+            ? $"Renamed \"{oldTrim}\" to \"{newTrim}\" ({caseCount} case{(caseCount == 1 ? "" : "s")} updated)."
+            : $"\"{newTrim}\" saved.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -566,39 +487,65 @@ public class SettingsController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    // ---------- Assignments (unchanged behavior) ----------
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateAssignment(string branch, string partner)
+    /// <summary>The named manager if they exist, otherwise the first on the roster.</summary>
+    private async Task<string> ResolveManagerAsync(string? candidate)
     {
-        if (string.IsNullOrWhiteSpace(branch) || string.IsNullOrWhiteSpace(partner))
+        var trim = (candidate ?? string.Empty).Trim();
+        if (trim.Length > 0 && await _db.Managers.AnyAsync(m => m.Name == trim)) return trim;
+
+        return await _db.Managers.AsNoTracking().OrderBy(m => m.Name).Select(m => m.Name).FirstOrDefaultAsync()
+            ?? string.Empty;
+    }
+
+    /// <summary>The named SQ staff member if they exist, otherwise the first on file.</summary>
+    private async Task<string> ResolvePartnerAsync(string? candidate)
+    {
+        var trim = (candidate ?? string.Empty).Trim();
+        if (trim.Length > 0 && await _db.Partners.AnyAsync(p => p.Name == trim)) return trim;
+
+        return await _db.Partners.AsNoTracking().OrderBy(p => p.Name).Select(p => p.Name).FirstOrDefaultAsync()
+            ?? string.Empty;
+    }
+
+    /// <summary>Upsert the manager assignment, or drop it when there is nobody to assign.</summary>
+    private async Task SetManagerAssignmentAsync(string branch, string manager)
+    {
+        var row = await _db.ManagerAssignments.FirstOrDefaultAsync(a => a.BranchName == branch);
+
+        if (string.IsNullOrEmpty(manager))
         {
-            return BadRequest(new { error = "Branch and partner are required." });
-        }
-        if (!await _db.Branches.AnyAsync(b => b.Name == branch))
-        {
-            return BadRequest(new { error = "Unknown branch." });
-        }
-        if (!await _db.Partners.AnyAsync(p => p.Name == partner))
-        {
-            return BadRequest(new { error = "Unknown partner." });
+            if (row != null) _db.ManagerAssignments.Remove(row);
+            return;
         }
 
-        var assignment = await _db.BranchAssignments.FirstOrDefaultAsync(a => a.BranchName == branch);
-        if (assignment == null)
+        if (row == null)
         {
-            assignment = new BranchPartnerAssignment { BranchName = branch, AssignedPartner = partner };
-            _db.BranchAssignments.Add(assignment);
+            _db.ManagerAssignments.Add(new BranchManagerAssignment { BranchName = branch, AssignedManager = manager });
         }
         else
         {
-            assignment.AssignedPartner = partner;
+            row.AssignedManager = manager;
+        }
+    }
+
+    /// <summary>Same for the SQ side.</summary>
+    private async Task SetPartnerAssignmentAsync(string branch, string partner)
+    {
+        var row = await _db.BranchAssignments.FirstOrDefaultAsync(a => a.BranchName == branch);
+
+        if (string.IsNullOrEmpty(partner))
+        {
+            if (row != null) _db.BranchAssignments.Remove(row);
+            return;
         }
 
-        await _db.SaveChangesAsync();
-
-        var email = (await _db.Partners.AsNoTracking().FirstOrDefaultAsync(p => p.Name == partner))?.Email ?? string.Empty;
-        return Json(new { branch, partner, email });
+        if (row == null)
+        {
+            _db.BranchAssignments.Add(new BranchPartnerAssignment { BranchName = branch, AssignedPartner = partner });
+        }
+        else
+        {
+            row.AssignedPartner = partner;
+        }
     }
 }
