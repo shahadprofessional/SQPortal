@@ -1,9 +1,14 @@
 @model SettingsViewModel
 @{
     ViewData["Title"] = "Settings";
-}
 
-@Html.AntiForgeryToken()
+    // Rendered for each row's two dropdowns; "—" when the roster is empty.
+    string SelectedOrFirst(string current, IEnumerable<string> options) =>
+        !string.IsNullOrEmpty(current) ? current : (options.FirstOrDefault() ?? string.Empty);
+
+    var managerNames = Model.Managers.Select(m => m.Name).ToList();
+    var partnerNames = Model.Partners.Select(p => p.Name).ToList();
+}
 
 <div class="sq-page-head">
     <div>
@@ -15,91 +20,105 @@
     </div>
 </div>
 
-<div class="d-none alert alert-success py-2 mb-3" id="saveIndicator">Saved</div>
-
-<!-- ============ Branches ============ -->
+<!-- ============ Branches: name + both owners in one row ============ -->
 <div class="sq-panel sq-frame mb-4">
     <div class="sq-panel-head">
         <h2>Branches</h2>
-        <span class="sq-panel-note">@Model.Branches.Count on file</span>
+        <span class="sq-panel-note">Name, manager and SQ owner — one row each. Save applies all three.</span>
     </div>
 
-    <form asp-action="AddBranch" method="post" class="d-flex gap-3 mb-3">
+    <form asp-action="AddBranch" method="post" class="sq-branch-row sq-branch-add">
         @Html.AntiForgeryToken()
-        <input class="form-control" name="name" placeholder="New branch name" required maxlength="100" />
-        <button class="btn btn-primary" type="submit">Add</button>
+        <input class="form-control form-control-sm" name="name" placeholder="New branch name" required maxlength="100" aria-label="New branch name" />
+        <select class="form-select form-select-sm" name="manager" aria-label="Branch manager">
+            @foreach (var m in managerNames)
+            {
+                <option value="@m">@m</option>
+            }
+        </select>
+        <select class="form-select form-select-sm" name="partner" aria-label="SQ staff">
+            @foreach (var p in partnerNames)
+            {
+                <option value="@p">@p</option>
+            }
+        </select>
+        <button class="btn btn-sm btn-primary" type="submit">Add</button>
     </form>
 
     <div class="sq-branch-grid">
+        <div class="sq-branch-grid-head">
+            <div>Branch name</div>
+            <div>Branch manager</div>
+            <div>SQ staff</div>
+            <div></div>
+        </div>
+
+        @if (!Model.Branches.Any())
+        {
+            <div class="sq-panel-note py-3">No branches yet — add one above.</div>
+        }
+
         @foreach (var b in Model.Branches)
         {
-            <form asp-action="RenameBranch" method="post" class="sq-branch-row">
+            var selectedManager = SelectedOrFirst(b.Manager, managerNames);
+            var selectedPartner = SelectedOrFirst(b.Partner, partnerNames);
+
+            <form asp-action="UpdateBranch" method="post" class="sq-branch-row">
                 @Html.AntiForgeryToken()
-                <input type="hidden" name="oldName" value="@b" />
+                <input type="hidden" name="oldName" value="@b.Name" />
                 @* Delete posts this same form, and it binds "name" *@
-                <input type="hidden" name="name" value="@b" />
-                <input class="form-control form-control-sm" name="newName" value="@b" required maxlength="100" aria-label="Branch name" />
+                <input type="hidden" name="name" value="@b.Name" />
+
+                <input class="form-control form-control-sm" name="newName" value="@b.Name" required maxlength="100" aria-label="Branch name" />
+
+                <select class="form-select form-select-sm" name="manager" aria-label="Branch manager">
+                    @if (!managerNames.Any())
+                    {
+                        <option value="">— none on file —</option>
+                    }
+                    @foreach (var m in managerNames)
+                    {
+                        if (m == selectedManager)
+                        {
+                            <option value="@m" selected>@m</option>
+                        }
+                        else
+                        {
+                            <option value="@m">@m</option>
+                        }
+                    }
+                </select>
+
+                <select class="form-select form-select-sm" name="partner" aria-label="SQ staff">
+                    @if (!partnerNames.Any())
+                    {
+                        <option value="">— none on file —</option>
+                    }
+                    @foreach (var p in partnerNames)
+                    {
+                        if (p == selectedPartner)
+                        {
+                            <option value="@p" selected>@p</option>
+                        }
+                        else
+                        {
+                            <option value="@p">@p</option>
+                        }
+                    }
+                </select>
+
                 <div class="sq-staff-actions">
                     <button class="btn btn-sm btn-primary" type="submit">Save</button>
                     @* Same form, different target — a nested <form> for delete is not valid HTML *@
                     <button class="btn btn-sm btn-outline-danger" type="submit" formnovalidate
                             formaction="@Url.Action("DeleteBranch", "Settings")"
-                            onclick="return confirm('Delete branch &quot;@b&quot;? This is blocked if any cases reference it.');">
+                            onclick="return confirm('Delete branch &quot;@b.Name&quot;? This is blocked if any cases reference it.');">
                         Delete
                     </button>
                 </div>
             </form>
         }
     </div>
-</div>
-
-<!-- ============ Branch ↔ Manager assignment ============ -->
-<div class="sq-panel sq-frame mb-4">
-    <div class="sq-panel-head">
-        <h2>Branch — Managers staff assignment</h2>
-        <span class="sq-panel-note">Who runs each branch. Saves automatically.</span>
-    </div>
-
-    @if (!Model.Managers.Any())
-    {
-        <div class="sq-panel-note">Add a manager below before assigning branches.</div>
-    }
-    else
-    {
-        <table class="table align-middle mb-0">
-            <thead>
-                <tr>
-                    <th>Branch</th>
-                    <th>Manager</th>
-                    <th>Email</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var row in Model.ManagerAssignments)
-                {
-                    <tr data-branch="@row.Branch">
-                        <td class="fw-semibold">@row.Branch</td>
-                        <td>
-                            <select class="form-select form-select-sm sq-assign-select js-manager" data-branch="@row.Branch">
-                                @foreach (var m in Model.Managers)
-                                {
-                                    if (m.Name == row.Manager)
-                                    {
-                                        <option value="@m.Name" selected>@m.Name</option>
-                                    }
-                                    else
-                                    {
-                                        <option value="@m.Name">@m.Name</option>
-                                    }
-                                }
-                            </select>
-                        </td>
-                        <td class="sq-cell-muted js-manager-email">@(string.IsNullOrEmpty(row.ManagerEmail) ? "—" : row.ManagerEmail)</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    }
 </div>
 
 <!-- ============ Managers ============ -->
@@ -144,55 +163,13 @@
                     <button class="btn btn-sm btn-primary" type="submit">Save</button>
                     <button class="btn btn-sm btn-outline-danger" type="submit" formnovalidate
                             formaction="@Url.Action("DeleteManager", "Settings")"
-                            onclick="return confirm('Remove &quot;@m.Name&quot; from the managers? Their branches become unassigned.');">
+                            onclick="return confirm('Remove &quot;@m.Name&quot; from the managers? Their branches pass to whoever is left.');">
                         Delete
                     </button>
                 </div>
             </form>
         }
     </div>
-</div>
-
-<!-- ============ Branch ↔ SQ staff assignment ============ -->
-<div class="sq-panel sq-frame mb-4">
-    <div class="sq-panel-head">
-        <h2>Branch — SQ staff assignment</h2>
-        <span class="sq-panel-note">Who handles each branch. Saves automatically.</span>
-    </div>
-
-    <table class="table align-middle mb-0">
-        <thead>
-            <tr>
-                <th>Branch</th>
-                <th>SQ staff</th>
-                <th>Email</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var row in Model.Assignments)
-            {
-                <tr data-branch="@row.Branch">
-                    <td class="fw-semibold">@row.Branch</td>
-                    <td>
-                        <select class="form-select form-select-sm sq-assign-select js-partner" data-branch="@row.Branch">
-                            @foreach (var p in Model.Partners)
-                            {
-                                if (p.Name == row.Partner)
-                                {
-                                    <option value="@p.Name" selected>@p.Name</option>
-                                }
-                                else
-                                {
-                                    <option value="@p.Name">@p.Name</option>
-                                }
-                            }
-                        </select>
-                    </td>
-                    <td class="sq-cell-muted js-email">@(string.IsNullOrEmpty(row.PartnerEmail) ? "—" : row.PartnerEmail)</td>
-                </tr>
-            }
-        </tbody>
-    </table>
 </div>
 
 <!-- ============ SQ staff ============ -->
@@ -218,7 +195,6 @@
         </div>
     </form>
 
-    @* Rows are forms, so they are laid out as a grid rather than a table *@
     <div class="sq-staff-grid">
         <div class="sq-staff-head">
             <div>Key</div>
@@ -246,52 +222,3 @@
         }
     </div>
 </div>
-
-@section Scripts {
-<script>
-    (function () {
-        var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-        var indicator = document.getElementById('saveIndicator');
-        var indicatorTimer;
-
-        function flashIndicator() {
-            indicator.classList.remove('d-none');
-            clearTimeout(indicatorTimer);
-            indicatorTimer = setTimeout(function () { indicator.classList.add('d-none'); }, 1500);
-        }
-
-        // Staff and manager rows post normally and reload the page — a key rename
-        // rewrites the assignment dropdowns too, which a DOM patch can't keep honest.
-
-        // Both assignment tables auto-save the same way; only the field names differ.
-        function bindAssignment(selector, url, valueField, emailCell) {
-            document.querySelectorAll(selector).forEach(function (sel) {
-                sel.addEventListener('change', function () {
-                    var branch = sel.getAttribute('data-branch');
-                    var cell = sel.closest('tr').querySelector(emailCell);
-
-                    sel.disabled = true;
-                    var payload = { branch: branch, __RequestVerificationToken: token };
-                    payload[valueField] = sel.value;
-
-                    fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: new URLSearchParams(payload).toString()
-                    })
-                    .then(function (r) { if (!r.ok) throw new Error('Save failed'); return r.json(); })
-                    .then(function (data) {
-                        if (cell) cell.textContent = data.email || '—';
-                        flashIndicator();
-                    })
-                    .catch(function () { alert('Failed to save assignment. Please refresh and try again.'); })
-                    .finally(function () { sel.disabled = false; });
-                });
-            });
-        }
-
-        bindAssignment('.js-manager', '@Url.Action("UpdateManagerAssignment", "Settings")', 'manager', '.js-manager-email');
-        bindAssignment('.js-partner', '@Url.Action("UpdateAssignment", "Settings")', 'partner', '.js-email');
-    })();
-</script>
-}

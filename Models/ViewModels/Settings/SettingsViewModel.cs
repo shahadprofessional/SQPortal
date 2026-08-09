@@ -2,14 +2,12 @@ namespace SQPortal.Models.ViewModels.Settings;
 
 public class SettingsViewModel
 {
-    public List<PartnerRow> Partners { get; set; } = new();
-    public List<string> Branches { get; set; } = new();
-    public List<BranchAssignmentRow> Assignments { get; set; } = new();
-    public IDictionary<string, string> PartnerEmails { get; set; } = new Dictionary<string, string>();
+    /// <summary>One row per branch: its name, its manager and its SQ owner.</summary>
+    public List<BranchRow> Branches { get; set; } = new();
 
-    /// <summary>The branch side: managers and which branch each one runs.</summary>
+    /// <summary>Rosters, used for the dropdowns as well as their own editors.</summary>
     public List<PartnerRow> Managers { get; set; } = new();
-    public List<BranchManagerRow> ManagerAssignments { get; set; } = new();
+    public List<PartnerRow> Partners { get; set; } = new();
 }
 
 public class PartnerRow
@@ -19,16 +17,9 @@ public class PartnerRow
     public string Email { get; set; } = string.Empty;
 }
 
-public class BranchAssignmentRow
+public class BranchRow
 {
-    public string Branch { get; set; } = string.Empty;
-    public string Partner { get; set; } = string.Empty;
-    public string PartnerEmail { get; set; } = string.Empty;
-}
-
-public class BranchManagerRow
-{
-    public string Branch { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
     public string Manager { get; set; } = string.Empty;
-    public string ManagerEmail { get; set; } = string.Empty;
+    public string Partner { get; set; } = string.Empty;
 }
