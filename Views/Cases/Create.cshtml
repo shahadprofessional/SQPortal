@@ -138,12 +138,13 @@
 </form>
 
 @section Scripts {
-<script>
+<script nonce="@Csp.Nonce(Context)">
     (function () {
         var branchSelect = document.getElementById('branchSelect');
         var partnerBox = document.getElementById('assignedPartner');
         var clearBtn = document.getElementById('clearBtn');
-        var partners = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.BranchPartnerMap));
+        @* Json.Serialize escapes HTML-sensitive characters, so the payload cannot break out of this script block. *@
+        var partners = @Json.Serialize(Model.BranchPartnerMap);
 
         // Real-time character filtering — strips invalid chars as the user types
         function stripWith(el, allowedRegex) {

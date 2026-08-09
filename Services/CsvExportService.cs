@@ -52,6 +52,15 @@ public class CsvExportService
     private static string Escape(string? value)
     {
         if (string.IsNullOrEmpty(value)) return string.Empty;
+
+        // A leading =, +, -, @, tab or CR makes spreadsheet apps evaluate the
+        // cell as a formula, letting a crafted comment run when the export is
+        // opened in Excel. A leading apostrophe forces plain text.
+        if (value[0] is '=' or '+' or '-' or '@' or '\t' or '\r')
+        {
+            value = "'" + value;
+        }
+
         var needsQuote = value.Contains(',') || value.Contains('"') || value.Contains('\n') || value.Contains('\r');
         var escaped = value.Replace("\"", "\"\"");
         return needsQuote ? $"\"{escaped}\"" : escaped;

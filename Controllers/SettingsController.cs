@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SQPortal.Data;
+using SQPortal.Helpers;
 using SQPortal.Models.Entities;
 using SQPortal.Models.ViewModels.Settings;
 using SQPortal.Services;
@@ -66,6 +67,14 @@ public class SettingsController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        var newFullName = (fullName ?? string.Empty).Trim();
+        var newEmail = (email ?? string.Empty).Trim();
+        if (!ValidatePersonFields(trimmed, newFullName, newEmail, out var problem))
+        {
+            TempData["StatusMessage"] = problem;
+            return RedirectToAction(nameof(Index));
+        }
+
         if (await _db.Managers.AnyAsync(m => m.Name == trimmed))
         {
             TempData["StatusMessage"] = $"Manager \"{trimmed}\" already exists.";
@@ -75,8 +84,8 @@ public class SettingsController : Controller
         _db.Managers.Add(new BranchManager
         {
             Name = trimmed,
-            FullName = (fullName ?? string.Empty).Trim(),
-            Email = (email ?? string.Empty).Trim()
+            FullName = newFullName,
+            Email = newEmail
         });
         await _db.SaveChangesAsync();
 
@@ -111,6 +120,11 @@ public class SettingsController : Controller
 
         var newFullName = (fullName ?? string.Empty).Trim();
         var newEmail = (email ?? string.Empty).Trim();
+        if (!ValidatePersonFields(newTrim, newFullName, newEmail, out var problem))
+        {
+            TempData["StatusMessage"] = problem;
+            return RedirectToAction(nameof(Index));
+        }
 
         if (oldTrim == newTrim)
         {
@@ -219,6 +233,14 @@ public class SettingsController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        var newFullName = (fullName ?? string.Empty).Trim();
+        var newEmail = (email ?? string.Empty).Trim();
+        if (!ValidatePersonFields(trimmed, newFullName, newEmail, out var problem))
+        {
+            TempData["StatusMessage"] = problem;
+            return RedirectToAction(nameof(Index));
+        }
+
         if (await _db.Partners.AnyAsync(p => p.Name == trimmed))
         {
             TempData["StatusMessage"] = $"Staff member \"{trimmed}\" already exists.";
@@ -228,8 +250,8 @@ public class SettingsController : Controller
         _db.Partners.Add(new BusinessPartner
         {
             Name = trimmed,
-            FullName = (fullName ?? string.Empty).Trim(),
-            Email = (email ?? string.Empty).Trim()
+            FullName = newFullName,
+            Email = newEmail
         });
         await _db.SaveChangesAsync();
 
@@ -259,6 +281,11 @@ public class SettingsController : Controller
 
         var newFullName = (fullName ?? string.Empty).Trim();
         var newEmail = (email ?? string.Empty).Trim();
+        if (!ValidatePersonFields(newTrim, newFullName, newEmail, out var problem))
+        {
+            TempData["StatusMessage"] = problem;
+            return RedirectToAction(nameof(Index));
+        }
 
         if (oldTrim == newTrim)
         {
@@ -363,6 +390,12 @@ public class SettingsController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        if (trimmed.Length > 100)
+        {
+            TempData["StatusMessage"] = "Branch name is too long (max 100 characters).";
+            return RedirectToAction(nameof(Index));
+        }
+
         if (await _db.Branches.AnyAsync(b => b.Name == trimmed))
         {
             TempData["StatusMessage"] = $"Branch \"{trimmed}\" already exists.";
@@ -393,6 +426,12 @@ public class SettingsController : Controller
         if (string.IsNullOrWhiteSpace(oldTrim) || string.IsNullOrWhiteSpace(newTrim))
         {
             TempData["StatusMessage"] = "Branch name cannot be empty.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (newTrim.Length > 100)
+        {
+            TempData["StatusMessage"] = "Branch name is too long (max 100 characters).";
             return RedirectToAction(nameof(Index));
         }
 
@@ -485,6 +524,39 @@ public class SettingsController : Controller
 
         TempData["StatusMessage"] = $"Branch \"{trim}\" deleted.";
         return RedirectToAction(nameof(Index));
+    }
+
+    /// <summary>
+    /// Server-side guard for the roster forms — the browser's maxlength and
+    /// type=email are advisory only. Oversized values would otherwise surface
+    /// as database errors, and a malformed address would poison the mailto
+    /// links built from these fields.
+    /// </summary>
+    private static bool ValidatePersonFields(string key, string fullName, string email, out string problem)
+    {
+        if (key.Length > 40)
+        {
+            problem = "Key is too long (max 40 characters).";
+            return false;
+        }
+        if (fullName.Length > 200)
+        {
+            problem = "Full name is too long (max 200 characters).";
+            return false;
+        }
+        if (email.Length > 200)
+        {
+            problem = "Email is too long (max 200 characters).";
+            return false;
+        }
+        if (email.Length > 0 && !DisplayHelpers.IsValidEmailAddress(email))
+        {
+            problem = "That email address is not valid.";
+            return false;
+        }
+
+        problem = string.Empty;
+        return true;
     }
 
     /// <summary>The named manager if they exist, otherwise the first on the roster.</summary>

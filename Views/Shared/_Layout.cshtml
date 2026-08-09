@@ -13,8 +13,8 @@
     var navWeekly = NavClass(currentController == "Weekly");
     var navSettings = NavClass(currentController == "Settings");
 
-    // No sign-in yet — fall back to a placeholder until authentication lands.
-    var userName = !string.IsNullOrWhiteSpace(User?.Identity?.Name) ? User!.Identity!.Name! : "Guest";
+    var isAuthenticated = User?.Identity?.IsAuthenticated == true;
+    var userName = isAuthenticated && !string.IsNullOrWhiteSpace(User!.Identity!.Name) ? User.Identity.Name! : "Guest";
     var initials = string.Concat(userName
         .Split(' ', StringSplitOptions.RemoveEmptyEntries)
         .Take(2)
@@ -29,7 +29,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@@400;500;600;700&amp;family=Barlow+Condensed:wght@@500;600;700&amp;display=swap" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+          crossorigin="anonymous" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
@@ -43,36 +45,41 @@
                 </span>
             </a>
 
-            <nav class="sq-nav">
-                <a class="@navDashboard" asp-controller="Dashboard" asp-action="Index">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"></path></svg>
-                    <span>Dashboard</span>
-                </a>
-                <a class="@navCreate" asp-controller="Cases" asp-action="Create">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
-                    <span>Add case</span>
-                </a>
-                <a class="@navAnalytics" asp-controller="Analytics" asp-action="Index">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M7 20v-6M12 20V8M17 20v-11"></path></svg>
-                    <span>Analytics</span>
-                </a>
-                <a class="@navWeekly" asp-controller="Weekly" asp-action="Index">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18v12H3zM3 6l9 7 9-7"></path></svg>
-                    <span>Weekly</span>
-                </a>
-                <a class="@navSettings" asp-controller="Settings" asp-action="Index">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M7 15v4"></path></svg>
-                    <span>Settings</span>
-                </a>
-            </nav>
+            @if (isAuthenticated)
+            {
+                <nav class="sq-nav">
+                    <a class="@navDashboard" asp-controller="Dashboard" asp-action="Index">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"></path></svg>
+                        <span>Dashboard</span>
+                    </a>
+                    <a class="@navCreate" asp-controller="Cases" asp-action="Create">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
+                        <span>Add case</span>
+                    </a>
+                    <a class="@navAnalytics" asp-controller="Analytics" asp-action="Index">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M7 20v-6M12 20V8M17 20v-11"></path></svg>
+                        <span>Analytics</span>
+                    </a>
+                    <a class="@navWeekly" asp-controller="Weekly" asp-action="Index">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18v12H3zM3 6l9 7 9-7"></path></svg>
+                        <span>Weekly</span>
+                    </a>
+                    <a class="@navSettings" asp-controller="Settings" asp-action="Index">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M7 15v4"></path></svg>
+                        <span>Settings</span>
+                    </a>
+                </nav>
 
-            <div class="sq-user" title="Signed in as @userName">
-                <div>
-                    <div class="sq-user-name">@userName</div>
-                    <div class="sq-user-sub">Signed in</div>
+                <div class="sq-user" title="Signed in as @userName">
+                    <div>
+                        <div class="sq-user-name">@userName</div>
+                        <form asp-controller="Account" asp-action="Logout" method="post" class="m-0">
+                            <button type="submit" class="btn btn-link btn-sm p-0 border-0 sq-user-sub">Sign out</button>
+                        </form>
+                    </div>
+                    <span class="sq-avatar">@initials</span>
                 </div>
-                <span class="sq-avatar">@initials</span>
-            </div>
+            }
         </div>
     </header>
 
@@ -95,15 +102,10 @@
         }
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            document.querySelectorAll('.toast.sq-auto-toast').forEach(function (el) {
-                var t = new bootstrap.Toast(el, { delay: 3500 });
-                t.show();
-            });
-        });
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+            crossorigin="anonymous"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

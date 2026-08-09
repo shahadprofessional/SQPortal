@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SQPortal.Data;
@@ -250,6 +251,10 @@ public class CasesController : Controller
 
     private static string GenerateId()
     {
-        return DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
+        // The unix-ms prefix keeps IDs sorting in creation order (the lists use
+        // Id as a tie-break); the random suffix makes IDs unguessable and
+        // avoids a collision when two cases land in the same millisecond.
+        var suffix = Convert.ToHexString(RandomNumberGenerator.GetBytes(4)).ToLowerInvariant();
+        return $"{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}-{suffix}";
     }
 }

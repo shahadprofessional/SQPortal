@@ -1,0 +1,39 @@
+@model LoginViewModel
+@{
+    ViewData["Title"] = "Sign in";
+}
+
+<div class="row justify-content-center mt-5">
+    <div class="col-md-4 col-sm-8">
+        <div class="sq-panel sq-frame">
+            <div class="sq-panel-head">
+                <h2>Sign in</h2>
+                <span class="sq-panel-note">SQPortal is restricted to the SQ team.</span>
+            </div>
+
+            @if (Model.NotConfigured)
+            {
+                <div class="alert alert-warning py-2">
+                    Sign-in is not configured yet, so no one can get in. Set
+                    <code>Auth:Username</code> and <code>Auth:Password</code> (or
+                    <code>Auth:PasswordHash</code>) via environment variables or
+                    <code>dotnet user-secrets</code>, then restart the app.
+                </div>
+            }
+
+            <form asp-action="Login" method="post">
+                <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+                <input type="hidden" asp-for="ReturnUrl" />
+                <div class="mb-3">
+                    <label asp-for="Username" class="form-label">Username</label>
+                    <input asp-for="Username" class="form-control" autocomplete="username" autofocus />
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Password" class="form-label">Password</label>
+                    <input asp-for="Password" class="form-control" autocomplete="current-password" />
+                </div>
+                <button type="submit" class="btn btn-primary w-100 sq-frame sq-frame-light">Sign in</button>
+            </form>
+        </div>
+    </div>
+</div>

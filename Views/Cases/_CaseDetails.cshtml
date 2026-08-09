@@ -149,7 +149,7 @@
 
     <div class="sq-detail-actions">
         <form asp-controller="Cases" asp-action="Delete" asp-route-id="@c.Id" method="post"
-              onsubmit="return confirm('Delete this case? This cannot be undone.');">
+              data-confirm="Delete this case? This cannot be undone.">
             @Html.AntiForgeryToken()
             <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
             <button class="btn btn-outline-danger" type="submit">Delete</button>

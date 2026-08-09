@@ -206,7 +206,7 @@
 </form>
 
 @section Scripts {
-<script>
+<script nonce="@Csp.Nonce(Context)">
     (function () {
         // Same character filtering as the add form — strips as you type.
         function stripWith(el, allowedRegex) {
