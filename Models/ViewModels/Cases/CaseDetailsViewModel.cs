@@ -20,5 +20,4 @@ public class CaseDetailsViewModel
     public string? ReturnUrl { get; set; }
 
     public List<string> RootCauses { get; set; } = new();
-    public string? OtherRootCause { get; set; }
 }

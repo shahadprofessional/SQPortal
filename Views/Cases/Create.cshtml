@@ -31,24 +31,24 @@
             <div class="col-md-4">
                 <label asp-for="CustomerName" class="form-label"></label>
                 <input asp-for="CustomerName" class="form-control js-letters-only"
-                       pattern="[A-Za-z ]+" maxlength="200" required
+                       pattern="@FieldPatterns.Name" maxlength="200" required
                        data-error-label="Customer name"
                        title="Letters and spaces only" />
             </div>
             <div class="col-md-3">
                 <label asp-for="CustomerPhone" class="form-label"></label>
                 <input asp-for="CustomerPhone" class="form-control js-digits-only" id="customerPhone"
-                       inputmode="numeric" pattern="[0-9]{8}" minlength="8" maxlength="8" required
+                       inputmode="numeric" pattern="@FieldPatterns.Phone" minlength="8" maxlength="8" required
                        data-error-label="Customer phone"
                        title="Exactly 8 digits" />
                 <div id="dupWarning" class="text-warning small mt-1"></div>
             </div>
             <div class="col-md-2">
                 <label asp-for="TicketNumber" class="form-label"></label>
-                <input asp-for="TicketNumber" class="form-control js-digits-only"
-                       inputmode="numeric" pattern="[0-9]*" maxlength="60"
+                <input asp-for="TicketNumber" class="form-control js-alnum"
+                       pattern="@FieldPatterns.AlphanumericOptional" maxlength="60"
                        data-error-label="Ticket number"
-                       title="Digits only" />
+                       title="Letters and numbers only" />
             </div>
             <div class="col-md-3">
                 <label asp-for="Date" class="form-label">Date</label>
@@ -94,9 +94,9 @@
             <div class="col-md-10">
                 <label asp-for="BranchComment" class="form-label"></label>
                 <input asp-for="BranchComment" class="form-control js-comment"
-                       pattern="[A-Za-z0-9 &amp;+#]*"
+                       pattern="@FieldPatterns.TextOptional"
                        data-error-label="Branch comment"
-                       title="Letters, numbers, spaces, and the symbols & + # only" />
+                       title="Letters, numbers and spaces only" />
             </div>
         </div>
     </div>
@@ -112,7 +112,7 @@
             <div class="col-md-3">
                 <label asp-for="StaffName" class="form-label"></label>
                 <input asp-for="StaffName" class="form-control js-letters-only"
-                       pattern="[A-Za-z ]*" maxlength="200"
+                       pattern="@FieldPatterns.NameOptional" maxlength="200"
                        data-error-label="Staff name"
                        title="Letters and spaces only" />
             </div>
@@ -130,9 +130,9 @@
             <div class="col-md-7">
                 <label asp-for="StaffComment" class="form-label"></label>
                 <input asp-for="StaffComment" class="form-control js-comment"
-                       pattern="[A-Za-z0-9 &amp;+#]*"
+                       pattern="@FieldPatterns.TextOptional"
                        data-error-label="Staff comment"
-                       title="Letters, numbers, spaces, and the symbols & + # only" />
+                       title="Letters, numbers and spaces only" />
             </div>
         </div>
     </div>
@@ -166,7 +166,8 @@
         }
         document.querySelectorAll('.js-letters-only').forEach(function (el) { stripWith(el, /[A-Za-z ]/); });
         document.querySelectorAll('.js-digits-only').forEach(function (el) { stripWith(el, /[0-9]/); });
-        document.querySelectorAll('.js-comment').forEach(function (el) { stripWith(el, /[A-Za-z0-9 &+#]/); });
+        document.querySelectorAll('.js-comment').forEach(function (el) { stripWith(el, /[A-Za-z0-9 ]/); });
+        document.querySelectorAll('.js-alnum').forEach(function (el) { stripWith(el, /[A-Za-z0-9]/); });
 
         // Branch → partner auto-fill
         if (branchSelect) {

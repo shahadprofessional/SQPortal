@@ -11,8 +11,6 @@ namespace SQPortal.Controllers;
 
 public class CasesController : Controller
 {
-    private const string OtherRootCausePrefix = "Other: ";
-
     private readonly SQPortalDbContext _db;
     private readonly SlaService _sla;
     private readonly PartnerAssignmentService _partners;
@@ -60,8 +58,6 @@ public class CasesController : Controller
         var partner = await _db.Partners.AsNoTracking()
             .FirstOrDefaultAsync(p => p.Name == entity.BusinessPartner);
 
-        var (rootCauses, other) = SplitRootCauses(entity.RootCauses);
-
         var vm = new CaseDetailsViewModel
         {
             Case = entity,
@@ -71,8 +67,7 @@ public class CasesController : Controller
             PartnerEmail = partner?.Email ?? string.Empty,
             Mailto = partner == null ? string.Empty : DisplayHelpers.BuildLowRatingMailto(entity, partner.Email, partner.FullName),
             ReturnUrl = !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) ? returnUrl : null,
-            RootCauses = rootCauses,
-            OtherRootCause = other
+            RootCauses = entity.RootCauses.ToList()
         };
 
         return partial ? PartialView("_CaseDetails", vm) : View(vm);
@@ -143,7 +138,6 @@ public class CasesController : Controller
         var entity = await _db.Cases.FirstOrDefaultAsync(c => c.Id == id);
         if (entity == null) return NotFound();
 
-        var (selected, other) = SplitRootCauses(entity.RootCauses);
         var (branches, partners) = await GetBranchesAndPartnersAsync();
 
         var vm = new EditCaseViewModel
@@ -166,8 +160,7 @@ public class CasesController : Controller
             FollowUpDate = entity.FollowUpDate,
             FollowUpNotes = entity.FollowUpNotes,
             CaseValidation = entity.CaseValidation,
-            RootCauses = selected,
-            OtherRootCause = other,
+            RootCauses = entity.RootCauses.Where(r => LookupData.RootCauses.Contains(r)).ToList(),
             ValidationNotes = entity.ValidationNotes,
             Branches = branches,
             Partners = partners,
@@ -194,10 +187,6 @@ public class CasesController : Controller
         if (entity == null) return NotFound();
 
         var rootCauses = vm.RootCauses?.Where(r => LookupData.RootCauses.Contains(r)).ToList() ?? new();
-        if (!string.IsNullOrWhiteSpace(vm.OtherRootCause))
-        {
-            rootCauses.Add(OtherRootCausePrefix + vm.OtherRootCause.Trim());
-        }
 
         entity.Date = vm.Date;
         entity.CustomerName = vm.CustomerName.Trim();
@@ -267,24 +256,6 @@ public class CasesController : Controller
         var branches = await _db.Branches.AsNoTracking().OrderBy(b => b.Name).Select(b => b.Name).ToListAsync();
         var partners = await _db.Partners.AsNoTracking().OrderBy(p => p.Name).Select(p => p.Name).ToListAsync();
         return (branches, partners);
-    }
-
-    private static (List<string> selected, string? other) SplitRootCauses(IEnumerable<string> rootCauses)
-    {
-        var selected = new List<string>();
-        string? other = null;
-        foreach (var r in rootCauses)
-        {
-            if (r.StartsWith(OtherRootCausePrefix))
-            {
-                other = r.Substring(OtherRootCausePrefix.Length);
-            }
-            else
-            {
-                selected.Add(r);
-            }
-        }
-        return (selected, other);
     }
 
     private static string GenerateId()

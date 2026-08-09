@@ -1,9 +1,10 @@
 using System.ComponentModel.DataAnnotations;
+using SQPortal.Helpers;
 using SQPortal.Models.Enums;
 
 namespace SQPortal.Models.ViewModels.Cases;
 
-public class EditCaseViewModel
+public class EditCaseViewModel : IValidatableObject
 {
     [Required]
     public string Id { get; set; } = string.Empty;
@@ -15,14 +16,17 @@ public class EditCaseViewModel
     public DateOnly Date { get; set; }
 
     [Required, StringLength(200)]
+    [RegularExpression(FieldPatterns.Name, ErrorMessage = FieldPatterns.NameMessage)]
     [Display(Name = "Customer name")]
     public string CustomerName { get; set; } = string.Empty;
 
-    [Required, StringLength(40, MinimumLength = 7)]
+    [Required]
+    [RegularExpression(FieldPatterns.Phone, ErrorMessage = FieldPatterns.PhoneMessage)]
     [Display(Name = "Customer phone")]
     public string CustomerPhone { get; set; } = string.Empty;
 
     [StringLength(60)]
+    [RegularExpression(FieldPatterns.AlphanumericOptional, ErrorMessage = FieldPatterns.AlphanumericMessage)]
     [Display(Name = "Ticket number")]
     public string? TicketNumber { get; set; }
 
@@ -37,10 +41,12 @@ public class EditCaseViewModel
     [Display(Name = "Branch rating")]
     public int BranchRating { get; set; }
 
+    [RegularExpression(FieldPatterns.TextOptional, ErrorMessage = FieldPatterns.TextMessage)]
     [Display(Name = "Branch comment")]
     public string? BranchComment { get; set; }
 
     [StringLength(200)]
+    [RegularExpression(FieldPatterns.NameOptional, ErrorMessage = FieldPatterns.NameMessage)]
     [Display(Name = "Staff name")]
     public string? StaffName { get; set; }
 
@@ -48,6 +54,7 @@ public class EditCaseViewModel
     [Display(Name = "Staff rating")]
     public int StaffRating { get; set; }
 
+    [RegularExpression(FieldPatterns.TextOptional, ErrorMessage = FieldPatterns.TextMessage)]
     [Display(Name = "Staff comment")]
     public string? StaffComment { get; set; }
 
@@ -62,6 +69,7 @@ public class EditCaseViewModel
     [Display(Name = "Follow-up date")]
     public DateOnly? FollowUpDate { get; set; }
 
+    [RegularExpression(FieldPatterns.TextOptional, ErrorMessage = FieldPatterns.TextMessage)]
     [Display(Name = "Follow-up notes")]
     public string? FollowUpNotes { get; set; }
 
@@ -71,13 +79,32 @@ public class EditCaseViewModel
     [Display(Name = "Root causes")]
     public List<string> RootCauses { get; set; } = new();
 
-    [Display(Name = "Other root cause")]
-    public string? OtherRootCause { get; set; }
-
+    [RegularExpression(FieldPatterns.TextOptional, ErrorMessage = FieldPatterns.TextMessage)]
     [Display(Name = "Validation notes")]
     public string? ValidationNotes { get; set; }
 
     public IEnumerable<string> Branches { get; set; } = Array.Empty<string>();
     public IEnumerable<string> Partners { get; set; } = Array.Empty<string>();
     public IEnumerable<string> RootCauseOptions { get; set; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Both dates hang off the feedback date: nothing about a case can be due, or
+    /// followed up, before the feedback itself arrived.
+    /// </summary>
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (DueDate < Date)
+        {
+            yield return new ValidationResult(
+                "Due date cannot be before the case date.",
+                new[] { nameof(DueDate) });
+        }
+
+        if (FollowUpDate.HasValue && FollowUpDate.Value < Date)
+        {
+            yield return new ValidationResult(
+                "Follow-up date cannot be before the case date.",
+                new[] { nameof(FollowUpDate) });
+        }
+    }
 }
