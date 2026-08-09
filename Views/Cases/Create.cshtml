@@ -12,11 +12,6 @@
     <div class="sq-page-meta">SLA: 1 working day from the feedback date</div>
 </div>
 
-@if (!string.IsNullOrEmpty(Model.DuplicateWarning))
-{
-    <div class="alert alert-warning">@Model.DuplicateWarning</div>
-}
-
 <form id="caseForm" asp-action="Create" method="post" novalidate>
     @Html.AntiForgeryToken()
     <div asp-validation-summary="All" class="text-danger" id="validationSummary"></div>
@@ -41,7 +36,6 @@
                        inputmode="numeric" pattern="@FieldPatterns.Phone" minlength="8" maxlength="8" required
                        data-error-label="Customer phone"
                        title="Exactly 8 digits" />
-                <div id="dupWarning" class="text-warning small mt-1"></div>
             </div>
             <div class="col-md-2">
                 <label asp-for="TicketNumber" class="form-label"></label>
@@ -146,8 +140,6 @@
 @section Scripts {
 <script>
     (function () {
-        var phoneInput = document.getElementById('customerPhone');
-        var dupBox = document.getElementById('dupWarning');
         var branchSelect = document.getElementById('branchSelect');
         var partnerBox = document.getElementById('assignedPartner');
         var clearBtn = document.getElementById('clearBtn');
@@ -176,28 +168,12 @@
             });
         }
 
-        // Reset also clears the auto-filled partner and the duplicate warning
+        // Reset also clears the auto-filled partner
         if (clearBtn) {
             clearBtn.addEventListener('click', function () {
                 setTimeout(function () {
                     if (partnerBox) partnerBox.value = '';
-                    if (dupBox) dupBox.textContent = '';
                 }, 0);
-            });
-        }
-
-        // Duplicate-phone check (only when phone reaches 8 digits)
-        if (phoneInput) {
-            var timer;
-            phoneInput.addEventListener('input', function () {
-                clearTimeout(timer);
-                timer = setTimeout(function () {
-                    var v = phoneInput.value.trim();
-                    if (v.length !== 8) { dupBox.textContent = ''; return; }
-                    fetch('@Url.Action("CheckDuplicate", "Cases")?phone=' + encodeURIComponent(v))
-                        .then(function (r) { return r.json(); })
-                        .then(function (data) { dupBox.textContent = data.warning || ''; });
-                }, 300);
             });
         }
 

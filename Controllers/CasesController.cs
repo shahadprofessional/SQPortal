@@ -14,18 +14,15 @@ public class CasesController : Controller
     private readonly SQPortalDbContext _db;
     private readonly SlaService _sla;
     private readonly PartnerAssignmentService _partners;
-    private readonly DuplicateDetectionService _duplicates;
 
     public CasesController(
         SQPortalDbContext db,
         SlaService sla,
-        PartnerAssignmentService partners,
-        DuplicateDetectionService duplicates)
+        PartnerAssignmentService partners)
     {
         _db = db;
         _sla = sla;
         _partners = partners;
-        _duplicates = duplicates;
     }
 
     [HttpPost]
@@ -100,7 +97,6 @@ public class CasesController : Controller
         if (!ModelState.IsValid)
         {
             vm.AssignedPartner = await _partners.GetPartnerForBranchAsync(vm.Branch);
-            vm.DuplicateWarning = await _duplicates.CheckOpenDuplicateAsync(vm.CustomerPhone);
             return View(vm);
         }
 
@@ -235,12 +231,6 @@ public class CasesController : Controller
         return RedirectToAction("Index", "Dashboard");
     }
 
-    [HttpGet]
-    public async Task<IActionResult> CheckDuplicate(string phone)
-    {
-        var warning = await _duplicates.CheckOpenDuplicateAsync(phone ?? string.Empty);
-        return Json(new { warning });
-    }
 
     private async Task PopulateLookupsAsync(CaseFormViewModel vm)
     {
