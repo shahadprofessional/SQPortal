@@ -24,7 +24,7 @@
         </div>
     </div>
     <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
-        <select name="range" class="form-select w-auto" onchange="this.form.submit()">
+        <select name="range" class="form-select w-auto" data-autosubmit>
             @foreach (var r in Model.RangeOptions)
             {
                 if (r.Value == Model.Range)

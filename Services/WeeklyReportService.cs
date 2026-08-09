@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using SQPortal.Data;
+using SQPortal.Helpers;
 using SQPortal.Models.Entities;
 using SQPortal.Models.Enums;
 using SQPortal.Models.ViewModels.Weekly;
@@ -271,8 +272,13 @@ public class WeeklyReportService
 
     private static string BuildMailto(string to, string subject, string body)
     {
+        // Drop anything that isn't a plain address — a stored email must not be
+        // able to add extra mailto parameters or recipients.
+        var recipients = DisplayHelpers.SanitizeMailtoRecipients(to);
+        if (recipients.Length == 0) return string.Empty;
+
         var s = Uri.EscapeDataString(subject);
         var b = Uri.EscapeDataString(body);
-        return $"mailto:{to}?subject={s}&body={b}";
+        return $"mailto:{recipients}?subject={s}&body={b}";
     }
 }

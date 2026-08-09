@@ -112,7 +112,7 @@
                     @* Same form, different target — a nested <form> for delete is not valid HTML *@
                     <button class="btn btn-sm btn-outline-danger" type="submit" formnovalidate
                             formaction="@Url.Action("DeleteBranch", "Settings")"
-                            onclick="return confirm('Delete branch &quot;@b.Name&quot;? This is blocked if any cases reference it.');">
+                            data-confirm='Delete branch "@b.Name"? This is blocked if any cases reference it.'>
                         Delete
                     </button>
                 </div>
@@ -163,7 +163,7 @@
                     <button class="btn btn-sm btn-primary" type="submit">Save</button>
                     <button class="btn btn-sm btn-outline-danger" type="submit" formnovalidate
                             formaction="@Url.Action("DeleteManager", "Settings")"
-                            onclick="return confirm('Remove &quot;@m.Name&quot; from the managers? Their branches pass to whoever is left.');">
+                            data-confirm='Remove "@m.Name" from the managers? Their branches pass to whoever is left.'>
                         Delete
                     </button>
                 </div>
@@ -214,7 +214,7 @@
                     <button class="btn btn-sm btn-primary" type="submit">Save</button>
                     <button class="btn btn-sm btn-outline-danger" type="submit" formnovalidate
                             formaction="@Url.Action("DeletePartner", "Settings")"
-                            onclick="return confirm('Remove &quot;@p.Name&quot; from the SQ team? Past cases keep their name; their branches become unassigned.');">
+                            data-confirm='Remove "@p.Name" from the SQ team? Past cases keep their name; their branches become unassigned.'>
                         Delete
                     </button>
                 </div>

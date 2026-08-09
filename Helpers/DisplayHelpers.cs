@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Html;
 using SQPortal.Models.Entities;
 using SQPortal.Models.Enums;
@@ -7,6 +8,27 @@ namespace SQPortal.Helpers;
 
 public static class DisplayHelpers
 {
+    private static readonly Regex MailtoAddress =
+        new(@"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$", RegexOptions.Compiled);
+
+    public static bool IsValidEmailAddress(string address) =>
+        address.Length <= 254 && MailtoAddress.IsMatch(address);
+
+    /// <summary>
+    /// Keeps only well-formed addresses (comma-separated), so nothing stored in
+    /// an email field can smuggle extra headers or query parameters into the
+    /// address part of a mailto: link. Returns empty when nothing survives.
+    /// </summary>
+    public static string SanitizeMailtoRecipients(string? addresses)
+    {
+        if (string.IsNullOrWhiteSpace(addresses)) return string.Empty;
+
+        var safe = addresses
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(IsValidEmailAddress);
+        return string.Join(",", safe);
+    }
+
     public static HtmlString Stars(int rating)
     {
         if (rating <= 0) return new HtmlString("<span class=\"text-muted\">—</span>");
@@ -50,10 +72,13 @@ public static class DisplayHelpers
 
     public static string BuildLowRatingMailto(FeedbackCase c, string? partnerEmail, string? partnerFullName = null)
     {
+        // No valid recipient, no link — callers show a disabled button instead.
+        var to = SanitizeMailtoRecipients(partnerEmail);
+        if (to.Length == 0) return string.Empty;
+
         var fullName = !string.IsNullOrWhiteSpace(partnerFullName)
             ? partnerFullName
             : (string.IsNullOrEmpty(c.BusinessPartner) ? "Partner" : c.BusinessPartner);
-        var to = partnerEmail ?? string.Empty;
 
         var lines = new List<string>
         {

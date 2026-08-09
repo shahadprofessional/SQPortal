@@ -271,7 +271,7 @@ else
                                 <a class="btn btn-sm btn-outline-secondary"
                                    asp-controller="Cases" asp-action="Edit" asp-route-id="@c.Id">Edit</a>
                                 <form asp-controller="Cases" asp-action="Delete" asp-route-id="@c.Id" method="post"
-                                      onsubmit="return confirm('Delete this case? This cannot be undone.');">
+                                      data-confirm="Delete this case? This cannot be undone.">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="returnUrl" value="@returnUrl" />
                                     <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
@@ -369,7 +369,7 @@ else
 </div>
 
 @section Scripts {
-<script>
+<script nonce="@Csp.Nonce(Context)">
     (function () {
         var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
         var token = tokenEl ? tokenEl.value : '';

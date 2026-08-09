@@ -1,0 +1,39 @@
+@model IReadOnlyList<TestUser>
+@{
+    ViewData["Title"] = "Sign in";
+    var returnUrl = ViewData["ReturnUrl"] as string;
+}
+
+@* ///////// test-only: delete this view when AD is linked \\\\\\\\\\ *@
+
+<div class="row justify-content-center mt-5">
+    <div class="col-lg-5 col-md-7">
+        <div class="sq-panel sq-frame">
+            <div class="sq-panel-head">
+                <h2>Test environment sign-in</h2>
+                <span class="sq-panel-note">Pick a user — no password needed.</span>
+            </div>
+
+            <div class="alert alert-warning py-2">
+                This is the <strong>test sign-in</strong>: anyone who can reach this site can enter.
+                Before production use, link Active Directory — follow the
+                <code>/////////remove when you want to link AD\\\\\\\\\\</code> markers in
+                <code>Program.cs</code> and <code>SQPortal.csproj</code>.
+            </div>
+
+            <div class="d-grid gap-2">
+                @foreach (var u in Model)
+                {
+                    <form asp-action="LoginAs" method="post" class="d-grid">
+                        <input type="hidden" name="username" value="@u.Username" />
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <button type="submit" class="btn btn-outline-secondary text-start p-3">
+                            <span class="d-block fw-semibold">@u.DisplayName</span>
+                            <span class="d-block small text-muted">@u.Username · @u.Description</span>
+                        </button>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+</div>
