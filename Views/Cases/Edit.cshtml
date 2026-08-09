@@ -15,7 +15,7 @@
     @Html.AntiForgeryToken()
     <input type="hidden" asp-for="Id" />
     <input type="hidden" asp-for="CaseNumber" />
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div asp-validation-summary="All" class="text-danger"></div>
 
     <div class="sq-panel sq-frame mb-4">
         <div class="sq-step">
@@ -26,21 +26,28 @@
         <div class="row g-3">
             <div class="col-md-4">
                 <label asp-for="CustomerName" class="form-label"></label>
-                <input asp-for="CustomerName" class="form-control" />
+                <input asp-for="CustomerName" class="form-control js-letters-only"
+                       pattern="@FieldPatterns.Name" maxlength="200" required
+                       title="Letters and spaces only" />
                 <span asp-validation-for="CustomerName" class="text-danger small"></span>
             </div>
             <div class="col-md-3">
                 <label asp-for="CustomerPhone" class="form-label"></label>
-                <input asp-for="CustomerPhone" class="form-control" />
+                <input asp-for="CustomerPhone" class="form-control js-digits-only"
+                       inputmode="numeric" pattern="@FieldPatterns.Phone" minlength="8" maxlength="8" required
+                       title="Exactly 8 digits" />
                 <span asp-validation-for="CustomerPhone" class="text-danger small"></span>
             </div>
             <div class="col-md-2">
                 <label asp-for="TicketNumber" class="form-label"></label>
-                <input asp-for="TicketNumber" class="form-control" />
+                <input asp-for="TicketNumber" class="form-control js-alnum"
+                       pattern="@FieldPatterns.AlphanumericOptional" maxlength="60"
+                       title="Letters and numbers only" />
+                <span asp-validation-for="TicketNumber" class="text-danger small"></span>
             </div>
             <div class="col-md-3">
                 <label asp-for="Date" class="form-label"></label>
-                <input asp-for="Date" class="form-control" />
+                <input asp-for="Date" class="form-control" id="caseDate" />
             </div>
             <div class="col-md-4">
                 <label asp-for="Branch" class="form-label"></label>
@@ -62,7 +69,9 @@
             </div>
             <div class="col-md-2">
                 <label asp-for="DueDate" class="form-label"></label>
-                <input asp-for="DueDate" class="form-control" />
+                <input asp-for="DueDate" class="form-control js-not-before-date"
+                       title="Cannot be before the case date" />
+                <span asp-validation-for="DueDate" class="text-danger small"></span>
             </div>
         </div>
     </div>
@@ -87,11 +96,17 @@
             </div>
             <div class="col-md-10">
                 <label asp-for="BranchComment" class="form-label"></label>
-                <input asp-for="BranchComment" class="form-control" />
+                <input asp-for="BranchComment" class="form-control js-comment"
+                       pattern="@FieldPatterns.TextOptional"
+                       title="Letters, numbers and spaces only" />
+                <span asp-validation-for="BranchComment" class="text-danger small"></span>
             </div>
             <div class="col-md-3">
                 <label asp-for="StaffName" class="form-label"></label>
-                <input asp-for="StaffName" class="form-control" />
+                <input asp-for="StaffName" class="form-control js-letters-only"
+                       pattern="@FieldPatterns.NameOptional" maxlength="200"
+                       title="Letters and spaces only" />
+                <span asp-validation-for="StaffName" class="text-danger small"></span>
             </div>
             <div class="col-md-2">
                 <label asp-for="StaffRating" class="form-label"></label>
@@ -106,7 +121,10 @@
             </div>
             <div class="col-md-7">
                 <label asp-for="StaffComment" class="form-label"></label>
-                <input asp-for="StaffComment" class="form-control" />
+                <input asp-for="StaffComment" class="form-control js-comment"
+                       pattern="@FieldPatterns.TextOptional"
+                       title="Letters, numbers and spaces only" />
+                <span asp-validation-for="StaffComment" class="text-danger small"></span>
             </div>
         </div>
     </div>
@@ -129,11 +147,16 @@
             </div>
             <div class="col-md-3">
                 <label asp-for="FollowUpDate" class="form-label"></label>
-                <input asp-for="FollowUpDate" class="form-control" />
+                <input asp-for="FollowUpDate" class="form-control js-not-before-date"
+                       title="Cannot be before the case date" />
+                <span asp-validation-for="FollowUpDate" class="text-danger small"></span>
             </div>
             <div class="col-md-6">
                 <label asp-for="FollowUpNotes" class="form-label"></label>
-                <input asp-for="FollowUpNotes" class="form-control" />
+                <input asp-for="FollowUpNotes" class="form-control js-comment"
+                       pattern="@FieldPatterns.TextOptional"
+                       title="Letters, numbers and spaces only" />
+                <span asp-validation-for="FollowUpNotes" class="text-danger small"></span>
             </div>
         </div>
     </div>
@@ -166,12 +189,12 @@
                         </label>
                     }
                 </div>
-                <label asp-for="OtherRootCause" class="form-label mt-3">Other (free text)</label>
-                <input asp-for="OtherRootCause" class="form-control" />
             </div>
             <div class="col-md-12">
                 <label asp-for="ValidationNotes" class="form-label"></label>
-                <textarea asp-for="ValidationNotes" class="form-control" rows="2"></textarea>
+                <textarea asp-for="ValidationNotes" class="form-control js-comment" rows="2"
+                          title="Letters, numbers and spaces only"></textarea>
+                <span asp-validation-for="ValidationNotes" class="text-danger small"></span>
             </div>
         </div>
     </div>
@@ -181,3 +204,37 @@
         <button type="submit" class="btn btn-primary sq-frame sq-frame-light">Save changes</button>
     </div>
 </form>
+
+@section Scripts {
+<script>
+    (function () {
+        // Same character filtering as the add form — strips as you type.
+        function stripWith(el, allowedRegex) {
+            el.addEventListener('input', function () {
+                var clean = el.value.split('').filter(function (ch) { return allowedRegex.test(ch); }).join('');
+                if (clean !== el.value) {
+                    var pos = el.selectionStart - (el.value.length - clean.length);
+                    el.value = clean;
+                    try { el.setSelectionRange(pos, pos); } catch (e) { /* unsupported on some inputs */ }
+                }
+            });
+        }
+        document.querySelectorAll('.js-letters-only').forEach(function (el) { stripWith(el, /[A-Za-z ]/); });
+        document.querySelectorAll('.js-digits-only').forEach(function (el) { stripWith(el, /[0-9]/); });
+        document.querySelectorAll('.js-alnum').forEach(function (el) { stripWith(el, /[A-Za-z0-9]/); });
+        document.querySelectorAll('.js-comment').forEach(function (el) { stripWith(el, /[A-Za-z0-9 ]/); });
+
+        // Due date and follow-up date hang off the case date: the picker cannot go
+        // earlier. Existing values are left alone — the server reports those.
+        var caseDate = document.getElementById('caseDate');
+        var dependents = document.querySelectorAll('.js-not-before-date');
+        if (caseDate) {
+            var applyFloor = function () {
+                dependents.forEach(function (el) { el.min = caseDate.value || ''; });
+            };
+            caseDate.addEventListener('change', applyFloor);
+            applyFloor();
+        }
+    })();
+</script>
+}

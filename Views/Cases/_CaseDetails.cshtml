@@ -135,13 +135,9 @@
                         <span class="sq-detail-chip">@rc</span>
                     }
                 }
-                else if (string.IsNullOrWhiteSpace(Model.OtherRootCause))
+                else
                 {
                     <text>—</text>
-                }
-                @if (!string.IsNullOrWhiteSpace(Model.OtherRootCause))
-                {
-                    <span class="sq-detail-chip">Other: @Model.OtherRootCause</span>
                 }
             </div>
         </div>
