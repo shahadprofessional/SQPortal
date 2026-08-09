@@ -88,11 +88,19 @@ public class EditCaseViewModel : IValidatableObject
     public IEnumerable<string> RootCauseOptions { get; set; } = Array.Empty<string>();
 
     /// <summary>
-    /// Both dates hang off the feedback date: nothing about a case can be due, or
+    /// The case date can be today or earlier — feedback cannot arrive from the
+    /// future. Both other dates hang off it: nothing about a case can be due, or
     /// followed up, before the feedback itself arrived.
     /// </summary>
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
+        if (Date > DateOnly.FromDateTime(DateTime.Today))
+        {
+            yield return new ValidationResult(
+                "Date cannot be in the future.",
+                new[] { nameof(Date) });
+        }
+
         if (DueDate < Date)
         {
             yield return new ValidationResult(

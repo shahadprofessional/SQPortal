@@ -1,6 +1,7 @@
 @model EditCaseViewModel
 @{
     ViewData["Title"] = "Edit Case";
+    var today = DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd");
 }
 
 <div class="sq-page-head">
@@ -47,7 +48,9 @@
             </div>
             <div class="col-md-3">
                 <label asp-for="Date" class="form-label"></label>
-                <input asp-for="Date" class="form-control" id="caseDate" />
+                <input asp-for="Date" class="form-control" id="caseDate" max="@today"
+                       title="Today or earlier" />
+                <span asp-validation-for="Date" class="text-danger small"></span>
             </div>
             <div class="col-md-4">
                 <label asp-for="Branch" class="form-label"></label>

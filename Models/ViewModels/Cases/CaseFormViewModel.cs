@@ -3,7 +3,7 @@ using SQPortal.Helpers;
 
 namespace SQPortal.Models.ViewModels.Cases;
 
-public class CaseFormViewModel
+public class CaseFormViewModel : IValidatableObject
 {
     [DataType(DataType.Date)]
     public DateOnly Date { get; set; } = DateOnly.FromDateTime(DateTime.Today);
@@ -52,4 +52,15 @@ public class CaseFormViewModel
     public IDictionary<string, string> BranchPartnerMap { get; set; } = new Dictionary<string, string>();
     public string? AssignedPartner { get; set; }
     public string? DuplicateWarning { get; set; }
+
+    /// <summary>Feedback cannot arrive from the future: today or earlier only.</summary>
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (Date > DateOnly.FromDateTime(DateTime.Today))
+        {
+            yield return new ValidationResult(
+                "Date cannot be in the future.",
+                new[] { nameof(Date) });
+        }
+    }
 }
