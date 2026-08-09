@@ -15,31 +15,70 @@ public class CasesController : Controller
     private readonly SQPortalDbContext _db;
     private readonly SlaService _sla;
     private readonly PartnerAssignmentService _partners;
+    private readonly EmailService _email;
+    private readonly ILogger<CasesController> _logger;
 
     public CasesController(
         SQPortalDbContext db,
         SlaService sla,
-        PartnerAssignmentService partners)
+        PartnerAssignmentService partners,
+        EmailService email,
+        ILogger<CasesController> logger)
     {
         _db = db;
         _sla = sla;
         _partners = partners;
+        _email = email;
+        _logger = logger;
     }
 
+    /// <summary>
+    /// Emails the low-rating notification to the case's partner, from the
+    /// portal's configured mailbox (Mail:FromAddress). Marks the case as
+    /// emailed only when the send actually succeeded.
+    /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> MarkEmailSent(string id)
+    public async Task<IActionResult> SendPartnerEmail(string id, string? returnUrl = null)
     {
         var entity = await _db.Cases.FirstOrDefaultAsync(c => c.Id == id);
         if (entity == null) return NotFound();
 
-        if (!entity.EmailSent)
+        var partner = await _db.Partners.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Name == entity.BusinessPartner);
+
+        if (partner == null || string.IsNullOrWhiteSpace(partner.Email))
         {
-            entity.EmailSent = true;
-            await _db.SaveChangesAsync();
+            TempData["StatusMessage"] = "No partner email on file for this case.";
+        }
+        else
+        {
+            var (subject, body) = DisplayHelpers.BuildLowRatingEmail(entity, partner.FullName);
+            try
+            {
+                await _email.SendAsync(partner.Email, subject, body);
+                entity.EmailSent = true;
+                await _db.SaveChangesAsync();
+                TempData["StatusMessage"] = $"Notification sent to {partner.Email} from {_email.FromAddress}.";
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Configuration problems carry a message written for the user.
+                TempData["StatusMessage"] = ex.Message;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Sending partner email for case {CaseId} failed", entity.Id);
+                TempData["StatusMessage"] = "The email could not be sent — check the Mail settings in appsettings.json.";
+            }
         }
 
-        return Json(new { id, emailSent = true });
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl);
+        }
+
+        return RedirectToAction("Index", "Dashboard");
     }
 
     /// <summary>
@@ -63,7 +102,6 @@ public class CasesController : Controller
             SlaBreached = _sla.IsBreached(entity.DueDate, entity.FollowUpStatus, today),
             PartnerFullName = partner?.FullName ?? string.Empty,
             PartnerEmail = partner?.Email ?? string.Empty,
-            Mailto = partner == null ? string.Empty : DisplayHelpers.BuildLowRatingMailto(entity, partner.Email, partner.FullName),
             ReturnUrl = !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) ? returnUrl : null,
             RootCauses = entity.RootCauses.ToList()
         };

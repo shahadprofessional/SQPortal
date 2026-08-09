@@ -17,7 +17,12 @@ public class BranchReportItemViewModel
     public int StaffFeedbackCount { get; set; }
     public int PoorCaseCount => Cases.Count;
 
-    /// <summary>Empty when the branch has no manager to send to.</summary>
-    public string MailtoLink { get; set; } = string.Empty;
+    /// <summary>The email the portal sends for this branch (from Mail:FromAddress).</summary>
+    public string EmailSubject { get; set; } = string.Empty;
+    public string EmailBody { get; set; } = string.Empty;
+
+    /// <summary>True when there is a manager with an email to send to.</summary>
+    public bool CanSend => !string.IsNullOrWhiteSpace(ManagerEmail);
+
     public string PreviewText { get; set; } = string.Empty;
 }

@@ -16,8 +16,8 @@ public static class DisplayHelpers
 
     /// <summary>
     /// Keeps only well-formed addresses (comma-separated), so nothing stored in
-    /// an email field can smuggle extra headers or query parameters into the
-    /// address part of a mailto: link. Returns empty when nothing survives.
+    /// an email field can smuggle extra recipients or headers into outbound
+    /// mail. Returns empty when nothing survives.
     /// </summary>
     public static string SanitizeMailtoRecipients(string? addresses)
     {
@@ -70,12 +70,13 @@ public static class DisplayHelpers
         string.IsNullOrEmpty(id) ? string.Empty :
         id.Length >= 6 ? id[^6..].ToUpperInvariant() : id.ToUpperInvariant();
 
-    public static string BuildLowRatingMailto(FeedbackCase c, string? partnerEmail, string? partnerFullName = null)
+    /// <summary>
+    /// Subject and plain-text body of the partner notification for a low-rated
+    /// case. The portal sends it from the configured Mail:FromAddress
+    /// (see Services/EmailService.cs).
+    /// </summary>
+    public static (string Subject, string Body) BuildLowRatingEmail(FeedbackCase c, string? partnerFullName = null)
     {
-        // No valid recipient, no link — callers show a disabled button instead.
-        var to = SanitizeMailtoRecipients(partnerEmail);
-        if (to.Length == 0) return string.Empty;
-
         var fullName = !string.IsNullOrWhiteSpace(partnerFullName)
             ? partnerFullName
             : (string.IsNullOrEmpty(c.BusinessPartner) ? "Partner" : c.BusinessPartner);
@@ -122,9 +123,7 @@ public static class DisplayHelpers
             "Customer Experience Management Team"
         });
 
-        var subject = Uri.EscapeDataString($"Low Customer Feedback Notification: {c.Branch}");
-        var body = Uri.EscapeDataString(bodyText);
-        return $"mailto:{to}?subject={subject}&body={body}";
+        return ($"Low Customer Feedback Notification: {c.Branch}", bodyText);
     }
 
     private static string RatingLabel(int rating) => rating switch

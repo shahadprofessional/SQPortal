@@ -140,6 +140,11 @@ builder.Services.AddHsts(options =>
     options.IncludeSubDomains = true;
 });
 
+// Outbound mail — the address the portal's emails are sent from lives in the
+// "Mail" section of appsettings.json (placeholder until the real mailbox exists).
+builder.Services.Configure<MailSettings>(builder.Configuration.GetSection(MailSettings.SectionName));
+builder.Services.AddScoped<EmailService>();
+
 builder.Services.AddScoped<SlaService>();
 builder.Services.AddScoped<PartnerAssignmentService>();
 builder.Services.AddScoped<CsvExportService>();

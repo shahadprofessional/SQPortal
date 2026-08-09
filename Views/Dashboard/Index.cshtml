@@ -7,11 +7,6 @@
         if (string.IsNullOrEmpty(partner)) return string.Empty;
         return Model.PartnerEmails.TryGetValue(partner, out var e) ? e : string.Empty;
     }
-    string PartnerFullName(string? partner)
-    {
-        if (string.IsNullOrEmpty(partner)) return string.Empty;
-        return Model.PartnerFullNames.TryGetValue(partner, out var n) ? n : string.Empty;
-    }
 
     // The selected card plus the active filters — what "the list you're looking at" means.
     Dictionary<string, string> FilterRoute()
@@ -207,7 +202,6 @@
 }
 else
 {
-    @Html.AntiForgeryToken()
     <div class="sq-case-scroll">
         <table class="table table-hover align-middle mb-0 sq-case-table sq-centered">
             <colgroup>
@@ -237,8 +231,6 @@ else
                 {
                     var c = row.Case;
                     var partnerEmail = PartnerEmail(c.BusinessPartner);
-                    var partnerFullName = PartnerFullName(c.BusinessPartner);
-                    var mailto = string.IsNullOrEmpty(partnerEmail) ? string.Empty : DisplayHelpers.BuildLowRatingMailto(c, partnerEmail, partnerFullName);
                     var rootCauses = c.RootCauses.Any() ? string.Join(", ", c.RootCauses) : "—";
                     var rowClasses = row.SlaBreached ? "tr-breached" : "";
                     <tr class="sq-row-pressable @rowClasses"
@@ -276,13 +268,18 @@ else
                                     <input type="hidden" name="returnUrl" value="@returnUrl" />
                                     <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
                                 </form>
-                                @if (!string.IsNullOrEmpty(mailto))
+                                @if (!string.IsNullOrEmpty(partnerEmail))
                                 {
-                                    <a class="btn btn-sm btn-outline-secondary js-email-btn @(c.EmailSent ? "btn-email-sent" : "")"
-                                       href="@mailto" data-case-id="@c.Id"
-                                       title="@(c.EmailSent ? "Email already sent" : "Send partner email")">
-                                        @(c.EmailSent ? "Sent" : "Email")
-                                    </a>
+                                    @* The portal sends this itself, from the Mail:FromAddress mailbox. *@
+                                    <form asp-controller="Cases" asp-action="SendPartnerEmail" asp-route-id="@c.Id" method="post"
+                                          data-confirm="@(c.EmailSent ? "An email was already sent for this case. Send it again?" : $"Email this case's notification to {partnerEmail}?")">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                        <button class="btn btn-sm btn-outline-secondary @(c.EmailSent ? "btn-email-sent" : "")" type="submit"
+                                                title="@(c.EmailSent ? "Email already sent — press to send again" : $"Send partner email to {partnerEmail}")">
+                                            @(c.EmailSent ? "Sent" : "Email")
+                                        </button>
+                                    </form>
                                 }
                                 else
                                 {
@@ -371,40 +368,12 @@ else
 @section Scripts {
 <script nonce="@Csp.Nonce(Context)">
     (function () {
-        var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
-        var token = tokenEl ? tokenEl.value : '';
-        var markEmailUrl = '@Url.Action("MarkEmailSent", "Cases")';
         var detailsUrl = '@Url.Action("Details", "Cases")';
         // JSON-encoded: the URL carries & separators that HTML encoding would mangle.
         var returnUrl = @Json.Serialize(returnUrl ?? string.Empty);
 
-        // Marks every button for this case — the row and the open dialog stay in step.
-        function markEmailSent(id) {
-            document.querySelectorAll('.js-email-btn[data-case-id="' + id + '"]').forEach(function (el) {
-                el.classList.add('btn-email-sent');
-                el.textContent = 'Sent';
-                el.setAttribute('title', 'Email already sent');
-            });
-        }
-
-        function bindEmailButtons(root) {
-            root.querySelectorAll('.js-email-btn').forEach(function (btn) {
-                if (btn.dataset.bound) return;
-                btn.dataset.bound = '1';
-                btn.addEventListener('click', function () {
-                    var id = btn.getAttribute('data-case-id');
-                    if (!id || !token) return;
-                    // Optimistic update — match the prototype's immediate-feedback behavior
-                    markEmailSent(id);
-                    var body = new URLSearchParams({ id: id, __RequestVerificationToken: token });
-                    fetch(markEmailUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: body.toString()
-                    }).catch(function () { /* leave UI optimistic; will reconcile on next page load */ });
-                });
-            });
-        }
+        // Emails are sent server-side now (Cases/SendPartnerEmail posts and
+        // redirects), so there is no client-side send state to manage here.
 
         // Pressable records — the whole case opens in a dialog.
         var modalEl = document.getElementById('caseDetailModal');
@@ -432,7 +401,6 @@ else
                 })
                 .then(function (html) {
                     bodyEl.innerHTML = html;
-                    bindEmailButtons(bodyEl);
                 })
                 .catch(function () {
                     bodyEl.innerHTML = '<div class="text-danger py-4 text-center">Could not load this case. Please try again.</div>';
@@ -453,8 +421,6 @@ else
                 }
             });
         });
-
-        bindEmailButtons(document);
     })();
 </script>
 }

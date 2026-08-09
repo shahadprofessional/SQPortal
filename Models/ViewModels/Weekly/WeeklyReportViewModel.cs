@@ -9,7 +9,10 @@ public class WeeklyReportViewModel
     public int TotalPoorCases { get; set; }
     public IReadOnlyList<RangeOption> RangeOptions { get; set; } = Array.Empty<RangeOption>();
     public string CombinedPreviewText { get; set; } = string.Empty;
-    public string CombinedMailtoLink { get; set; } = string.Empty;
+
+    /// <summary>The one combined mail: every manager in the report, each address once.</summary>
+    public string CombinedSubject { get; set; } = string.Empty;
+    public string CombinedRecipients { get; set; } = string.Empty;
 
     /// <summary>
     /// False when the manager roster is empty — the one case where the report

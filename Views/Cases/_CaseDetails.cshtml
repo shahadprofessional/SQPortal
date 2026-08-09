@@ -155,13 +155,18 @@
             <button class="btn btn-outline-danger" type="submit">Delete</button>
         </form>
         <a class="btn btn-outline-secondary" asp-controller="Cases" asp-action="Edit" asp-route-id="@c.Id">Edit</a>
-        @if (!string.IsNullOrEmpty(Model.Mailto))
+        @if (!string.IsNullOrEmpty(Model.PartnerEmail))
         {
-            <a class="btn @(c.EmailSent ? "btn-outline-secondary btn-email-sent" : "btn-primary") js-email-btn"
-               href="@Model.Mailto" data-case-id="@c.Id"
-               title="@(c.EmailSent ? "Email already sent" : "Send partner email")">
-                @(c.EmailSent ? "Sent" : "Send notification")
-            </a>
+            @* The portal sends this itself, from the Mail:FromAddress mailbox. *@
+            <form asp-controller="Cases" asp-action="SendPartnerEmail" asp-route-id="@c.Id" method="post"
+                  data-confirm="@(c.EmailSent ? "An email was already sent for this case. Send it again?" : $"Email this case's notification to {Model.PartnerEmail}?")">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                <button class="btn @(c.EmailSent ? "btn-outline-secondary btn-email-sent" : "btn-primary")" type="submit"
+                        title="@(c.EmailSent ? "Email already sent — press to send again" : $"Send partner email to {Model.PartnerEmail}")">
+                    @(c.EmailSent ? "Sent" : "Send notification")
+                </button>
+            </form>
         }
         else
         {
