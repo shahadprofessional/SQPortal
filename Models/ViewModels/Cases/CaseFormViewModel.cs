@@ -51,5 +51,4 @@ public class CaseFormViewModel
     public IEnumerable<string> Partners { get; set; } = Array.Empty<string>();
     public IDictionary<string, string> BranchPartnerMap { get; set; } = new Dictionary<string, string>();
     public string? AssignedPartner { get; set; }
-    public string? DuplicateWarning { get; set; }
 }
