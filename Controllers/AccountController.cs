@@ -4,20 +4,25 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using SQPortal.Helpers;
-using SQPortal.Models.ViewModels.Account;
+using SQPortal.Data;
 
 namespace SQPortal.Controllers;
 
+///////// test-only: delete this controller (and Views/Account/Login.cshtml) when AD is linked \\\\\\\\\\
+
+/// <summary>
+/// Test-environment sign-in. The login page lists the hardcoded users from
+/// Data/TestUsers.cs; pressing one signs them in through the existing cookie —
+/// no passwords. Once Windows SSO is linked (the marked AD block in Program.cs)
+/// there is no login page and no sign-out, and this controller goes away.
+/// </summary>
 [AllowAnonymous]
 public class AccountController : Controller
 {
-    private readonly IConfiguration _config;
     private readonly ILogger<AccountController> _logger;
 
-    public AccountController(IConfiguration config, ILogger<AccountController> logger)
+    public AccountController(ILogger<AccountController> logger)
     {
-        _config = config;
         _logger = logger;
     }
 
@@ -29,44 +34,41 @@ public class AccountController : Controller
             return RedirectToAction("Index", "Dashboard");
         }
 
-        return View(new LoginViewModel
-        {
-            ReturnUrl = SafeReturnUrl(returnUrl),
-            NotConfigured = !CredentialVerifier.IsConfigured(_config)
-        });
+        ViewData["ReturnUrl"] = SafeReturnUrl(returnUrl);
+        return View(TestUsers.All);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     [EnableRateLimiting("login")]
-    public async Task<IActionResult> Login(LoginViewModel vm)
+    public async Task<IActionResult> LoginAs(string username, string? returnUrl = null)
     {
-        vm.ReturnUrl = SafeReturnUrl(vm.ReturnUrl);
-        vm.NotConfigured = !CredentialVerifier.IsConfigured(_config);
-
-        if (!ModelState.IsValid)
+        // Only the fixed roster gets in — arbitrary posted names are rejected.
+        var user = TestUsers.Find(username);
+        if (user == null)
         {
-            return View(vm);
-        }
-
-        if (!CredentialVerifier.Verify(_config, vm.Username, vm.Password))
-        {
-            _logger.LogWarning("Failed sign-in attempt for user {Username} from {RemoteIp}",
-                vm.Username, HttpContext.Connection.RemoteIpAddress);
-            ModelState.AddModelError(string.Empty, "Invalid username or password.");
-            return View(vm);
+            _logger.LogWarning("Rejected test sign-in for unknown user {Username} from {RemoteIp}",
+                username, HttpContext.Connection.RemoteIpAddress);
+            return RedirectToAction(nameof(Login));
         }
 
         var identity = new ClaimsIdentity(
-            new[] { new Claim(ClaimTypes.Name, vm.Username) },
+            new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.Username),
+                new Claim(ClaimTypes.Name, user.DisplayName)
+            },
             CookieAuthenticationDefaults.AuthenticationScheme);
 
         await HttpContext.SignInAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,
             new ClaimsPrincipal(identity));
 
-        return vm.ReturnUrl != null
-            ? Redirect(vm.ReturnUrl)
+        _logger.LogInformation("Test user {Username} signed in", user.Username);
+
+        var safeReturnUrl = SafeReturnUrl(returnUrl);
+        return safeReturnUrl != null
+            ? Redirect(safeReturnUrl)
             : RedirectToAction("Index", "Dashboard");
     }
 

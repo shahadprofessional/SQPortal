@@ -27,6 +27,50 @@ var cookieSecurePolicy = builder.Environment.IsDevelopment()
     ? CookieSecurePolicy.SameAsRequest
     : CookieSecurePolicy.Always;
 
+/////////remove when you want to link AD\\\\\\\\\\
+// Windows SSO against the work Active Directory. To link AD:
+//   1. Uncomment the Microsoft.AspNetCore.Authentication.Negotiate package
+//      reference in SQPortal.csproj (same marker) and restore.
+//   2. Uncomment this whole block, and move the using directive to the top of
+//      this file.
+//   3. Delete everything between the "test-only" markers below (the cookie
+//      sign-in), plus Controllers/AccountController.cs,
+//      Views/Account/Login.cshtml, Data/TestUsers.cs and the sign-out form in
+//      Views/Shared/_Layout.cshtml — Windows SSO has no login page and no
+//      sign-out.
+//   4. Set Auth:AllowedAdGroup in appsettings.json to the AD group whose
+//      members may use the portal, e.g. "CONTOSO\\SQ Portal Users".
+// Domain-joined browsers then sign in automatically via Kerberos/NTLM, and
+// only members of the configured group are allowed in (their AD groups arrive
+// as role claims). Hosting note: works on Kestrel (Windows) and IIS; on IIS
+// also enable Windows Authentication for the site.
+//
+// using Microsoft.AspNetCore.Authentication.Negotiate;
+//
+// builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
+//     .AddNegotiate();
+//
+// builder.Services.AddAuthorization(options =>
+// {
+//     var adGroup = builder.Configuration["Auth:AllowedAdGroup"];
+//     if (string.IsNullOrWhiteSpace(adGroup))
+//     {
+//         // Fail closed: without a configured group the portal must not fall
+//         // back to "any domain user".
+//         throw new InvalidOperationException(
+//             "Auth:AllowedAdGroup must be set before linking Active Directory.");
+//     }
+//
+//     options.FallbackPolicy = new AuthorizationPolicyBuilder()
+//         .RequireAuthenticatedUser()
+//         .RequireRole(adGroup)
+//         .Build();
+// });
+/////////end of AD code\\\\\\\\\\
+
+///////// test-only: delete this block when AD is linked \\\\\\\\\\
+// Test-environment sign-in: the login page lists the hardcoded users in
+// Data/TestUsers.cs and pressing one signs in through this cookie.
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -65,6 +109,7 @@ builder.Services.AddAuthorization(options =>
         .RequireAuthenticatedUser()
         .Build();
 });
+///////// end test-only \\\\\\\\\\
 
 builder.Services.AddAntiforgery(options =>
 {
