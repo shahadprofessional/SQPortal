@@ -1542,3 +1542,39 @@ tr.sq-row-pressable:focus-visible {
     .sq-minor-grid { grid-template-columns: 1fr; }
     .sq-user-name, .sq-user-sub { display: none; }
 }
+
+/* ===== Case history (per-case audit timeline) ===== */
+.sq-history {
+    display: flex;
+    flex-direction: column;
+}
+.sq-history-row {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 8px 2px;
+    border-bottom: 1px solid var(--sq-line-soft);
+    flex-wrap: wrap;
+}
+.sq-history-row:last-child {
+    border-bottom: 0;
+}
+.sq-history-row .badge-sq {
+    flex-shrink: 0;
+    min-width: 96px;
+    justify-content: center;
+}
+.sq-history-time {
+    font-size: 12px;
+    color: var(--sq-muted);
+    white-space: nowrap;
+}
+.sq-history-user {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--sq-ink);
+}
+.sq-history-details {
+    font-size: 13px;
+    color: var(--sq-body);
+}

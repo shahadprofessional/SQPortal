@@ -98,6 +98,11 @@ public class CasesController : Controller
         var partner = await _db.Partners.AsNoTracking()
             .FirstOrDefaultAsync(p => p.Name == entity.BusinessPartner);
 
+        var auditEntries = await _db.Audits.AsNoTracking()
+            .Where(a => a.CaseId == entity.Id)
+            .OrderBy(a => a.Id)
+            .ToListAsync();
+
         var vm = new CaseDetailsViewModel
         {
             Case = entity,
@@ -106,7 +111,10 @@ public class CasesController : Controller
             PartnerFullName = partner?.FullName ?? string.Empty,
             PartnerEmail = partner?.Email ?? string.Empty,
             ReturnUrl = !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) ? returnUrl : null,
-            RootCauses = entity.RootCauses.ToList()
+            RootCauses = entity.RootCauses.ToList(),
+            History = auditEntries
+                .Select(a => new CaseHistoryItem(_sla.ToBusinessTime(a.TimestampUtc), a.User, a.Action, a.Details))
+                .ToList()
         };
 
         return partial ? PartialView("_CaseDetails", vm) : View(vm);
@@ -243,6 +251,11 @@ public class CasesController : Controller
 
         var rootCauses = vm.RootCauses?.Where(r => LookupData.RootCauses.Contains(r)).ToList() ?? new();
 
+        // Old values, for the per-case history entries below.
+        var oldStatus = entity.FollowUpStatus;
+        var oldValidation = entity.CaseValidation;
+        var oldPartner = entity.BusinessPartner;
+
         entity.Date = vm.Date;
         entity.CustomerName = vm.CustomerName.Trim();
         entity.CustomerPhone = vm.CustomerPhone.Trim();
@@ -277,7 +290,30 @@ public class CasesController : Controller
             }
         }
 
-        _audit.Log("Case updated", $"Case #{entity.CaseNumber} edited", entity.Id);
+        // Status, validation and reassignment get their own history entries in
+        // the site's naming; anything else logs as a plain edit.
+        var loggedSpecific = false;
+        if (oldStatus != entity.FollowUpStatus)
+        {
+            _audit.Log("Follow-up", $"Follow-up: {oldStatus} → {entity.FollowUpStatus}", entity.Id);
+            loggedSpecific = true;
+        }
+        if (oldValidation != entity.CaseValidation)
+        {
+            _audit.Log("Validation",
+                $"Validation: {DisplayHelpers.ValidationLabel(oldValidation)} → {DisplayHelpers.ValidationLabel(entity.CaseValidation)}",
+                entity.Id);
+            loggedSpecific = true;
+        }
+        if (!string.Equals(oldPartner, entity.BusinessPartner, StringComparison.Ordinal))
+        {
+            _audit.Log("Reassigned", $"SQ staff: {oldPartner} → {entity.BusinessPartner}", entity.Id);
+            loggedSpecific = true;
+        }
+        if (!loggedSpecific)
+        {
+            _audit.Log("Case updated", $"Case #{entity.CaseNumber} edited", entity.Id);
+        }
 
         try
         {

@@ -10,6 +10,24 @@
         CaseValidation.NotValid => "badge-sq-notvalid",
         _ => "badge-sq-underreview"
     };
+
+    // Badge color follows the state an entry moved the case into.
+    string HistoryBadge(CaseHistoryItem h) => h.Action switch
+    {
+        "Case created" => "badge-sq-tint",
+        "Follow-up" => h.Details.EndsWith("Completed") ? "badge-sq-completed" : "badge-sq-pending",
+        "Validation" => h.Details.EndsWith("Not valid") ? "badge-sq-notvalid"
+                      : h.Details.EndsWith("Valid") ? "badge-sq-valid"
+                      : "badge-sq-underreview",
+        "Reassigned" => "badge-sq-gold",
+        "Email sent" => "badge-sq-met",
+        "Case deleted" => "badge-sq-breached",
+        _ => "badge-sq-tint"
+    };
+
+    // The badge already names the action; drop a repeated "Action:" prefix.
+    string HistoryText(CaseHistoryItem h) =>
+        h.Details.StartsWith(h.Action + ":") ? h.Details[(h.Action.Length + 1)..].Trim() : h.Details;
 }
 
 <div class="sq-case-details" data-case-id="@c.Id">
@@ -145,6 +163,26 @@
             <div class="sq-detail-value">@Val(c.ValidationNotes)</div>
         </div>
     </div>
+
+    <h3 class="sq-detail-section">Case history</h3>
+    @if (!Model.History.Any())
+    {
+        <div class="sq-panel-note">No recorded actions for this case yet.</div>
+    }
+    else
+    {
+        <div class="sq-history">
+            @foreach (var h in Model.History)
+            {
+                <div class="sq-history-row">
+                    <span class="badge-sq @HistoryBadge(h)">@h.Action</span>
+                    <span class="sq-history-time sq-num">@h.Time.ToString("yyyy-MM-dd HH:mm")</span>
+                    <span class="sq-history-user">@h.User</span>
+                    <span class="sq-history-details">@HistoryText(h)</span>
+                </div>
+            }
+        </div>
+    }
 
     <div class="sq-detail-actions">
         <form asp-controller="Cases" asp-action="Delete" asp-route-id="@c.Id" method="post"

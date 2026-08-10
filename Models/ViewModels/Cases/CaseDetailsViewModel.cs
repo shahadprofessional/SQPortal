@@ -19,4 +19,9 @@ public class CaseDetailsViewModel
     public string? ReturnUrl { get; set; }
 
     public List<string> RootCauses { get; set; } = new();
+
+    /// <summary>This case's audit entries, oldest first, times in business time zone.</summary>
+    public List<CaseHistoryItem> History { get; set; } = new();
 }
+
+public record CaseHistoryItem(DateTime Time, string User, string Action, string Details);
