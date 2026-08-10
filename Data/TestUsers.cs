@@ -2,16 +2,13 @@ namespace SQPortal.Data;
 
 ///////// test-only: delete this file when AD is linked \\\\\\\\\\
 
-/// <summary>
-/// A click-to-sign-in identity for the test environment. No passwords — the
-/// login page lists these and signing in is one press.
-/// </summary>
+/// <summary>A click-to-sign-in identity for the test environment; no password.</summary>
 public sealed record TestUser(string Username, string DisplayName, string Description);
 
 /// <summary>
-/// The hardcoded test roster. Edit freely — these exist only until Windows SSO
-/// is linked (see the marked AD block in Program.cs), then this file is deleted.
-/// The portal has no role system yet, so the users differ by name only.
+/// Hardcoded test roster, used only until Windows SSO is linked (see the
+/// marked AD block in Program.cs). No role system exists; users differ by
+/// name only.
 /// </summary>
 public static class TestUsers
 {
@@ -22,7 +19,7 @@ public static class TestUsers
         new TestUser("test.manager", "Branch Manager (Test)", "Reviews weekly branch reports")
     };
 
-    /// <summary>Roster lookup — anything not on the list is rejected.</summary>
+    /// <summary>Roster lookup; unknown names return null.</summary>
     public static TestUser? Find(string? username) =>
         string.IsNullOrWhiteSpace(username)
             ? null

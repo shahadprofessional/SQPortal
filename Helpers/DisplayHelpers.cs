@@ -55,9 +55,8 @@ public static class DisplayHelpers
     }
 
     /// <summary>
-    /// Readable name for the validation state. This is a separate axis from
-    /// FollowUpStatus — a case stays "Under review" until someone marks it
-    /// valid or not valid, however the follow-up ended.
+    /// Display name for the validation state, an axis independent of
+    /// FollowUpStatus.
     /// </summary>
     public static string ValidationLabel(CaseValidation validation) => validation switch
     {
@@ -70,11 +69,7 @@ public static class DisplayHelpers
         string.IsNullOrEmpty(id) ? string.Empty :
         id.Length >= 6 ? id[^6..].ToUpperInvariant() : id.ToUpperInvariant();
 
-    /// <summary>
-    /// Subject and plain-text body of the partner notification for a low-rated
-    /// case. The portal sends it from the configured Mail:FromAddress
-    /// (see Services/EmailService.cs).
-    /// </summary>
+    /// <summary>Subject and plain-text body of the partner notification for a low-rated case.</summary>
     public static (string Subject, string Body) BuildLowRatingEmail(FeedbackCase c, string? partnerFullName = null)
     {
         var fullName = !string.IsNullOrWhiteSpace(partnerFullName)

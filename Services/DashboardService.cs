@@ -29,7 +29,7 @@ public class DashboardService
             .ThenByDescending(c => c.Id)
             .ToListAsync();
 
-        // Filters narrow the pool first, so the card counts always describe the list the user is looking at.
+        // Filters apply before counting, so card counts match the visible list.
         var filtered = ApplyFilters(allCases, query);
 
         var selectedCard = DashboardCards.Normalize(query.Card);
@@ -76,10 +76,7 @@ public class DashboardService
         };
     }
 
-    /// <summary>
-    /// Every case behind the current card and filters, in list order and without
-    /// paging — what an export of "the list you're looking at" should contain.
-    /// </summary>
+    /// <summary>Every case behind the current card and filters, in list order, unpaged.</summary>
     public async Task<List<FeedbackCase>> GetCasesAsync(DashboardQuery query, DateOnly today)
     {
         var allCases = await _db.Cases.AsNoTracking().ToListAsync();

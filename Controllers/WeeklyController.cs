@@ -24,9 +24,7 @@ public class WeeklyController : Controller
 
     public async Task<IActionResult> Index(string? range)
     {
-        // Every branch has a manager, so make sure the data says so before we go
-        // looking for recipients — otherwise a branch added before any manager
-        // existed would have no one to send to.
+        // Ensure every branch has a manager assignment before resolving recipients.
         await _managers.EnsureEveryBranchHasManagerAsync();
 
         var vm = await _service.BuildAsync(range, DateOnly.FromDateTime(DateTime.Today));
@@ -34,9 +32,8 @@ public class WeeklyController : Controller
     }
 
     /// <summary>
-    /// Emails one branch's report to its manager, from the portal's configured
-    /// mailbox (Mail:FromAddress). The report is rebuilt server-side so the
-    /// content can't be tampered with in the browser.
+    /// Emails one branch's report to its manager from the configured mailbox.
+    /// The report content is rebuilt server-side, never taken from the request.
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -91,7 +88,7 @@ public class WeeklyController : Controller
         }
         catch (InvalidOperationException ex)
         {
-            // Configuration problems carry a message written for the user.
+            // Configuration errors carry a user-safe message.
             TempData["StatusMessage"] = ex.Message;
         }
         catch (Exception ex)

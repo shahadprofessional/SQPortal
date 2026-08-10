@@ -1,9 +1,8 @@
 namespace SQPortal.Helpers;
 
 /// <summary>
-/// Access to the per-request Content-Security-Policy script nonce set by the
-/// security-header middleware in Program.cs. Inline page scripts carry this
-/// nonce; everything without it is blocked by the browser.
+/// Per-request Content-Security-Policy script nonce, set by the
+/// security-header middleware in Program.cs and required on inline scripts.
 /// </summary>
 public static class Csp
 {

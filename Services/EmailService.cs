@@ -5,10 +5,7 @@ using SQPortal.Helpers;
 
 namespace SQPortal.Services;
 
-/// <summary>
-/// Sends the portal's outbound email from the one configured mailbox
-/// (Mail:FromAddress). Plain text only — every body the portal builds is text.
-/// </summary>
+/// <summary>Sends outbound email from the configured mailbox (Mail:FromAddress). Plain text only.</summary>
 public class EmailService
 {
     private readonly MailSettings _settings;
@@ -20,12 +17,12 @@ public class EmailService
         _logger = logger;
     }
 
-    /// <summary>The configured sender — shown in status messages so it's obvious where mail comes from.</summary>
+    /// <summary>The configured sender address, shown in status messages.</summary>
     public string FromAddress => _settings.FromAddress;
 
     /// <summary>
     /// Sends one email to the given comma-separated recipients. Throws
-    /// InvalidOperationException with a user-showable message when mail is not
+    /// InvalidOperationException with a user-safe message when mail is not
     /// configured or no valid recipient remains after validation.
     /// </summary>
     public async Task SendAsync(string recipients, string subject, string body)
@@ -36,8 +33,8 @@ public class EmailService
                 "Email not sent — outbound mail is not configured yet. Set Mail:SmtpHost (and credentials) in appsettings.json.");
         }
 
-        // Same validation the rest of the app uses for stored addresses, so a
-        // malformed value can never smuggle in extra recipients or headers.
+        // Reject malformed addresses so a stored value cannot smuggle in extra
+        // recipients or headers.
         var to = DisplayHelpers.SanitizeMailtoRecipients(recipients);
         if (to.Length == 0)
         {

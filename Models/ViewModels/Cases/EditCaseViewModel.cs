@@ -9,7 +9,7 @@ public class EditCaseViewModel : IValidatableObject
     [Required]
     public string Id { get; set; } = string.Empty;
 
-    /// <summary>Display-only: the incremental case number shown in the lists.</summary>
+    /// <summary>Display-only case number.</summary>
     public int CaseNumber { get; set; }
 
     [DataType(DataType.Date)]
@@ -87,10 +87,7 @@ public class EditCaseViewModel : IValidatableObject
     public IEnumerable<string> Partners { get; set; } = Array.Empty<string>();
     public IEnumerable<string> RootCauseOptions { get; set; } = Array.Empty<string>();
 
-    /// <summary>
-    /// Both dates hang off the feedback date: nothing about a case can be due, or
-    /// followed up, before the feedback itself arrived.
-    /// </summary>
+    /// <summary>Due and follow-up dates cannot precede the case date.</summary>
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         if (DueDate < Date)

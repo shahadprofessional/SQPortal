@@ -2,7 +2,6 @@
 @{
     ViewData["Title"] = "Settings";
 
-    // Rendered for each row's two dropdowns; "—" when the roster is empty.
     string SelectedOrFirst(string current, IEnumerable<string> options) =>
         !string.IsNullOrEmpty(current) ? current : (options.FirstOrDefault() ?? string.Empty);
 
@@ -66,7 +65,7 @@
             <form asp-action="UpdateBranch" method="post" class="sq-branch-row">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="oldName" value="@b.Name" />
-                @* Delete posts this same form, and it binds "name" *@
+                @* The Delete button posts this same form; its action binds "name". *@
                 <input type="hidden" name="name" value="@b.Name" />
 
                 <input class="form-control form-control-sm" name="newName" value="@b.Name" required maxlength="100" aria-label="Branch name" />
@@ -109,7 +108,7 @@
 
                 <div class="sq-staff-actions">
                     <button class="btn btn-sm btn-primary" type="submit">Save</button>
-                    @* Same form, different target — a nested <form> for delete is not valid HTML *@
+                    @* Delete reuses this form via formaction; a nested form is not valid HTML. *@
                     <button class="btn btn-sm btn-outline-danger" type="submit" formnovalidate
                             formaction="@Url.Action("DeleteBranch", "Settings")"
                             data-confirm='Delete branch "@b.Name"? This is blocked if any cases reference it.'>

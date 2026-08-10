@@ -6,9 +6,8 @@
 -- will populate the 4 default partners, 27 branches, and 27 default
 -- branch-partner assignments via plain INSERTs.
 --
--- This script is the SOURCE OF TRUTH for the schema. The C# code no longer
--- creates any tables (EnsureCreated has been removed from Program.cs). Keep
--- this file in sync with:
+-- This script is the SOURCE OF TRUTH for the schema; the application code
+-- creates no tables. Keep this file in sync with:
 --   - Models/Entities/FeedbackCase.cs
 --   - Models/Entities/BusinessPartner.cs
 --   - Models/Entities/Branch.cs
@@ -18,8 +17,8 @@
 -- Re-runnable on an existing schema: NO. Designed for a fresh empty database.
 -- ============================================================================
 
--- Step 1 (optional). Create the empty database. Skip this if you've already
--- created "SQPortal" via SSMS's right-click → New Database menu.
+-- Step 1 (optional). Create the empty database. Skip when "SQPortal" already
+-- exists (e.g. created via SSMS's New Database menu).
 -- CREATE DATABASE SQPortal;
 -- GO
 

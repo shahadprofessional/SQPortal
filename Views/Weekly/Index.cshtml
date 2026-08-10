@@ -44,7 +44,6 @@
     </form>
     @if (Model.TotalPoorCases > 0)
     {
-        @* Sent by the portal itself, from the Mail:FromAddress mailbox. *@
         if (!string.IsNullOrEmpty(Model.CombinedRecipients))
         {
             <form asp-action="SendCombined" method="post" class="m-0">
@@ -122,7 +121,6 @@ else
                     <span class="badge-sq badge-sq-gold">@b.PoorCaseCount feedbacks</span>
                     @if (b.CanSend)
                     {
-                        @* Sent by the portal itself, from the Mail:FromAddress mailbox. *@
                         <form asp-action="SendBranch" method="post" class="m-0">
                             <input type="hidden" name="range" value="@Model.Range" />
                             <input type="hidden" name="branch" value="@b.Branch" />

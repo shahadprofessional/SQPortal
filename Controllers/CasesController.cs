@@ -33,9 +33,8 @@ public class CasesController : Controller
     }
 
     /// <summary>
-    /// Emails the low-rating notification to the case's partner, from the
-    /// portal's configured mailbox (Mail:FromAddress). Marks the case as
-    /// emailed only when the send actually succeeded.
+    /// Emails the low-rating notification to the case's partner from the
+    /// configured mailbox. EmailSent is set only after a successful send.
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -63,7 +62,7 @@ public class CasesController : Controller
             }
             catch (InvalidOperationException ex)
             {
-                // Configuration problems carry a message written for the user.
+                // Configuration errors carry a user-safe message.
                 TempData["StatusMessage"] = ex.Message;
             }
             catch (Exception ex)
@@ -82,8 +81,8 @@ public class CasesController : Controller
     }
 
     /// <summary>
-    /// Single case, read-only. Returns just the panel when called with partial=1
-    /// (the dashboard pulls it into a dialog), otherwise a full page.
+    /// Single case, read-only. partial=1 returns only the panel for the
+    /// dashboard dialog; otherwise a full page.
     /// </summary>
     [HttpGet]
     public async Task<IActionResult> Details(string id, string? returnUrl = null, bool partial = false)
@@ -261,7 +260,6 @@ public class CasesController : Controller
 
         TempData["StatusMessage"] = "Case deleted.";
 
-        // Deleting from the dashboard list should land back on the same card/page.
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
         {
             return Redirect(returnUrl);
@@ -289,9 +287,8 @@ public class CasesController : Controller
 
     private static string GenerateId()
     {
-        // The unix-ms prefix keeps IDs sorting in creation order (the lists use
-        // Id as a tie-break); the random suffix makes IDs unguessable and
-        // avoids a collision when two cases land in the same millisecond.
+        // Unix-ms prefix keeps IDs in creation order (used as a sort tie-break);
+        // the random suffix prevents guessing and same-millisecond collisions.
         var suffix = Convert.ToHexString(RandomNumberGenerator.GetBytes(4)).ToLowerInvariant();
         return $"{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}-{suffix}";
     }

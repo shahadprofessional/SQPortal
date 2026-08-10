@@ -13,9 +13,8 @@ public class PartnerAssignmentService
     }
 
     /// <summary>
-    /// Who handles this branch, per Settings. Falls back to the first staff member
-    /// on file rather than a hardcoded mapping — assignments are set in Settings,
-    /// and an empty result simply means nobody has been added yet.
+    /// Who handles this branch, per Settings; falls back to the first staff
+    /// member on file. Empty when no staff exist yet.
     /// </summary>
     public async Task<string> GetPartnerForBranchAsync(string branch)
     {

@@ -11,10 +11,9 @@ namespace SQPortal.Controllers;
 ///////// test-only: delete this controller (and Views/Account/Login.cshtml) when AD is linked \\\\\\\\\\
 
 /// <summary>
-/// Test-environment sign-in. The login page lists the hardcoded users from
-/// Data/TestUsers.cs; pressing one signs them in through the existing cookie —
-/// no passwords. Once Windows SSO is linked (the marked AD block in Program.cs)
-/// there is no login page and no sign-out, and this controller goes away.
+/// Test-environment sign-in: lists the hardcoded users from Data/TestUsers.cs
+/// and signs the selected one in through the cookie, without passwords.
+/// Obsolete once Windows SSO is linked (see the marked AD block in Program.cs).
 /// </summary>
 [AllowAnonymous]
 public class AccountController : Controller
@@ -43,7 +42,7 @@ public class AccountController : Controller
     [EnableRateLimiting("login")]
     public async Task<IActionResult> LoginAs(string username, string? returnUrl = null)
     {
-        // Only the fixed roster gets in — arbitrary posted names are rejected.
+        // Only names on the fixed roster are accepted.
         var user = TestUsers.Find(username);
         if (user == null)
         {

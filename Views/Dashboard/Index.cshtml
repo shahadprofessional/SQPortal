@@ -8,7 +8,7 @@
         return Model.PartnerEmails.TryGetValue(partner, out var e) ? e : string.Empty;
     }
 
-    // The selected card plus the active filters — what "the list you're looking at" means.
+    // The selected card plus the active filters.
     Dictionary<string, string> FilterRoute()
     {
         var data = new Dictionary<string, string> { ["card"] = Model.SelectedCard };
@@ -19,7 +19,7 @@
         return data;
     }
 
-    // Same, with a page — ready for asp-all-route-data on the pagination links.
+    // The same route values with a page number, for the pagination links.
     Dictionary<string, string> RouteFor(int page)
     {
         var data = FilterRoute();
@@ -27,7 +27,6 @@
         return data;
     }
 
-    // The three headline counters lead; the rest ride underneath as a minor row.
     var heroKeys = new[] { DashboardCards.Total, DashboardCards.Pending, DashboardCards.Breached };
     var heroCards = Model.Cards.Where(c => heroKeys.Contains(c.Key)).ToList();
     var minorCards = Model.Cards.Where(c => !heroKeys.Contains(c.Key)).ToList();
@@ -270,7 +269,6 @@ else
                                 </form>
                                 @if (!string.IsNullOrEmpty(partnerEmail))
                                 {
-                                    @* The portal sends this itself, from the Mail:FromAddress mailbox. *@
                                     <form asp-controller="Cases" asp-action="SendPartnerEmail" asp-route-id="@c.Id" method="post"
                                           data-confirm="@(c.EmailSent ? "An email was already sent for this case. Send it again?" : $"Email this case's notification to {partnerEmail}?")">
                                         @Html.AntiForgeryToken()
@@ -372,10 +370,7 @@ else
         // JSON-encoded: the URL carries & separators that HTML encoding would mangle.
         var returnUrl = @Json.Serialize(returnUrl ?? string.Empty);
 
-        // Emails are sent server-side now (Cases/SendPartnerEmail posts and
-        // redirects), so there is no client-side send state to manage here.
-
-        // Pressable records — the whole case opens in a dialog.
+        // Each record opens as a dialog.
         var modalEl = document.getElementById('caseDetailModal');
         var bodyEl = document.getElementById('caseDetailBody');
         var labelEl = document.getElementById('caseDetailId');
@@ -409,7 +404,7 @@ else
 
         document.querySelectorAll('tr.sq-row-pressable').forEach(function (tr) {
             tr.addEventListener('click', function (e) {
-                // Let the row's own buttons/links win.
+                // The row's own buttons and links take precedence.
                 if (e.target.closest('a, button, form, input')) return;
                 openCase(tr);
             });

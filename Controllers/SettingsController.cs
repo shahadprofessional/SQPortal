@@ -21,7 +21,6 @@ public class SettingsController : Controller
 
     public async Task<IActionResult> Index()
     {
-        // Every branch has a manager — write the rows rather than implying them.
         await _managerAssignments.EnsureEveryBranchHasManagerAsync();
 
         var partners = await _db.Partners.AsNoTracking().OrderBy(p => p.Name).ToListAsync();
@@ -33,8 +32,6 @@ public class SettingsController : Controller
         var managerOf = await _db.ManagerAssignments.AsNoTracking()
             .ToDictionaryAsync(a => a.BranchName, a => a.AssignedManager);
 
-        // One row per branch — the name and both owners, which used to be three
-        // separate tables listing the same branches.
         var branchRows = branchNames
             .Select(b => new BranchRow
             {
@@ -142,8 +139,8 @@ public class SettingsController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        // Same rules as the SQ side: the key is the primary key, so a rename is a
-        // remove + insert, and only the forward-looking assignments follow it.
+        // Name is the primary key, so a rename is a remove + insert;
+        // assignments follow the new name.
         await using var tx = await _db.Database.BeginTransactionAsync();
 
         _db.Managers.Remove(manager);
@@ -187,9 +184,8 @@ public class SettingsController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        // Every branch keeps a manager, so hand this one's branches to whoever is
-        // left rather than leaving them with nobody. If they were the last manager
-        // there is nobody to hand over to, so the rows go with them.
+        // Reassign this manager's branches to the remaining roster; with no
+        // successor the assignment rows are removed.
         var assignments = await _db.ManagerAssignments.Where(a => a.AssignedManager == trim).ToListAsync();
         var successor = await _db.Managers.AsNoTracking()
             .Where(m => m.Name != trim)
@@ -303,11 +299,9 @@ public class SettingsController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        // Name is the primary key, so a rename is a remove + insert.
-        //
-        // Branch assignments follow the rename — they say who handles a branch from
-        // now on. Cases do NOT: a case records who actually handled it, so a case
-        // Elena worked keeps her name even after the roster moves on to Dawood.
+        // Name is the primary key, so a rename is a remove + insert. Branch
+        // assignments follow the new name; past cases keep the name of the
+        // person who actually handled them.
         await using var tx = await _db.Database.BeginTransactionAsync();
 
         _db.Partners.Remove(partner);
@@ -356,9 +350,7 @@ public class SettingsController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        // Past cases keep their handler's name — removing someone from the roster
-        // is not a reason to rewrite what happened. Their branches fall back to
-        // unassigned so the next case prompts for a new owner.
+        // Past cases keep the handler's name; the branches become unassigned.
         var caseCount = await _db.Cases.CountAsync(c => c.BusinessPartner == trim);
 
         var assignments = await _db.BranchAssignments.Where(a => a.AssignedPartner == trim).ToListAsync();
@@ -412,10 +404,7 @@ public class SettingsController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    /// <summary>
-    /// One row, one save: the branch name plus who manages it and who handles it
-    /// on the SQ side. The three used to live in three separate tables on the page.
-    /// </summary>
+    /// <summary>Saves a branch row: name, manager and SQ owner in one submit.</summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateBranch(string oldName, string newName, string? manager, string? partner)
@@ -457,8 +446,8 @@ public class SettingsController : Controller
 
         if (renaming)
         {
-            // Branch.Name is the primary key, so a rename is a remove + insert. Cases
-            // and both assignment tables store the name as text and have to follow.
+            // Branch.Name is the primary key, so a rename is a remove + insert;
+            // cases and both assignment tables store the name and must follow.
             _db.Branches.Remove(existing);
             await _db.SaveChangesAsync();
             _db.Branches.Add(new Branch { Name = newTrim });
@@ -527,10 +516,8 @@ public class SettingsController : Controller
     }
 
     /// <summary>
-    /// Server-side guard for the roster forms — the browser's maxlength and
-    /// type=email are advisory only. Oversized values would otherwise surface
-    /// as database errors, and a malformed address would poison the mailto
-    /// links built from these fields.
+    /// Server-side field validation; browser maxlength/type=email attributes
+    /// are advisory only.
     /// </summary>
     private static bool ValidatePersonFields(string key, string fullName, string email, out string problem)
     {
@@ -579,7 +566,7 @@ public class SettingsController : Controller
             ?? string.Empty;
     }
 
-    /// <summary>Upsert the manager assignment, or drop it when there is nobody to assign.</summary>
+    /// <summary>Upserts the manager assignment, or drops it when there is nobody to assign.</summary>
     private async Task SetManagerAssignmentAsync(string branch, string manager)
     {
         var row = await _db.ManagerAssignments.FirstOrDefaultAsync(a => a.BranchName == branch);
@@ -600,7 +587,7 @@ public class SettingsController : Controller
         }
     }
 
-    /// <summary>Same for the SQ side.</summary>
+    /// <summary>Upserts the SQ-staff assignment, or drops it when there is nobody to assign.</summary>
     private async Task SetPartnerAssignmentAsync(string branch, string partner)
     {
         var row = await _db.BranchAssignments.FirstOrDefaultAsync(a => a.BranchName == branch);

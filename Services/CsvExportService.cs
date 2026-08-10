@@ -53,9 +53,8 @@ public class CsvExportService
     {
         if (string.IsNullOrEmpty(value)) return string.Empty;
 
-        // A leading =, +, -, @, tab or CR makes spreadsheet apps evaluate the
-        // cell as a formula, letting a crafted comment run when the export is
-        // opened in Excel. A leading apostrophe forces plain text.
+        // A leading =, +, -, @, tab or CR is evaluated as a formula by
+        // spreadsheet apps; a leading apostrophe forces plain text.
         if (value[0] is '=' or '+' or '-' or '@' or '\t' or '\r')
         {
             value = "'" + value;

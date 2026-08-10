@@ -1,11 +1,10 @@
-// Shared page behaviors, kept out of inline <script> blocks and inline
-// on* attributes so the Content-Security-Policy can stay strict about
-// script sources.
+// Shared page behaviors, kept out of inline scripts and on* attributes so the
+// Content-Security-Policy can stay strict about script sources.
 (function () {
     'use strict';
 
-    // Confirmation prompts (data-confirm on a form or button). Delegated so
-    // content loaded into dialogs (the case-details panel) is covered too.
+    // Confirmation prompts (data-confirm on a form or button), delegated so
+    // dialog-loaded content is covered without rebinding.
     document.addEventListener('submit', function (e) {
         var form = e.target instanceof Element ? e.target.closest('form[data-confirm]') : null;
         if (form && !window.confirm(form.getAttribute('data-confirm'))) {
@@ -21,7 +20,7 @@
         }
     }, true);
 
-    // Selects that submit their form on change (the weekly range picker).
+    // Selects marked data-autosubmit submit their form on change.
     document.addEventListener('change', function (e) {
         var el = e.target instanceof Element ? e.target.closest('[data-autosubmit]') : null;
         if (el && el.form) el.form.submit();

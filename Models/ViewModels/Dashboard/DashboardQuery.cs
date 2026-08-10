@@ -2,7 +2,7 @@ using SQPortal.Models.Enums;
 
 namespace SQPortal.Models.ViewModels.Dashboard;
 
-/// <summary>Everything the dashboard reads from the query string: the pressed card, the filters and the page.</summary>
+/// <summary>Dashboard query-string parameters: selected card, filters and page.</summary>
 public class DashboardQuery
 {
     public const int PageSize = 25;

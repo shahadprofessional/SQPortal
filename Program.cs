@@ -13,16 +13,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews(options =>
 {
-    // Every unsafe-method request must carry a valid antiforgery token, even
-    // if an action forgets its explicit [ValidateAntiForgeryToken].
+    // Antiforgery is enforced on every unsafe HTTP method, not only on
+    // actions carrying the explicit attribute.
     options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
 });
 
 builder.Services.AddDbContext<SQPortalDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Outside Development cookies only ever travel over HTTPS; the dev "http"
-// launch profile has no TLS port, so SameAsRequest keeps local runs working.
+// Secure-only cookies outside Development; the dev "http" launch profile has
+// no TLS port.
 var cookieSecurePolicy = builder.Environment.IsDevelopment()
     ? CookieSecurePolicy.SameAsRequest
     : CookieSecurePolicy.Always;
@@ -69,8 +69,7 @@ var cookieSecurePolicy = builder.Environment.IsDevelopment()
 /////////end of AD code\\\\\\\\\\
 
 ///////// test-only: delete this block when AD is linked \\\\\\\\\\
-// Test-environment sign-in: the login page lists the hardcoded users in
-// Data/TestUsers.cs and pressing one signs in through this cookie.
+// Test-environment sign-in: cookie auth backed by the roster in Data/TestUsers.cs.
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -84,8 +83,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.SecurePolicy = cookieSecurePolicy;
         options.Events = new CookieAuthenticationEvents
         {
-            // Background fetches (the case-details dialog) should see a 401,
-            // not the login page's HTML injected into the dialog body.
+            // XHR callers get a 401 instead of the login page's HTML.
             OnRedirectToLogin = context =>
             {
                 if (context.Request.Headers["X-Requested-With"] == "XMLHttpRequest")
@@ -103,8 +101,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 builder.Services.AddAuthorization(options =>
 {
-    // Deny by default: every endpoint requires a signed-in user unless it
-    // opts out with [AllowAnonymous] (the login page and the error page).
+    // Deny by default; only [AllowAnonymous] endpoints are public.
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
@@ -119,7 +116,7 @@ builder.Services.AddAntiforgery(options =>
     options.Cookie.SecurePolicy = cookieSecurePolicy;
 });
 
-// Throttle sign-in attempts per client address to slow credential guessing.
+// Per-address throttle on sign-in attempts.
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -140,8 +137,7 @@ builder.Services.AddHsts(options =>
     options.IncludeSubDomains = true;
 });
 
-// Outbound mail — the address the portal's emails are sent from lives in the
-// "Mail" section of appsettings.json (placeholder until the real mailbox exists).
+// Outbound mail; sender address and SMTP settings come from the "Mail" section.
 builder.Services.Configure<MailSettings>(builder.Configuration.GetSection(MailSettings.SectionName));
 builder.Services.AddScoped<EmailService>();
 
@@ -155,8 +151,8 @@ builder.Services.AddScoped<WeeklyReportService>();
 
 var app = builder.Build();
 
-// Schema is created manually via Scripts/init.sql (run in SSMS) — no DDL in code.
-// On first run after the schema exists, SeedLookups() populates default partners/branches/assignments.
+// Schema is created manually via Scripts/init.sql; SeedLookups() only inserts
+// default rows into empty lookup tables.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<SQPortalDbContext>();
@@ -172,7 +168,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Browser hardening headers plus a per-request nonce for the inline page scripts.
+// Security headers plus the per-request CSP nonce used by inline page scripts.
 app.Use(async (context, next) =>
 {
     var nonce = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
