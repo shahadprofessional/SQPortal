@@ -16,6 +16,8 @@ public class SQPortalDbContext : DbContext
     public DbSet<Branch> Branches => Set<Branch>();
     public DbSet<BranchManager> Managers => Set<BranchManager>();
     public DbSet<BranchManagerAssignment> ManagerAssignments => Set<BranchManagerAssignment>();
+    public DbSet<AuditEntry> Audits => Set<AuditEntry>();
+    public DbSet<SchemaVersion> SchemaVersions => Set<SchemaVersion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -37,8 +39,16 @@ public class SQPortalDbContext : DbContext
             .HasConversion(rootCausesConverter)
             .Metadata.SetValueComparer(rootCausesComparer);
 
+        // Soft delete: filtered out of every query unless IgnoreQueryFilters is used.
         modelBuilder.Entity<FeedbackCase>()
-            .HasIndex(c => c.CaseNumber);
+            .HasQueryFilter(c => !c.IsDeleted);
+
+        // Unique across live and soft-deleted rows so numbers are never reused;
+        // 0 is excluded because legacy rows hold it until the startup backfill.
+        modelBuilder.Entity<FeedbackCase>()
+            .HasIndex(c => c.CaseNumber)
+            .IsUnique()
+            .HasFilter("[CaseNumber] > 0");
 
         modelBuilder.Entity<FeedbackCase>()
             .HasIndex(c => c.CustomerPhone);
@@ -48,6 +58,9 @@ public class SQPortalDbContext : DbContext
 
         modelBuilder.Entity<FeedbackCase>()
             .HasIndex(c => c.Branch);
+
+        modelBuilder.Entity<AuditEntry>()
+            .HasIndex(a => a.TimestampUtc);
     }
 
     /// <summary>
@@ -56,13 +69,16 @@ public class SQPortalDbContext : DbContext
     /// </summary>
     public void BackfillCaseNumbers()
     {
-        var unnumbered = Cases.Where(c => c.CaseNumber == 0)
+        // Soft-deleted rows are included: they keep their numbers, and the
+        // running maximum must account for them.
+        var unnumbered = Cases.IgnoreQueryFilters()
+            .Where(c => c.CaseNumber == 0)
             .OrderBy(c => c.Date)
             .ThenBy(c => c.Id)
             .ToList();
         if (unnumbered.Count == 0) return;
 
-        var next = (Cases.Max(c => (int?)c.CaseNumber) ?? 0) + 1;
+        var next = NextCaseNumber();
         foreach (var c in unnumbered)
         {
             c.CaseNumber = next++;
@@ -71,8 +87,12 @@ public class SQPortalDbContext : DbContext
         SaveChanges();
     }
 
-    /// <summary>Next case number; 1 for the first case.</summary>
-    public int NextCaseNumber() => (Cases.Max(c => (int?)c.CaseNumber) ?? 0) + 1;
+    /// <summary>
+    /// Next case number; 1 for the first case. Includes soft-deleted rows so a
+    /// deleted case's number is never handed out again.
+    /// </summary>
+    public int NextCaseNumber() =>
+        (Cases.IgnoreQueryFilters().Max(c => (int?)c.CaseNumber) ?? 0) + 1;
 
     public void SeedLookups()
     {

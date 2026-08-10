@@ -83,6 +83,9 @@ public class EditCaseViewModel : IValidatableObject
     [Display(Name = "Validation notes")]
     public string? ValidationNotes { get; set; }
 
+    /// <summary>Concurrency token (base64 rowversion) the form was loaded with.</summary>
+    public string? RowVersion { get; set; }
+
     public IEnumerable<string> Branches { get; set; } = Array.Empty<string>();
     public IEnumerable<string> Partners { get; set; } = Array.Empty<string>();
     public IEnumerable<string> RootCauseOptions { get; set; } = Array.Empty<string>();

@@ -141,6 +141,12 @@ builder.Services.AddHsts(options =>
 builder.Services.Configure<MailSettings>(builder.Configuration.GetSection(MailSettings.SectionName));
 builder.Services.AddScoped<EmailService>();
 
+// SLA clock: business time zone and weekend days come from the "Sla" section.
+builder.Services.Configure<SlaSettings>(builder.Configuration.GetSection(SlaSettings.SectionName));
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<AuditService>();
+
 builder.Services.AddScoped<SlaService>();
 builder.Services.AddScoped<PartnerAssignmentService>();
 builder.Services.AddScoped<CsvExportService>();
@@ -152,12 +158,35 @@ builder.Services.AddScoped<WeeklyReportService>();
 var app = builder.Build();
 
 // Schema is created manually via Scripts/init.sql; SeedLookups() only inserts
-// default rows into empty lookup tables.
+// default rows into empty lookup tables. The SchemaVersions check catches a
+// database that has not had the latest script applied.
+const string requiredSchemaVersion = "005";
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<SQPortalDbContext>();
-    db.SeedLookups();
-    db.BackfillCaseNumbers();
+
+    var schemaCurrent = false;
+    try
+    {
+        schemaCurrent = db.SchemaVersions.Any(v => v.Version == requiredSchemaVersion);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "SchemaVersions table not readable.");
+    }
+
+    if (schemaCurrent)
+    {
+        db.SeedLookups();
+        db.BackfillCaseNumbers();
+    }
+    else
+    {
+        app.Logger.LogCritical(
+            "Database schema is not at version {Version}. Run Scripts/init.sql on a new database, " +
+            "or Scripts/005_future_proofing.sql (after any earlier unapplied scripts) on an existing one.",
+            requiredSchemaVersion);
+    }
 }
 
 if (!app.Environment.IsDevelopment())

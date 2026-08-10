@@ -15,6 +15,7 @@
     @Html.AntiForgeryToken()
     <input type="hidden" asp-for="Id" />
     <input type="hidden" asp-for="CaseNumber" />
+    <input type="hidden" asp-for="RowVersion" />
     <div asp-validation-summary="All" class="text-danger"></div>
 
     <div class="sq-panel sq-frame mb-4">

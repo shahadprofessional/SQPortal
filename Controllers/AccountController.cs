@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using SQPortal.Data;
+using SQPortal.Services;
 
 namespace SQPortal.Controllers;
 
@@ -18,10 +19,12 @@ namespace SQPortal.Controllers;
 [AllowAnonymous]
 public class AccountController : Controller
 {
+    private readonly AuditService _audit;
     private readonly ILogger<AccountController> _logger;
 
-    public AccountController(ILogger<AccountController> logger)
+    public AccountController(AuditService audit, ILogger<AccountController> logger)
     {
+        _audit = audit;
         _logger = logger;
     }
 
@@ -64,6 +67,7 @@ public class AccountController : Controller
             new ClaimsPrincipal(identity));
 
         _logger.LogInformation("Test user {Username} signed in", user.Username);
+        await _audit.LogAsync("Sign-in", $"{user.Username} signed in", userOverride: user.DisplayName);
 
         var safeReturnUrl = SafeReturnUrl(returnUrl);
         return safeReturnUrl != null
@@ -75,6 +79,7 @@ public class AccountController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
+        await _audit.LogAsync("Sign-out", "Signed out");
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return RedirectToAction(nameof(Login));
     }

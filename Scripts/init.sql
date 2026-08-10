@@ -111,14 +111,18 @@ CREATE TABLE dbo.Cases
     ValidityStatus    NVARCHAR(MAX) NULL,
     ValidationNotes   NVARCHAR(MAX) NULL,
     EmailSent         BIT           NOT NULL,
+    IsDeleted         BIT           NOT NULL CONSTRAINT DF_Cases_IsDeleted DEFAULT (0),
+    [RowVersion]      ROWVERSION    NOT NULL,
     CONSTRAINT PK_Cases PRIMARY KEY (Id)
 );
 GO
 
 -- ============================================================================
 -- Indexes on Cases (match Data/SQPortalDbContext.cs::OnModelCreating)
+-- CaseNumber is unique across live and soft-deleted rows; 0 is excluded
+-- because legacy rows hold it until the app's startup backfill.
 -- ============================================================================
-CREATE INDEX IX_Cases_CaseNumber    ON dbo.Cases (CaseNumber);
+CREATE UNIQUE NONCLUSTERED INDEX IX_Cases_CaseNumber ON dbo.Cases (CaseNumber) WHERE CaseNumber > 0;
 GO
 
 CREATE INDEX IX_Cases_CustomerPhone ON dbo.Cases (CustomerPhone);
@@ -128,6 +132,39 @@ CREATE INDEX IX_Cases_Date          ON dbo.Cases ([Date]);
 GO
 
 CREATE INDEX IX_Cases_Branch        ON dbo.Cases (Branch);
+GO
+
+-- ============================================================================
+-- Audits  (mirrors AuditEntry.cs) — who did what, when
+-- ============================================================================
+CREATE TABLE dbo.Audits
+(
+    Id            BIGINT        NOT NULL IDENTITY(1,1),
+    TimestampUtc  DATETIME2     NOT NULL,
+    [User]        NVARCHAR(200) NOT NULL,
+    [Action]      NVARCHAR(60)  NOT NULL,
+    CaseId        NVARCHAR(64)  NULL,
+    Details       NVARCHAR(400) NOT NULL,
+    CONSTRAINT PK_Audits PRIMARY KEY (Id)
+);
+GO
+
+CREATE INDEX IX_Audits_TimestampUtc ON dbo.Audits (TimestampUtc);
+GO
+
+-- ============================================================================
+-- SchemaVersions  (mirrors SchemaVersion.cs) — applied-script tracking,
+-- checked at app startup. This script includes everything through 005.
+-- ============================================================================
+CREATE TABLE dbo.SchemaVersions
+(
+    Version       NVARCHAR(20) NOT NULL,
+    AppliedAtUtc  DATETIME2    NOT NULL CONSTRAINT DF_SchemaVersions_AppliedAtUtc DEFAULT (SYSUTCDATETIME()),
+    CONSTRAINT PK_SchemaVersions PRIMARY KEY (Version)
+);
+GO
+
+INSERT INTO dbo.SchemaVersions (Version) VALUES ('005');
 GO
 
 -- ============================================================================

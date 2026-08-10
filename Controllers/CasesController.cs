@@ -16,6 +16,7 @@ public class CasesController : Controller
     private readonly SlaService _sla;
     private readonly PartnerAssignmentService _partners;
     private readonly EmailService _email;
+    private readonly AuditService _audit;
     private readonly ILogger<CasesController> _logger;
 
     public CasesController(
@@ -23,12 +24,14 @@ public class CasesController : Controller
         SlaService sla,
         PartnerAssignmentService partners,
         EmailService email,
+        AuditService audit,
         ILogger<CasesController> logger)
     {
         _db = db;
         _sla = sla;
         _partners = partners;
         _email = email;
+        _audit = audit;
         _logger = logger;
     }
 
@@ -57,6 +60,7 @@ public class CasesController : Controller
             {
                 await _email.SendAsync(partner.Email, subject, body);
                 entity.EmailSent = true;
+                _audit.Log("Email sent", $"Case #{entity.CaseNumber}: partner notification to {partner.Email}", entity.Id);
                 await _db.SaveChangesAsync();
                 TempData["StatusMessage"] = $"Notification sent to {partner.Email} from {_email.FromAddress}.";
             }
@@ -90,7 +94,7 @@ public class CasesController : Controller
         var entity = await _db.Cases.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
         if (entity == null) return NotFound();
 
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = _sla.Today;
         var partner = await _db.Partners.AsNoTracking()
             .FirstOrDefaultAsync(p => p.Name == entity.BusinessPartner);
 
@@ -111,7 +115,7 @@ public class CasesController : Controller
     [HttpGet]
     public async Task<IActionResult> Create()
     {
-        var vm = new CaseFormViewModel();
+        var vm = new CaseFormViewModel { Date = _sla.Today, Today = _sla.Today };
         await PopulateLookupsAsync(vm);
         return View(vm);
     }
@@ -120,9 +124,10 @@ public class CasesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CaseFormViewModel vm)
     {
+        vm.Today = _sla.Today;
         await PopulateLookupsAsync(vm);
 
-        if (vm.Date > DateOnly.FromDateTime(DateTime.Today))
+        if (vm.Date > _sla.Today)
         {
             ModelState.AddModelError(nameof(vm.Date), "Date cannot be in the future.");
         }
@@ -142,7 +147,6 @@ public class CasesController : Controller
         var entity = new FeedbackCase
         {
             Id = GenerateId(),
-            CaseNumber = _db.NextCaseNumber(),
             Date = vm.Date,
             CustomerName = vm.CustomerName.Trim(),
             CustomerPhone = vm.CustomerPhone.Trim(),
@@ -159,8 +163,24 @@ public class CasesController : Controller
             CaseValidation = CaseValidation.UnderReview
         };
 
-        _db.Cases.Add(entity);
-        await _db.SaveChangesAsync();
+        // A concurrent create can claim the same MAX+1 number; the unique index
+        // rejects the duplicate and the retry reads a fresh number.
+        for (var attempt = 0; ; attempt++)
+        {
+            entity.CaseNumber = _db.NextCaseNumber();
+            try
+            {
+                _db.Cases.Add(entity);
+                await _db.SaveChangesAsync();
+                break;
+            }
+            catch (DbUpdateException) when (attempt < 2)
+            {
+                _db.Entry(entity).State = EntityState.Detached;
+            }
+        }
+
+        await _audit.LogAsync("Case created", $"Case #{entity.CaseNumber} for {entity.CustomerName} at {entity.Branch}", entity.Id);
 
         TempData["StatusMessage"] = "Case created.";
         return RedirectToAction("Index", "Dashboard");
@@ -196,6 +216,7 @@ public class CasesController : Controller
             CaseValidation = entity.CaseValidation,
             RootCauses = entity.RootCauses.Where(r => LookupData.RootCauses.Contains(r)).ToList(),
             ValidationNotes = entity.ValidationNotes,
+            RowVersion = Convert.ToBase64String(entity.RowVersion ?? Array.Empty<byte>()),
             Branches = branches,
             Partners = partners,
             RootCauseOptions = LookupData.RootCauses
@@ -242,7 +263,37 @@ public class CasesController : Controller
         entity.ValidityStatus = rootCauses.FirstOrDefault();
         entity.ValidationNotes = vm.ValidationNotes;
 
-        await _db.SaveChangesAsync();
+        // The form carries the row version it was loaded with; a save against a
+        // row someone changed in the meantime fails instead of overwriting.
+        if (!string.IsNullOrEmpty(vm.RowVersion))
+        {
+            try
+            {
+                _db.Entry(entity).Property(e => e.RowVersion).OriginalValue = Convert.FromBase64String(vm.RowVersion);
+            }
+            catch (FormatException)
+            {
+                // A mangled token falls back to last-write-wins.
+            }
+        }
+
+        _audit.Log("Case updated", $"Case #{entity.CaseNumber} edited", entity.Id);
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            ModelState.AddModelError(string.Empty,
+                "This case was changed by someone else while the form was open. Reload the page and reapply the edits.");
+
+            var (branches, partners) = await GetBranchesAndPartnersAsync();
+            vm.Branches = branches;
+            vm.Partners = partners;
+            vm.RootCauseOptions = LookupData.RootCauses;
+            return View(vm);
+        }
 
         TempData["StatusMessage"] = "Case updated.";
         return RedirectToAction("Index", "Dashboard");
@@ -255,7 +306,10 @@ public class CasesController : Controller
         var entity = await _db.Cases.FirstOrDefaultAsync(c => c.Id == id);
         if (entity == null) return NotFound();
 
-        _db.Cases.Remove(entity);
+        // Soft delete: the row is hidden everywhere but stays recoverable, and
+        // the audit trail records who removed it.
+        entity.IsDeleted = true;
+        _audit.Log("Case deleted", $"Case #{entity.CaseNumber} for {entity.CustomerName} at {entity.Branch}", entity.Id);
         await _db.SaveChangesAsync();
 
         TempData["StatusMessage"] = "Case deleted.";

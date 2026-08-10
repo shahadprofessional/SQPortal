@@ -49,4 +49,11 @@ public class FeedbackCase
     public string? ValidationNotes { get; set; }
 
     public bool EmailSent { get; set; }
+
+    /// <summary>Soft-delete flag; deleted cases are hidden by a global query filter, never removed.</summary>
+    public bool IsDeleted { get; set; }
+
+    /// <summary>Optimistic-concurrency token (SQL rowversion); a stale edit fails instead of overwriting.</summary>
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 }

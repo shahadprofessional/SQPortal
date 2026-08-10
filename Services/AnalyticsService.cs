@@ -22,27 +22,41 @@ public class AnalyticsService
 
     public async Task<AnalyticsViewModel> BuildAsync(string? month, string? branch, string? partner, DateOnly today)
     {
-        var allCases = await _db.Cases.AsNoTracking().ToListAsync();
         var branches = await _db.Branches.AsNoTracking().OrderBy(b => b.Name).Select(b => b.Name).ToListAsync();
         var partners = await _db.Partners.AsNoTracking().OrderBy(p => p.Name).Select(p => p.Name).ToListAsync();
 
-        var months = allCases
-            .Select(c => $"{c.Date.Year:D4}-{c.Date.Month:D2}")
+        var monthPairs = await _db.Cases.AsNoTracking()
+            .Select(c => new { c.Date.Year, c.Date.Month })
             .Distinct()
+            .ToListAsync();
+        var months = monthPairs
+            .Select(m => $"{m.Year:D4}-{m.Month:D2}")
             .OrderByDescending(s => s)
             .ToList();
 
-        var filtered = allCases.Where(c =>
+        // Filters are translated to SQL; only the (typically small) filtered
+        // slice is loaded for aggregation.
+        IQueryable<FeedbackCase> query = _db.Cases.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(month)
+            && DateTime.TryParseExact(month + "-01", "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var monthDate))
         {
-            if (!string.IsNullOrWhiteSpace(month))
-            {
-                var caseMonth = $"{c.Date.Year:D4}-{c.Date.Month:D2}";
-                if (caseMonth != month) return false;
-            }
-            if (!string.IsNullOrWhiteSpace(branch) && c.Branch != branch) return false;
-            if (!string.IsNullOrWhiteSpace(partner) && c.BusinessPartner != partner) return false;
-            return true;
-        }).ToList();
+            var start = DateOnly.FromDateTime(monthDate);
+            var end = start.AddMonths(1);
+            query = query.Where(c => c.Date >= start && c.Date < end);
+        }
+
+        if (!string.IsNullOrWhiteSpace(branch))
+        {
+            query = query.Where(c => c.Branch == branch);
+        }
+
+        if (!string.IsNullOrWhiteSpace(partner))
+        {
+            query = query.Where(c => c.BusinessPartner == partner);
+        }
+
+        var filtered = await query.ToListAsync();
 
         var total = filtered.Count;
         var done = filtered.Count(c => c.FollowUpStatus == FollowUpStatus.Completed);
