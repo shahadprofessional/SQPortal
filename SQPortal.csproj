@@ -23,8 +23,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Database schema script. Run manually in SSMS (see Scripts/init.sql header). -->
-    <None Include="Scripts\init.sql" />
+    <!-- Database scripts. Run manually in SSMS (see Scripts/README.md). -->
+    <None Include="Scripts\**" />
   </ItemGroup>
 
 </Project>

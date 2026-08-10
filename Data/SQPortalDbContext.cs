@@ -51,9 +51,6 @@ public class SQPortalDbContext : DbContext
             .HasFilter("[CaseNumber] > 0");
 
         modelBuilder.Entity<FeedbackCase>()
-            .HasIndex(c => c.CustomerPhone);
-
-        modelBuilder.Entity<FeedbackCase>()
             .HasIndex(c => c.Date);
 
         modelBuilder.Entity<FeedbackCase>()

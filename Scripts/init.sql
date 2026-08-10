@@ -1,33 +1,34 @@
 -- ============================================================================
--- SQPortal — database schema initialization
+-- SQPortal — schema initialization (fresh database)          schema version 006
 -- ============================================================================
--- Run this script ONCE against an empty SQPortal database from SSMS.
--- After running, start the app; SeedLookups() (Data/SQPortalDbContext.cs)
--- will populate the 4 default partners, 27 branches, and 27 default
--- branch-partner assignments via plain INSERTs.
+-- Run ONCE against a NEW EMPTY database from SSMS. For an existing database
+-- created from an earlier version of these scripts, run upgrade.sql instead.
+-- See Scripts/README.md.
+--
+-- After running, start the app: SeedLookups() (Data/SQPortalDbContext.cs)
+-- populates the default partners, branches and branch-partner assignments.
 --
 -- This script is the SOURCE OF TRUTH for the schema; the application code
--- creates no tables. Keep this file in sync with:
---   - Models/Entities/FeedbackCase.cs
---   - Models/Entities/BusinessPartner.cs
---   - Models/Entities/Branch.cs
---   - Models/Entities/BranchPartnerAssignment.cs
---   - Data/SQPortalDbContext.cs (OnModelCreating — indexes + value converters)
+-- creates no tables. Keep it in sync with the entity classes in
+-- Models/Entities/ and with Data/SQPortalDbContext.cs (OnModelCreating).
 --
 -- Re-runnable on an existing schema: NO. Designed for a fresh empty database.
 -- ============================================================================
 
--- Step 1 (optional). Create the empty database. Skip when "SQPortal" already
--- exists (e.g. created via SSMS's New Database menu).
+-- ----------------------------------------------------------------------------
+-- 0. Database (optional). Skip when "SQPortal" already exists.
+-- ----------------------------------------------------------------------------
 -- CREATE DATABASE SQPortal;
 -- GO
 
 USE [SQPortal];
 GO
 
--- ============================================================================
--- Partners  (mirrors BusinessPartner.cs)
--- ============================================================================
+-- ----------------------------------------------------------------------------
+-- 1. Lookup tables: people and branches
+-- ----------------------------------------------------------------------------
+
+-- SQ staff  (mirrors BusinessPartner.cs)
 CREATE TABLE dbo.Partners
 (
     Name      NVARCHAR(40)  NOT NULL,
@@ -37,9 +38,7 @@ CREATE TABLE dbo.Partners
 );
 GO
 
--- ============================================================================
 -- Branches  (mirrors Branch.cs)
--- ============================================================================
 CREATE TABLE dbo.Branches
 (
     Name NVARCHAR(100) NOT NULL,
@@ -47,20 +46,7 @@ CREATE TABLE dbo.Branches
 );
 GO
 
--- ============================================================================
--- BranchAssignments  (mirrors BranchPartnerAssignment.cs)
--- ============================================================================
-CREATE TABLE dbo.BranchAssignments
-(
-    BranchName       NVARCHAR(100) NOT NULL,
-    AssignedPartner  NVARCHAR(40)  NOT NULL,
-    CONSTRAINT PK_BranchAssignments PRIMARY KEY (BranchName)
-);
-GO
-
--- ============================================================================
--- Managers  (mirrors BranchManager.cs) — the branch side of a case
--- ============================================================================
+-- Branch managers  (mirrors BranchManager.cs)
 CREATE TABLE dbo.Managers
 (
     Name      NVARCHAR(40)  NOT NULL,
@@ -70,9 +56,16 @@ CREATE TABLE dbo.Managers
 );
 GO
 
--- ============================================================================
--- ManagerAssignments  (mirrors BranchManagerAssignment.cs)
--- ============================================================================
+-- Which SQ staff member handles each branch  (mirrors BranchPartnerAssignment.cs)
+CREATE TABLE dbo.BranchAssignments
+(
+    BranchName       NVARCHAR(100) NOT NULL,
+    AssignedPartner  NVARCHAR(40)  NOT NULL,
+    CONSTRAINT PK_BranchAssignments PRIMARY KEY (BranchName)
+);
+GO
+
+-- Which manager runs each branch  (mirrors BranchManagerAssignment.cs)
 CREATE TABLE dbo.ManagerAssignments
 (
     BranchName       NVARCHAR(100) NOT NULL,
@@ -81,12 +74,12 @@ CREATE TABLE dbo.ManagerAssignments
 );
 GO
 
--- ============================================================================
--- Cases  (mirrors FeedbackCase.cs)
--- RootCauses is stored as JSON text via an EF Core value converter
--- (Data/SQPortalDbContext.cs::OnModelCreating). Hence NVARCHAR(MAX).
--- FollowUpStatus and CaseValidation are enums stored as their int values.
--- ============================================================================
+-- ----------------------------------------------------------------------------
+-- 2. Cases  (mirrors FeedbackCase.cs)
+--    RootCauses is JSON text via an EF value converter, hence NVARCHAR(MAX).
+--    FollowUpStatus and CaseValidation are enums stored as int values.
+--    IsDeleted is the soft-delete flag; RowVersion the concurrency token.
+-- ----------------------------------------------------------------------------
 CREATE TABLE dbo.Cases
 (
     Id                NVARCHAR(64)  NOT NULL,
@@ -117,26 +110,21 @@ CREATE TABLE dbo.Cases
 );
 GO
 
--- ============================================================================
--- Indexes on Cases (match Data/SQPortalDbContext.cs::OnModelCreating)
--- CaseNumber is unique across live and soft-deleted rows; 0 is excluded
--- because legacy rows hold it until the app's startup backfill.
--- ============================================================================
+-- CaseNumber is unique across live and soft-deleted rows, so numbers are
+-- never reused; 0 is excluded because legacy rows hold it until the app's
+-- startup backfill numbers them.
 CREATE UNIQUE NONCLUSTERED INDEX IX_Cases_CaseNumber ON dbo.Cases (CaseNumber) WHERE CaseNumber > 0;
 GO
 
-CREATE INDEX IX_Cases_CustomerPhone ON dbo.Cases (CustomerPhone);
+CREATE INDEX IX_Cases_Date   ON dbo.Cases ([Date]);
 GO
 
-CREATE INDEX IX_Cases_Date          ON dbo.Cases ([Date]);
+CREATE INDEX IX_Cases_Branch ON dbo.Cases (Branch);
 GO
 
-CREATE INDEX IX_Cases_Branch        ON dbo.Cases (Branch);
-GO
-
--- ============================================================================
--- Audits  (mirrors AuditEntry.cs) — who did what, when
--- ============================================================================
+-- ----------------------------------------------------------------------------
+-- 3. Audit trail  (mirrors AuditEntry.cs)
+-- ----------------------------------------------------------------------------
 CREATE TABLE dbo.Audits
 (
     Id            BIGINT        NOT NULL IDENTITY(1,1),
@@ -155,10 +143,9 @@ GO
 CREATE INDEX IX_Audits_CaseId ON dbo.Audits (CaseId);
 GO
 
--- ============================================================================
--- SchemaVersions  (mirrors SchemaVersion.cs) — applied-script tracking,
--- checked at app startup. This script includes everything through 006.
--- ============================================================================
+-- ----------------------------------------------------------------------------
+-- 4. Schema version tracking  (mirrors SchemaVersion.cs; checked at startup)
+-- ----------------------------------------------------------------------------
 CREATE TABLE dbo.SchemaVersions
 (
     Version       NVARCHAR(20) NOT NULL,
@@ -167,10 +154,7 @@ CREATE TABLE dbo.SchemaVersions
 );
 GO
 
-INSERT INTO dbo.SchemaVersions (Version) VALUES ('005');
-GO
-
-INSERT INTO dbo.SchemaVersions (Version) VALUES ('006');
+INSERT INTO dbo.SchemaVersions (Version) VALUES ('005'), ('006');
 GO
 
 -- ============================================================================
