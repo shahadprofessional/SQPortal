@@ -208,11 +208,12 @@ app.Use(async (context, next) =>
     headers["X-Frame-Options"] = "DENY";
     headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+    // Fully self-hosted: no external hosts appear in the policy.
     headers["Content-Security-Policy"] =
         "default-src 'self'; " +
-        $"script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net; " +
-        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; " +
-        "font-src https://fonts.gstatic.com; " +
+        $"script-src 'self' 'nonce-{nonce}'; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "font-src 'self'; " +
         "img-src 'self' data:; " +
         "connect-src 'self'; " +
         "object-src 'none'; " +
