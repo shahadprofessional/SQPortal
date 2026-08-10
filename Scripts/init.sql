@@ -152,9 +152,12 @@ GO
 CREATE INDEX IX_Audits_TimestampUtc ON dbo.Audits (TimestampUtc);
 GO
 
+CREATE INDEX IX_Audits_CaseId ON dbo.Audits (CaseId);
+GO
+
 -- ============================================================================
 -- SchemaVersions  (mirrors SchemaVersion.cs) — applied-script tracking,
--- checked at app startup. This script includes everything through 005.
+-- checked at app startup. This script includes everything through 006.
 -- ============================================================================
 CREATE TABLE dbo.SchemaVersions
 (
@@ -165,6 +168,9 @@ CREATE TABLE dbo.SchemaVersions
 GO
 
 INSERT INTO dbo.SchemaVersions (Version) VALUES ('005');
+GO
+
+INSERT INTO dbo.SchemaVersions (Version) VALUES ('006');
 GO
 
 -- ============================================================================

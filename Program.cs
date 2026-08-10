@@ -160,7 +160,7 @@ var app = builder.Build();
 // Schema is created manually via Scripts/init.sql; SeedLookups() only inserts
 // default rows into empty lookup tables. The SchemaVersions check catches a
 // database that has not had the latest script applied.
-const string requiredSchemaVersion = "005";
+const string requiredSchemaVersion = "006";
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<SQPortalDbContext>();
@@ -184,7 +184,7 @@ using (var scope = app.Services.CreateScope())
     {
         app.Logger.LogCritical(
             "Database schema is not at version {Version}. Run Scripts/init.sql on a new database, " +
-            "or Scripts/005_future_proofing.sql (after any earlier unapplied scripts) on an existing one.",
+            "or Scripts/006_audit_per_case.sql (after any earlier unapplied scripts) on an existing one.",
             requiredSchemaVersion);
     }
 }

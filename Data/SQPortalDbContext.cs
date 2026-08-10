@@ -61,6 +61,9 @@ public class SQPortalDbContext : DbContext
 
         modelBuilder.Entity<AuditEntry>()
             .HasIndex(a => a.TimestampUtc);
+
+        modelBuilder.Entity<AuditEntry>()
+            .HasIndex(a => a.CaseId);
     }
 
     /// <summary>

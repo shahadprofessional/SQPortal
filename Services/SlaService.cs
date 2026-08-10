@@ -28,6 +28,10 @@ public class SlaService
     /// <summary>Today's date in the configured business time zone.</summary>
     public DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTime.UtcNow, _timeZone));
 
+    /// <summary>Converts a UTC timestamp to the configured business time zone.</summary>
+    public DateTime ToBusinessTime(DateTime utc) =>
+        TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), _timeZone);
+
     public bool IsWeekend(DateOnly date) => _weekend.Contains(date.DayOfWeek);
 
     public DateOnly NextWorkingDay(DateOnly from)
