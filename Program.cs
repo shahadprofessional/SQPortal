@@ -184,7 +184,7 @@ using (var scope = app.Services.CreateScope())
     {
         app.Logger.LogCritical(
             "Database schema is not at version {Version}. Run Scripts/init.sql on a new database, " +
-            "or Scripts/006_audit_per_case.sql (after any earlier unapplied scripts) on an existing one.",
+            "or Scripts/upgrade.sql on an existing one. See Scripts/README.md.",
             requiredSchemaVersion);
     }
 }
