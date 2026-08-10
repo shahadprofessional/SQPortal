@@ -1,7 +1,6 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using SQPortal.Data;
-using SQPortal.Helpers;
 using SQPortal.Models.Entities;
 using SQPortal.Models.Enums;
 using SQPortal.Models.ViewModels.Weekly;
@@ -29,8 +28,7 @@ public class WeeklyReportService
     {
         var (start, end, normalizedRange) = ResolveRange(range, today);
 
-        // This report goes to the branch, so the recipients are branch managers —
-        // never the SQ staff who handled the cases.
+        // Recipients are branch managers, never the SQ staff who handled the cases.
         var managers = await _db.Managers.AsNoTracking().OrderBy(m => m.Name).ToListAsync();
         var managerEmails = managers.ToDictionary(m => m.Name, m => m.Email);
         var managerFullNames = managers.ToDictionary(m => m.Name, m => m.FullName);
@@ -38,16 +36,11 @@ public class WeeklyReportService
             .AsNoTracking()
             .ToDictionaryAsync(a => a.BranchName, a => a.AssignedManager);
 
-        // Every branch has a manager, so resolve one here rather than trusting the
-        // assignment table to be complete. It can legitimately miss a branch: a case
-        // may name a branch that has since been deleted, and rows are only written
-        // for branches that exist. Falling back to the roster keeps the report
-        // sendable instead of silently losing a recipient.
+        // The assignment table can miss a branch (e.g. a case naming a deleted
+        // branch); falling back to the roster keeps the report sendable.
         var fallbackManager = managers.FirstOrDefault()?.Name ?? string.Empty;
 
-        // A branch only hears about a case once the SQ team has finished the
-        // follow-up and judged the complaint genuine. Anything still pending or
-        // not marked valid stays out of the report and out of the emails.
+        // Only completed, validated cases reach the branch report.
         var poorCases = await _db.Cases
             .AsNoTracking()
             .Where(c => c.Date >= start && c.Date <= end
@@ -93,11 +86,8 @@ public class WeeklyReportService
                 var subject = $"[SQ] Weekly Service Quality Summary | {item.Branch} | {start:yyyy-MM-dd} to {end:yyyy-MM-dd}";
 
                 item.PreviewText = section;
-                // No manager, no mail — the view disables Send rather than opening
-                // a message addressed to nobody.
-                item.MailtoLink = string.IsNullOrWhiteSpace(item.ManagerEmail)
-                    ? string.Empty
-                    : BuildMailto(item.ManagerEmail, subject, emailBody);
+                item.EmailSubject = subject;
+                item.EmailBody = emailBody;
                 return item;
             })
             .ToList();
@@ -105,7 +95,7 @@ public class WeeklyReportService
         var combinedBody = BuildCombinedBody(byBranch, start, end, filtered.Count);
         var combinedSubject = $"[SQ] Weekly Service Quality Summary | {start:yyyy-MM-dd} to {end:yyyy-MM-dd}";
 
-        // One mail to every manager in this report — each address once.
+        // Every manager in this report, each address once.
         var combinedRecipients = string.Join(",", byBranch
             .Select(b => b.ManagerEmail)
             .Where(e => !string.IsNullOrWhiteSpace(e))
@@ -122,9 +112,8 @@ public class WeeklyReportService
             AssignmentCount = assignments.Count,
             RangeOptions = Ranges,
             CombinedPreviewText = combinedBody,
-            CombinedMailtoLink = filtered.Count > 0 && combinedRecipients.Length > 0
-                ? BuildMailto(combinedRecipients, combinedSubject, combinedBody)
-                : string.Empty
+            CombinedSubject = combinedSubject,
+            CombinedRecipients = filtered.Count > 0 ? combinedRecipients : string.Empty
         };
     }
 
@@ -270,15 +259,4 @@ public class WeeklyReportService
         return Array.Empty<string>();
     }
 
-    private static string BuildMailto(string to, string subject, string body)
-    {
-        // Drop anything that isn't a plain address — a stored email must not be
-        // able to add extra mailto parameters or recipients.
-        var recipients = DisplayHelpers.SanitizeMailtoRecipients(to);
-        if (recipients.Length == 0) return string.Empty;
-
-        var s = Uri.EscapeDataString(subject);
-        var b = Uri.EscapeDataString(body);
-        return $"mailto:{recipients}?subject={s}&body={b}";
-    }
 }

@@ -7,7 +7,7 @@ public class DashboardViewModel
 {
     public DateOnly Today { get; set; }
 
-    /// <summary>The pressable cards, in display order. Counts respect the active filters.</summary>
+    /// <summary>Cards in display order; counts respect the active filters.</summary>
     public List<DashboardCardViewModel> Cards { get; set; } = new();
 
     /// <summary>Key of the card whose list is open (see <see cref="DashboardCards"/>).</summary>

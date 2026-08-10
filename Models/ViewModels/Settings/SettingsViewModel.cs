@@ -2,10 +2,10 @@ namespace SQPortal.Models.ViewModels.Settings;
 
 public class SettingsViewModel
 {
-    /// <summary>One row per branch: its name, its manager and its SQ owner.</summary>
+    /// <summary>One row per branch: name, manager and SQ owner.</summary>
     public List<BranchRow> Branches { get; set; } = new();
 
-    /// <summary>Rosters, used for the dropdowns as well as their own editors.</summary>
+    /// <summary>Rosters, used for the dropdowns and their editors.</summary>
     public List<PartnerRow> Managers { get; set; } = new();
     public List<PartnerRow> Partners { get; set; } = new();
 }

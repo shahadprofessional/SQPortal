@@ -1,7 +1,7 @@
 -- ============================================================================
 -- SQPortal — migration 003: renumber cases in date order
 -- ============================================================================
--- Run this ONCE if you ran the first version of Scripts/002_add_case_number.sql,
+-- Run this ONCE if the first version of Scripts/002_add_case_number.sql ran,
 -- which numbered existing cases by Id (creation order) instead of by case date.
 -- The symptom: the case IDs look shuffled when the list is sorted by date.
 --

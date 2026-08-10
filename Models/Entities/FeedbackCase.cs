@@ -9,7 +9,7 @@ public class FeedbackCase
     [MaxLength(64)]
     public string Id { get; set; } = string.Empty;
 
-    /// <summary>Human-facing case number: 1, 2, 3, … Assigned on create, never reused.</summary>
+    /// <summary>Human-facing case number, assigned on create and never reused.</summary>
     public int CaseNumber { get; set; }
 
     public DateOnly Date { get; set; }

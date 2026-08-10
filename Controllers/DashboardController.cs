@@ -21,7 +21,7 @@ public class DashboardController : Controller
         return View(vm);
     }
 
-    /// <summary>Exports the list as shown — same card, same filters, every page.</summary>
+    /// <summary>Exports the current card and filters, unpaged.</summary>
     [HttpGet]
     public async Task<IActionResult> ExportCsv([FromQuery] DashboardQuery query)
     {

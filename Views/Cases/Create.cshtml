@@ -143,10 +143,10 @@
         var branchSelect = document.getElementById('branchSelect');
         var partnerBox = document.getElementById('assignedPartner');
         var clearBtn = document.getElementById('clearBtn');
-        @* Json.Serialize escapes HTML-sensitive characters, so the payload cannot break out of this script block. *@
+        @* Json.Serialize escapes HTML-sensitive characters; the payload cannot break out of this script block. *@
         var partners = @Json.Serialize(Model.BranchPartnerMap);
 
-        // Real-time character filtering — strips invalid chars as the user types
+        // Strips characters outside the field's allowed set as they are typed.
         function stripWith(el, allowedRegex) {
             el.addEventListener('input', function () {
                 var clean = el.value.split('').filter(function (ch) { return allowedRegex.test(ch); }).join('');
@@ -162,14 +162,14 @@
         document.querySelectorAll('.js-comment').forEach(function (el) { stripWith(el, /[A-Za-z0-9 ]/); });
         document.querySelectorAll('.js-alnum').forEach(function (el) { stripWith(el, /[A-Za-z0-9]/); });
 
-        // Branch → partner auto-fill
+        // Branch selection auto-fills the assigned partner.
         if (branchSelect) {
             branchSelect.addEventListener('change', function () {
                 partnerBox.value = partners[branchSelect.value] || '';
             });
         }
 
-        // Reset also clears the auto-filled partner
+        // Reset also clears the auto-filled partner.
         if (clearBtn) {
             clearBtn.addEventListener('click', function () {
                 setTimeout(function () {
@@ -178,9 +178,9 @@
             });
         }
 
-        // Submit-time validation — mirrors CaseFormViewModel rules client-side
-        // so all errors land in the same top summary as the server-side path,
-        // in form (DOM) order. Server still validates as defense in depth.
+        // Submit-time validation mirroring the CaseFormViewModel rules, so all
+        // errors land in the same top summary as the server-side path. The
+        // server still validates everything.
         var form = document.getElementById('caseForm');
         var summary = document.getElementById('validationSummary');
         var today = '@today';
@@ -193,7 +193,7 @@
             if (el.hasAttribute('required') && value === '') {
                 return label + ' is required.';
             }
-            if (value === '') return null; // optional + empty = fine
+            if (value === '') return null; // optional fields accept empty
             var min = el.getAttribute('minlength');
             var max = el.getAttribute('maxlength');
             if (min && max && min === max && value.length !== parseInt(min, 10)) {
@@ -214,7 +214,7 @@
             var errors = [];
             summary.innerHTML = '';
             summary.classList.add('validation-summary-valid');
-            // Iterate validated inputs/selects in DOM order
+            // Validated inputs and selects, in DOM order.
             form.querySelectorAll('[data-error-label]').forEach(function (el) {
                 var msg = fieldError(el);
                 if (msg) errors.push(msg);
@@ -238,8 +238,8 @@
                 ul += '<li>' + safe + '</li>';
             });
             ul += '</ul>';
-            // The server-rendered wrapper starts out "valid", which keeps it hidden —
-            // drop that before showing the errors we just found.
+            // The "valid" class keeps the server-rendered wrapper hidden;
+            // remove it before showing errors.
             summary.classList.remove('validation-summary-valid');
             summary.innerHTML = ul;
             summary.scrollIntoView({ behavior: 'smooth', block: 'start' });

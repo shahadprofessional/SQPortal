@@ -1,11 +1,9 @@
 namespace SQPortal.Helpers;
 
 /// <summary>
-/// Field rules written once and used three ways: as the regex in a
-/// [RegularExpression] attribute, as the HTML pattern attribute, and as the
-/// character filter the forms apply while typing. None of them are anchored —
-/// RegularExpressionAttribute and the HTML pattern attribute both match the
-/// whole value already, and the page scripts wrap them in ^(?:…)$ themselves.
+/// Field rules used as [RegularExpression] regexes, HTML pattern attributes,
+/// and the forms' typing filters. Deliberately unanchored: both attribute
+/// validators match the whole value, and the page scripts add ^(?:…)$.
 /// </summary>
 public static class FieldPatterns
 {
@@ -24,7 +22,6 @@ public static class FieldPatterns
     /// <summary>Letters, digits and spaces — for comments and notes.</summary>
     public const string TextOptional = "[A-Za-z0-9 ]*";
 
-    // Messages, kept beside the patterns so the two never drift apart.
     public const string NameMessage = "{0} may only contain letters and spaces.";
     public const string PhoneMessage = "{0} must be exactly 8 digits.";
     public const string AlphanumericMessage = "{0} may only contain letters and numbers.";

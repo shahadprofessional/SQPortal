@@ -4,12 +4,7 @@ using SQPortal.Models.Entities;
 
 namespace SQPortal.Services;
 
-/// <summary>
-/// Keeps the rule "every branch has a branch manager" true in the data, not just
-/// on screen. Settings used to *display* the first manager for a branch with no
-/// assignment row, which read as assigned while the weekly report — reading the
-/// table — found nobody to send to.
-/// </summary>
+/// <summary>Keeps the rule "every branch has a branch manager" true in the data.</summary>
 public class ManagerAssignmentService
 {
     private readonly SQPortalDbContext _db;
@@ -20,9 +15,8 @@ public class ManagerAssignmentService
     }
 
     /// <summary>
-    /// Gives every branch a real assignment row, and repairs rows pointing at a
-    /// manager who no longer exists. No-op when there are no managers yet — there
-    /// is nobody to assign — and idempotent, so it is safe to call on page loads.
+    /// Gives every branch an assignment row and repairs rows pointing at a
+    /// deleted manager. Idempotent; no-op while the manager roster is empty.
     /// </summary>
     /// <returns>How many branches were filled in or repaired.</returns>
     public async Task<int> EnsureEveryBranchHasManagerAsync()

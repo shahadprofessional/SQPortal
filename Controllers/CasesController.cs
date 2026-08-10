@@ -15,36 +15,74 @@ public class CasesController : Controller
     private readonly SQPortalDbContext _db;
     private readonly SlaService _sla;
     private readonly PartnerAssignmentService _partners;
+    private readonly EmailService _email;
+    private readonly ILogger<CasesController> _logger;
 
     public CasesController(
         SQPortalDbContext db,
         SlaService sla,
-        PartnerAssignmentService partners)
+        PartnerAssignmentService partners,
+        EmailService email,
+        ILogger<CasesController> logger)
     {
         _db = db;
         _sla = sla;
         _partners = partners;
+        _email = email;
+        _logger = logger;
     }
 
+    /// <summary>
+    /// Emails the low-rating notification to the case's partner from the
+    /// configured mailbox. EmailSent is set only after a successful send.
+    /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> MarkEmailSent(string id)
+    public async Task<IActionResult> SendPartnerEmail(string id, string? returnUrl = null)
     {
         var entity = await _db.Cases.FirstOrDefaultAsync(c => c.Id == id);
         if (entity == null) return NotFound();
 
-        if (!entity.EmailSent)
+        var partner = await _db.Partners.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Name == entity.BusinessPartner);
+
+        if (partner == null || string.IsNullOrWhiteSpace(partner.Email))
         {
-            entity.EmailSent = true;
-            await _db.SaveChangesAsync();
+            TempData["StatusMessage"] = "No partner email on file for this case.";
+        }
+        else
+        {
+            var (subject, body) = DisplayHelpers.BuildLowRatingEmail(entity, partner.FullName);
+            try
+            {
+                await _email.SendAsync(partner.Email, subject, body);
+                entity.EmailSent = true;
+                await _db.SaveChangesAsync();
+                TempData["StatusMessage"] = $"Notification sent to {partner.Email} from {_email.FromAddress}.";
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Configuration errors carry a user-safe message.
+                TempData["StatusMessage"] = ex.Message;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Sending partner email for case {CaseId} failed", entity.Id);
+                TempData["StatusMessage"] = "The email could not be sent — check the Mail settings in appsettings.json.";
+            }
         }
 
-        return Json(new { id, emailSent = true });
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl);
+        }
+
+        return RedirectToAction("Index", "Dashboard");
     }
 
     /// <summary>
-    /// Single case, read-only. Returns just the panel when called with partial=1
-    /// (the dashboard pulls it into a dialog), otherwise a full page.
+    /// Single case, read-only. partial=1 returns only the panel for the
+    /// dashboard dialog; otherwise a full page.
     /// </summary>
     [HttpGet]
     public async Task<IActionResult> Details(string id, string? returnUrl = null, bool partial = false)
@@ -63,7 +101,6 @@ public class CasesController : Controller
             SlaBreached = _sla.IsBreached(entity.DueDate, entity.FollowUpStatus, today),
             PartnerFullName = partner?.FullName ?? string.Empty,
             PartnerEmail = partner?.Email ?? string.Empty,
-            Mailto = partner == null ? string.Empty : DisplayHelpers.BuildLowRatingMailto(entity, partner.Email, partner.FullName),
             ReturnUrl = !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) ? returnUrl : null,
             RootCauses = entity.RootCauses.ToList()
         };
@@ -223,7 +260,6 @@ public class CasesController : Controller
 
         TempData["StatusMessage"] = "Case deleted.";
 
-        // Deleting from the dashboard list should land back on the same card/page.
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
         {
             return Redirect(returnUrl);
@@ -251,9 +287,8 @@ public class CasesController : Controller
 
     private static string GenerateId()
     {
-        // The unix-ms prefix keeps IDs sorting in creation order (the lists use
-        // Id as a tie-break); the random suffix makes IDs unguessable and
-        // avoids a collision when two cases land in the same millisecond.
+        // Unix-ms prefix keeps IDs in creation order (used as a sort tie-break);
+        // the random suffix prevents guessing and same-millisecond collisions.
         var suffix = Convert.ToHexString(RandomNumberGenerator.GetBytes(4)).ToLowerInvariant();
         return $"{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}-{suffix}";
     }

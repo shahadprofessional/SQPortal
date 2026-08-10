@@ -2,7 +2,7 @@
 -- SQPortal — migration 004: branch managers
 -- ============================================================================
 -- Run this ONCE against an existing SQPortal database (SSMS) before starting
--- the app from this branch. Skip it if you created the database with the
+-- the app from this branch. Not needed on a database created with the
 -- current Scripts/init.sql, which already includes both tables.
 --
 -- Adds the branch side of a case: a roster of branch managers, and one row per

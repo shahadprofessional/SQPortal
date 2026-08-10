@@ -208,7 +208,7 @@
 @section Scripts {
 <script nonce="@Csp.Nonce(Context)">
     (function () {
-        // Same character filtering as the add form — strips as you type.
+        // Strips characters outside the field's allowed set as they are typed.
         function stripWith(el, allowedRegex) {
             el.addEventListener('input', function () {
                 var clean = el.value.split('').filter(function (ch) { return allowedRegex.test(ch); }).join('');
@@ -224,8 +224,8 @@
         document.querySelectorAll('.js-alnum').forEach(function (el) { stripWith(el, /[A-Za-z0-9]/); });
         document.querySelectorAll('.js-comment').forEach(function (el) { stripWith(el, /[A-Za-z0-9 ]/); });
 
-        // Due date and follow-up date hang off the case date: the picker cannot go
-        // earlier. Existing values are left alone — the server reports those.
+        // Due and follow-up date pickers cannot go earlier than the case date;
+        // existing out-of-range values are reported by the server instead.
         var caseDate = document.getElementById('caseDate');
         var dependents = document.querySelectorAll('.js-not-before-date');
         if (caseDate) {

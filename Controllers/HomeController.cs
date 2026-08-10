@@ -7,7 +7,7 @@ public class HomeController : Controller
 {
     public IActionResult Index() => RedirectToAction("Index", "Dashboard");
 
-    /// <summary>Production error page — no stack traces or exception details leave the server.</summary>
+    /// <summary>Production error page; exception details never leave the server.</summary>
     [AllowAnonymous]
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error() => View();

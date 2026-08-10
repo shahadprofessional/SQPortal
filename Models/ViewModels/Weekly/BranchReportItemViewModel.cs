@@ -6,7 +6,7 @@ public class BranchReportItemViewModel
 {
     public string Branch { get; set; } = string.Empty;
 
-    /// <summary>The branch manager — the recipient of this report.</summary>
+    /// <summary>The branch manager, recipient of this report.</summary>
     public string Manager { get; set; } = string.Empty;
     public string ManagerFullName { get; set; } = string.Empty;
     public string ManagerEmail { get; set; } = string.Empty;
@@ -17,7 +17,12 @@ public class BranchReportItemViewModel
     public int StaffFeedbackCount { get; set; }
     public int PoorCaseCount => Cases.Count;
 
-    /// <summary>Empty when the branch has no manager to send to.</summary>
-    public string MailtoLink { get; set; } = string.Empty;
+    /// <summary>The email sent for this branch.</summary>
+    public string EmailSubject { get; set; } = string.Empty;
+    public string EmailBody { get; set; } = string.Empty;
+
+    /// <summary>True when a manager email exists to send to.</summary>
+    public bool CanSend => !string.IsNullOrWhiteSpace(ManagerEmail);
+
     public string PreviewText { get; set; } = string.Empty;
 }

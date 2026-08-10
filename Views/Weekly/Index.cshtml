@@ -39,21 +39,28 @@
         </select>
         @if (Model.TotalPoorCases > 0)
         {
-            if (!string.IsNullOrEmpty(Model.CombinedMailtoLink))
-            {
-                <a class="btn btn-warning" href="@Model.CombinedMailtoLink">
-                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18v12H3zM3 6l9 7 9-7"></path></svg>
-                    Send combined
-                </a>
-            }
-            else
-            {
-                <button class="btn btn-outline-secondary" type="button" disabled
-                        title="No branch in this report has a manager with an email">Send combined</button>
-            }
             <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#combinedPreview">Preview</button>
         }
     </form>
+    @if (Model.TotalPoorCases > 0)
+    {
+        if (!string.IsNullOrEmpty(Model.CombinedRecipients))
+        {
+            <form asp-action="SendCombined" method="post" class="m-0">
+                <input type="hidden" name="range" value="@Model.Range" />
+                <button class="btn btn-warning" type="submit"
+                        data-confirm="Email the combined report to every manager in this report?">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18v12H3zM3 6l9 7 9-7"></path></svg>
+                    Send combined
+                </button>
+            </form>
+        }
+        else
+        {
+            <button class="btn btn-outline-secondary" type="button" disabled
+                    title="No branch in this report has a manager with an email">Send combined</button>
+        }
+    }
 </div>
 <div class="sq-weekly-note">
     Auto-generated from cases rated 1–2★ that are completed and validated · sent to branch managers
@@ -112,9 +119,15 @@ else
                 </div>
                 <div class="d-flex gap-2 align-items-center flex-wrap">
                     <span class="badge-sq badge-sq-gold">@b.PoorCaseCount feedbacks</span>
-                    @if (!string.IsNullOrEmpty(b.MailtoLink))
+                    @if (b.CanSend)
                     {
-                        <a class="btn btn-sm btn-primary" href="@b.MailtoLink">Send report</a>
+                        <form asp-action="SendBranch" method="post" class="m-0">
+                            <input type="hidden" name="range" value="@Model.Range" />
+                            <input type="hidden" name="branch" value="@b.Branch" />
+                            <button class="btn btn-sm btn-primary" type="submit"
+                                    title="Email this report to @b.ManagerEmail"
+                                    data-confirm='Email the "@b.Branch" report to @b.ManagerEmail?'>Send report</button>
+                        </form>
                     }
                     else
                     {

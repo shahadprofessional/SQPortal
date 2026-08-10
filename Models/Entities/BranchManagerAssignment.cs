@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SQPortal.Models.Entities;
 
-/// <summary>Which manager runs a branch. One row per branch, same as the SQ-side assignment.</summary>
+/// <summary>Which manager runs a branch; one row per branch.</summary>
 public class BranchManagerAssignment
 {
     [Key]

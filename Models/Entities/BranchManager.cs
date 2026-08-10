@@ -2,10 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SQPortal.Models.Entities;
 
-/// <summary>
-/// A branch manager — the branch side of a case, as opposed to the SQ side held
-/// by <see cref="BusinessPartner"/>. Same shape: a short key plus contact details.
-/// </summary>
+/// <summary>Branch-side contact for a case; counterpart of <see cref="BusinessPartner"/>.</summary>
 public class BranchManager
 {
     [Key]

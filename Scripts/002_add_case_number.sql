@@ -2,7 +2,7 @@
 -- SQPortal — migration 002: incremental case numbers
 -- ============================================================================
 -- Run this ONCE against an existing SQPortal database (SSMS) before starting
--- the app from this branch. Skip it if you created the database with the
+-- the app from this branch. Not needed on a database created with the
 -- current Scripts/init.sql, which already includes the column.
 --
 -- Adds Cases.CaseNumber (1, 2, 3, …) — the human-facing case ID shown in the
@@ -10,8 +10,8 @@
 -- Existing rows are numbered oldest case date first, ties broken by Id (a
 -- unix-ms timestamp, so Id order is creation order).
 --
--- Already ran an earlier copy of this script that numbered by Id alone? Run
--- Scripts/003_renumber_cases_by_date.sql to put the numbers back in date order.
+-- If an earlier copy of this script numbered cases by Id alone, run
+-- Scripts/003_renumber_cases_by_date.sql to put the numbers in date order.
 --
 -- Re-runnable: YES — both steps are guarded.
 -- ============================================================================

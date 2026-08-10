@@ -1,6 +1,6 @@
 namespace SQPortal.Models.ViewModels.Dashboard;
 
-/// <summary>Keys for the pressable dashboard cards. The key drives which slice of cases the list shows.</summary>
+/// <summary>Keys for the dashboard cards; the key selects which slice of cases the list shows.</summary>
 public static class DashboardCards
 {
     public const string Total = "total";
@@ -16,7 +16,7 @@ public static class DashboardCards
         Total, Pending, Sla, Breached, Completed, Valid, NotValid
     };
 
-    /// <summary>Falls back to <see cref="Total"/> for anything unknown, so a hand-edited URL can't break the page.</summary>
+    /// <summary>Unknown keys fall back to <see cref="Total"/>.</summary>
     public static string Normalize(string? key)
     {
         if (string.IsNullOrWhiteSpace(key)) return Total;

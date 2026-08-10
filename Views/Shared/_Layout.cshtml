@@ -4,8 +4,7 @@
 
     string NavClass(bool active) => active ? "sq-nav-link active" : "sq-nav-link";
 
-    // Cases has no tab of its own any more — its list lives on the dashboard, so
-    // viewing or editing a case keeps the Dashboard tab lit.
+    // Case pages have no tab of their own; they keep the Dashboard tab lit.
     var navDashboard = NavClass(currentController == "Dashboard"
         || (currentController == "Cases" && currentAction != "Create"));
     var navCreate = NavClass(currentController == "Cases" && currentAction == "Create");
