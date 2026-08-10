@@ -1,7 +1,7 @@
 @model CaseFormViewModel
 @{
     ViewData["Title"] = "Add Case";
-    var today = DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd");
+    var today = Model.Today.ToString("yyyy-MM-dd");
 }
 
 <div class="sq-page-head">

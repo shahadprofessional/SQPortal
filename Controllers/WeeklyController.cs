@@ -8,17 +8,23 @@ public class WeeklyController : Controller
     private readonly WeeklyReportService _service;
     private readonly ManagerAssignmentService _managers;
     private readonly EmailService _email;
+    private readonly SlaService _sla;
+    private readonly AuditService _audit;
     private readonly ILogger<WeeklyController> _logger;
 
     public WeeklyController(
         WeeklyReportService service,
         ManagerAssignmentService managers,
         EmailService email,
+        SlaService sla,
+        AuditService audit,
         ILogger<WeeklyController> logger)
     {
         _service = service;
         _managers = managers;
         _email = email;
+        _sla = sla;
+        _audit = audit;
         _logger = logger;
     }
 
@@ -27,7 +33,7 @@ public class WeeklyController : Controller
         // Ensure every branch has a manager assignment before resolving recipients.
         await _managers.EnsureEveryBranchHasManagerAsync();
 
-        var vm = await _service.BuildAsync(range, DateOnly.FromDateTime(DateTime.Today));
+        var vm = await _service.BuildAsync(range, _sla.Today);
         return View(vm);
     }
 
@@ -39,7 +45,7 @@ public class WeeklyController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SendBranch(string? range, string branch)
     {
-        var vm = await _service.BuildAsync(range, DateOnly.FromDateTime(DateTime.Today));
+        var vm = await _service.BuildAsync(range, _sla.Today);
         var item = vm.Branches.FirstOrDefault(b => b.Branch == branch);
 
         if (item == null)
@@ -64,7 +70,7 @@ public class WeeklyController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SendCombined(string? range)
     {
-        var vm = await _service.BuildAsync(range, DateOnly.FromDateTime(DateTime.Today));
+        var vm = await _service.BuildAsync(range, _sla.Today);
 
         if (string.IsNullOrEmpty(vm.CombinedRecipients))
         {
@@ -84,6 +90,7 @@ public class WeeklyController : Controller
         try
         {
             await _email.SendAsync(recipients, subject, body);
+            await _audit.LogAsync("Email sent", $"Weekly report \"{subject}\" to {recipients}");
             TempData["StatusMessage"] = successMessage;
         }
         catch (InvalidOperationException ex)

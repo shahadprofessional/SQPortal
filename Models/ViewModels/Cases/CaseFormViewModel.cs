@@ -51,4 +51,7 @@ public class CaseFormViewModel
     public IEnumerable<string> Partners { get; set; } = Array.Empty<string>();
     public IDictionary<string, string> BranchPartnerMap { get; set; } = new Dictionary<string, string>();
     public string? AssignedPartner { get; set; }
+
+    /// <summary>Today in the business time zone; upper bound for the date picker.</summary>
+    public DateOnly Today { get; set; } = DateOnly.FromDateTime(DateTime.Today);
 }

@@ -12,11 +12,13 @@ public class SettingsController : Controller
 {
     private readonly SQPortalDbContext _db;
     private readonly ManagerAssignmentService _managerAssignments;
+    private readonly AuditService _audit;
 
-    public SettingsController(SQPortalDbContext db, ManagerAssignmentService managerAssignments)
+    public SettingsController(SQPortalDbContext db, ManagerAssignmentService managerAssignments, AuditService audit)
     {
         _db = db;
         _managerAssignments = managerAssignments;
+        _audit = audit;
     }
 
     public async Task<IActionResult> Index()
@@ -91,6 +93,7 @@ public class SettingsController : Controller
             ? string.Empty
             : $" {assigned} branch{(assigned == 1 ? "" : "es")} assigned to them.";
 
+        await _audit.LogAsync("Settings", $"Manager \"{trimmed}\" added");
         TempData["StatusMessage"] = $"Manager \"{trimmed}\" added.{note}";
         return RedirectToAction(nameof(Index));
     }
@@ -127,6 +130,7 @@ public class SettingsController : Controller
         {
             manager.FullName = newFullName;
             manager.Email = newEmail;
+            _audit.Log("Settings", $"Manager \"{oldTrim}\" updated");
             await _db.SaveChangesAsync();
 
             TempData["StatusMessage"] = $"\"{oldTrim}\" updated.";
@@ -160,6 +164,7 @@ public class SettingsController : Controller
         await _db.SaveChangesAsync();
         await tx.CommitAsync();
 
+        await _audit.LogAsync("Settings", $"Manager renamed \"{oldTrim}\" to \"{newTrim}\"");
         TempData["StatusMessage"] =
             $"Renamed \"{oldTrim}\" to \"{newTrim}\" — " +
             $"{assignments.Count} branch{(assignments.Count == 1 ? "" : "es")} now run by them.";
@@ -203,6 +208,7 @@ public class SettingsController : Controller
         }
 
         _db.Managers.Remove(manager);
+        _audit.Log("Settings", $"Manager \"{trim}\" removed");
         await _db.SaveChangesAsync();
 
         var handover = assignments.Count == 0
@@ -249,6 +255,7 @@ public class SettingsController : Controller
             FullName = newFullName,
             Email = newEmail
         });
+        _audit.Log("Settings", $"Staff member \"{trimmed}\" added");
         await _db.SaveChangesAsync();
 
         TempData["StatusMessage"] = $"Staff member \"{trimmed}\" added.";
@@ -287,6 +294,7 @@ public class SettingsController : Controller
         {
             partner.FullName = newFullName;
             partner.Email = newEmail;
+            _audit.Log("Settings", $"Staff member \"{oldTrim}\" updated");
             await _db.SaveChangesAsync();
 
             TempData["StatusMessage"] = $"\"{oldTrim}\" updated.";
@@ -326,6 +334,7 @@ public class SettingsController : Controller
             ? string.Empty
             : $" {keptCases} past case{(keptCases == 1 ? "" : "s")} stay with \"{oldTrim}\".";
 
+        await _audit.LogAsync("Settings", $"Staff member renamed \"{oldTrim}\" to \"{newTrim}\"");
         TempData["StatusMessage"] =
             $"Renamed \"{oldTrim}\" to \"{newTrim}\" — " +
             $"{assignments.Count} branch{(assignments.Count == 1 ? "" : "es")} now assigned to them.{kept}";
@@ -356,6 +365,7 @@ public class SettingsController : Controller
         var assignments = await _db.BranchAssignments.Where(a => a.AssignedPartner == trim).ToListAsync();
         _db.BranchAssignments.RemoveRange(assignments);
         _db.Partners.Remove(partner);
+        _audit.Log("Settings", $"Staff member \"{trim}\" removed");
         await _db.SaveChangesAsync();
 
         var freed = assignments.Count == 0
@@ -399,6 +409,7 @@ public class SettingsController : Controller
 
         await SetManagerAssignmentAsync(trimmed, await ResolveManagerAsync(manager));
         await SetPartnerAssignmentAsync(trimmed, await ResolvePartnerAsync(partner));
+        _audit.Log("Settings", $"Branch \"{trimmed}\" added");
         await _db.SaveChangesAsync();
         TempData["StatusMessage"] = $"Branch \"{trimmed}\" added.";
         return RedirectToAction(nameof(Index));
@@ -453,9 +464,11 @@ public class SettingsController : Controller
             _db.Branches.Add(new Branch { Name = newTrim });
             await _db.SaveChangesAsync();
 
-            var cases = await _db.Cases.Where(c => c.Branch == oldTrim).ToListAsync();
+            // Soft-deleted cases follow the rename too, so a later recovery
+            // does not resurface a branch name that no longer exists.
+            var cases = await _db.Cases.IgnoreQueryFilters().Where(c => c.Branch == oldTrim).ToListAsync();
             foreach (var c in cases) c.Branch = newTrim;
-            caseCount = cases.Count;
+            caseCount = cases.Count(c => !c.IsDeleted);
 
             var oldPartnerRow = await _db.BranchAssignments.FirstOrDefaultAsync(a => a.BranchName == oldTrim);
             if (oldPartnerRow != null) _db.BranchAssignments.Remove(oldPartnerRow);
@@ -468,6 +481,7 @@ public class SettingsController : Controller
 
         await SetManagerAssignmentAsync(newTrim, chosenManager);
         await SetPartnerAssignmentAsync(newTrim, chosenPartner);
+        _audit.Log("Settings", renaming ? $"Branch renamed \"{oldTrim}\" to \"{newTrim}\"" : $"Branch \"{newTrim}\" saved");
         await _db.SaveChangesAsync();
         await tx.CommitAsync();
 
@@ -509,6 +523,7 @@ public class SettingsController : Controller
         if (managerAssignment != null) _db.ManagerAssignments.Remove(managerAssignment);
 
         _db.Branches.Remove(branch);
+        _audit.Log("Settings", $"Branch \"{trim}\" deleted");
         await _db.SaveChangesAsync();
 
         TempData["StatusMessage"] = $"Branch \"{trim}\" deleted.";
