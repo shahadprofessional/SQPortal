@@ -25,3 +25,7 @@ Thumbs.db
 
 ## Logs
 *.log
+Logs/
+
+## Data-protection keys (generated at runtime, machine-specific)
+keys/

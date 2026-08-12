@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,43 @@ using SQPortal.Helpers;
 using SQPortal.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// On a server there is no console to read; everything also lands in
+// Logs/sqportal-<date>.log so failures stay diagnosable.
+if (builder.Configuration.GetValue("Logging:File:Enabled", true))
+{
+    var logFolder = builder.Configuration["Logging:File:Folder"];
+    if (string.IsNullOrWhiteSpace(logFolder))
+    {
+        logFolder = "Logs";
+    }
+    if (!Path.IsPathRooted(logFolder))
+    {
+        logFolder = Path.Combine(builder.Environment.ContentRootPath, logFolder);
+    }
+    var fileLogLevel = Enum.TryParse<LogLevel>(builder.Configuration["Logging:File:MinimumLevel"], true, out var parsedLevel)
+        ? parsedLevel
+        : LogLevel.Information;
+    builder.Logging.AddProvider(new FileLoggerProvider(logFolder, fileLogLevel));
+}
+
+// Cookies and antiforgery tokens are encrypted with data-protection keys.
+// Persisting the keys to a fixed folder keeps every session and open form
+// valid across app restarts, recycles and deployments.
+var keysFolder = builder.Configuration["Security:DataProtectionKeysFolder"];
+if (string.IsNullOrWhiteSpace(keysFolder))
+{
+    keysFolder = Path.Combine(builder.Environment.ContentRootPath, "keys");
+}
+Directory.CreateDirectory(keysFolder);
+var dataProtection = builder.Services.AddDataProtection()
+    .SetApplicationName("SQPortal")
+    .PersistKeysToFileSystem(new DirectoryInfo(keysFolder));
+if (OperatingSystem.IsWindows())
+{
+    // Encrypts the key files at rest under the service account's identity.
+    dataProtection.ProtectKeysWithDpapi();
+}
 
 builder.Services.AddControllersWithViews(options =>
 {
@@ -21,9 +59,12 @@ builder.Services.AddControllersWithViews(options =>
 builder.Services.AddDbContext<SQPortalDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Secure-only cookies outside Development; the dev "http" launch profile has
-// no TLS port.
-var cookieSecurePolicy = builder.Environment.IsDevelopment()
+// Secure-only cookies outside Development. Security:RequireHttps=false is the
+// deliberate opt-out for plain-http intranet hosting with no certificate —
+// without it the browser would never send the auth cookie over http and
+// sign-in would silently loop.
+var requireHttps = builder.Configuration.GetValue("Security:RequireHttps", true);
+var cookieSecurePolicy = builder.Environment.IsDevelopment() || !requireHttps
     ? CookieSecurePolicy.SameAsRequest
     : CookieSecurePolicy.Always;
 
@@ -177,7 +218,12 @@ using (var scope = app.Services.CreateScope())
 
     if (schemaCurrent)
     {
-        db.SeedLookups();
+        // The demo rosters are development-only; UAT/production start empty
+        // and real branches/staff are entered in Settings.
+        if (app.Environment.IsDevelopment())
+        {
+            db.SeedLookups();
+        }
         db.BackfillCaseNumbers();
     }
     else
@@ -192,10 +238,17 @@ using (var scope = app.Services.CreateScope())
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    app.UseHsts();
+    if (requireHttps)
+    {
+        app.UseHsts();
+    }
 }
 
-app.UseHttpsRedirection();
+// Meaningless without an https binding; skipped when RequireHttps is off.
+if (requireHttps)
+{
+    app.UseHttpsRedirection();
+}
 
 // Security headers plus the per-request CSP nonce used by inline page scripts.
 app.Use(async (context, next) =>
