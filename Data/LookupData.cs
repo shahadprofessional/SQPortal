@@ -4,6 +4,10 @@ namespace SQPortal.Data;
 
 public static class LookupData
 {
+    // Branches, Partners and DefaultAssignments are development sample data,
+    // seeded only when the environment is Development. UAT/production start
+    // empty; real branches and staff are entered in Settings.
+    // RootCauses is real configuration used by the app in every environment.
     public static readonly IReadOnlyList<string> Branches = new[]
     {
         "Northgate", "Eastfield", "Westbridge", "Southport", "Central Plaza",
