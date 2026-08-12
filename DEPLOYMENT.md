@@ -40,7 +40,10 @@ environment.
       the service account needs write access; losing it signs everyone out.
 - [ ] `Logging:File:Folder` — where daily log files go (`Logs` under the app
       by default); service account needs write access. Check this folder first
-      when anything misbehaves.
+      when anything misbehaves. `Logging:File:RetainDays` (default 90) controls
+      how long files are kept before the app deletes them; raise it if an audit
+      policy requires longer, or set 0 to keep everything and manage the folder
+      externally.
 
 ## 4. Sign-in
 

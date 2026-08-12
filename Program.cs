@@ -28,7 +28,8 @@ if (builder.Configuration.GetValue("Logging:File:Enabled", true))
     var fileLogLevel = Enum.TryParse<LogLevel>(builder.Configuration["Logging:File:MinimumLevel"], true, out var parsedLevel)
         ? parsedLevel
         : LogLevel.Information;
-    builder.Logging.AddProvider(new FileLoggerProvider(logFolder, fileLogLevel));
+    var retainDays = builder.Configuration.GetValue("Logging:File:RetainDays", 90);
+    builder.Logging.AddProvider(new FileLoggerProvider(logFolder, fileLogLevel, retainDays));
 }
 
 // Cookies and antiforgery tokens are encrypted with data-protection keys.
