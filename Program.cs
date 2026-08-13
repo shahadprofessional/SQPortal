@@ -199,7 +199,7 @@ builder.Services.AddScoped<WeeklyReportService>();
 
 var app = builder.Build();
 
-// Schema is created manually via Scripts/init.sql; SeedLookups() only inserts
+// Schema is created manually via Scripts/database.sql; SeedLookups() only inserts
 // default rows into empty lookup tables. The SchemaVersions check catches a
 // database that has not had the latest script applied.
 const string requiredSchemaVersion = "006";
@@ -230,8 +230,8 @@ using (var scope = app.Services.CreateScope())
     else
     {
         app.Logger.LogCritical(
-            "Database schema is not at version {Version}. Run Scripts/init.sql on a new database, " +
-            "or Scripts/upgrade.sql on an existing one. See Scripts/README.md.",
+            "Database schema is not at version {Version}. Run Scripts/database.sql — Part 1 on a " +
+            "new database or Part 2 on an existing one, then Part 3. Instructions are in its header.",
             requiredSchemaVersion);
     }
 }

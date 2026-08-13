@@ -8,8 +8,9 @@ environment.
 ## 1. Database
 
 - [ ] Create an empty `SQPortal` database on the internal SQL Server.
-- [ ] Run `Scripts/init.sql` against it (new database), or `Scripts/upgrade.sql`
-      for a database created from an earlier schema. See `Scripts/README.md`.
+- [ ] Run `Scripts/database.sql` against it: Part 1 for a new empty database,
+      Part 2 for a database created from an earlier schema, then Part 3 in both
+      cases. Full instructions are in the file's header.
 - [ ] Set the real connection string in the environment's configuration
       (`ConnectionStrings:DefaultConnection`) — the checked-in value points at
       LocalDB and is for development only. The app's service account needs
