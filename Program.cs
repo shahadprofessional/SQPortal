@@ -1,10 +1,10 @@
+using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using SQPortal.Data;
 using SQPortal.Helpers;
@@ -92,11 +92,9 @@ var cookieSecurePolicy = builder.Environment.IsDevelopment() || !requireHttps
 //      reference in SQPortal.csproj (same marker) and restore.
 //   2. Uncomment this whole block, and move the using directive to the top of
 //      this file.
-//   3. Delete everything between the "test-only" markers below (the cookie
-//      sign-in), plus Controllers/AccountController.cs,
-//      Views/Account/Login.cshtml, Data/TestUsers.cs and the sign-out form in
-//      Views/Shared/_Layout.cshtml — Windows SSO has no login page and no
-//      sign-out.
+//   3. Delete both "test-only" blocks below — the cookie sign-in registration
+//      and the auto sign-in middleware — plus Data/TestUsers.cs. Windows SSO
+//      authenticates the domain account instead.
 //   4. Set Auth:AllowedAdGroup in appsettings.json to the AD group whose
 //      members may use the portal, e.g. "CONTOSO\\SQ Portal Users".
 // Domain-joined browsers then sign in automatically via Kerberos/NTLM, and
@@ -128,34 +126,18 @@ var cookieSecurePolicy = builder.Environment.IsDevelopment() || !requireHttps
 /////////end of AD code\\\\\\\\\\
 
 ///////// test-only: delete this block when AD is linked \\\\\\\\\\
-// Test-environment sign-in: cookie auth backed by the roster in Data/TestUsers.cs.
+// Test-environment sign-in: no login page and no password. The middleware
+// further down signs every request in as Data/TestUsers.cs's single identity;
+// this cookie only carries it between requests.
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.LoginPath = "/Account/Login";
-        options.AccessDeniedPath = "/Account/Login";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
         options.Cookie.Name = "SQPortal.Auth";
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
         options.Cookie.SecurePolicy = cookieSecurePolicy;
-        options.Events = new CookieAuthenticationEvents
-        {
-            // XHR callers get a 401 instead of the login page's HTML.
-            OnRedirectToLogin = context =>
-            {
-                if (context.Request.Headers["X-Requested-With"] == "XMLHttpRequest")
-                {
-                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                }
-                else
-                {
-                    context.Response.Redirect(context.RedirectUri);
-                }
-                return Task.CompletedTask;
-            }
-        };
     });
 
 builder.Services.AddAuthorization(options =>
@@ -173,21 +155,6 @@ builder.Services.AddAntiforgery(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Strict;
     options.Cookie.SecurePolicy = cookieSecurePolicy;
-});
-
-// Per-address throttle on sign-in attempts.
-builder.Services.AddRateLimiter(options =>
-{
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddPolicy("login", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 5,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0
-            }));
 });
 
 builder.Services.AddHsts(options =>
@@ -306,8 +273,36 @@ app.Use(async (context, next) =>
 
 app.UseStaticFiles();
 app.UseRouting();
-app.UseRateLimiter();
 app.UseAuthentication();
+
+///////// test-only: delete this block when AD is linked \\\\\\\\\\
+// No login page: any request without a session is signed in as the single
+// test identity, so the portal opens straight onto the dashboard. Windows SSO
+// replaces this by authenticating the domain account instead.
+app.Use(async (context, next) =>
+{
+    if (context.User?.Identity?.IsAuthenticated != true)
+    {
+        var identity = new ClaimsIdentity(
+            new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, TestUser.Username),
+                new Claim(ClaimTypes.Name, TestUser.DisplayName)
+            },
+            CookieAuthenticationDefaults.AuthenticationScheme);
+
+        var principal = new ClaimsPrincipal(identity);
+        await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
+        // Also applied to the request in flight, so this first visit is
+        // authorized without a redirect.
+        context.User = principal;
+    }
+
+    await next();
+});
+///////// end test-only \\\\\\\\\\
+
 app.UseAuthorization();
 
 app.MapControllerRoute(

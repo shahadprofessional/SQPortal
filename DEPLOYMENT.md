@@ -48,8 +48,10 @@ environment.
 
 ## 4. Sign-in
 
-- [ ] UAT may run the built-in test sign-in (passwordless — anyone who can
-      reach the URL can enter; acceptable only on a restricted network).
+- [ ] UAT runs without sign-in: there is no login page, and every visitor is
+      admitted as the single test identity in `Data/TestUsers.cs`. Anyone who
+      can reach the URL has full access, so this is acceptable only on a
+      restricted network.
 - [ ] Before production: link Active Directory. Follow the markers
       `/////////remove when you want to link AD\\\\\\\\\\` in `Program.cs` and
       `SQPortal.csproj`, set `Auth:AllowedAdGroup`, and delete the test-only
@@ -57,10 +59,6 @@ environment.
 
 ## 5. Hosting
 
-- Sign-in attempts are rate limited to 5 per minute per client address. Behind a
-  reverse proxy or load balancer every request carries the proxy's address, so
-  the whole site would share one budget — configure forwarded headers on the
-  proxy, or raise the limit in `Program.cs`, if one is introduced.
 
 - IIS: dedicated app pool ("No Managed Code"), app-pool identity granted write
   access to the keys and Logs folders; note the default app-pool recycle

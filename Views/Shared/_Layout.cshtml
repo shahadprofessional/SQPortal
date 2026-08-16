@@ -69,10 +69,7 @@
                 <div class="sq-user" title="Signed in as @userName">
                     <div>
                         <div class="sq-user-name">@userName</div>
-                        @* ///////// test-only: remove this sign-out form when AD is linked — Windows SSO has no sign-out \\\\\\\\\\ *@
-                        <form asp-controller="Account" asp-action="Logout" method="post" class="m-0">
-                            <button type="submit" class="btn btn-link btn-sm p-0 border-0 sq-user-sub">Sign out</button>
-                        </form>
+                        <div class="sq-user-sub">Signed in</div>
                     </div>
                     <span class="sq-avatar">@initials</span>
                 </div>
