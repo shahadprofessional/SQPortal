@@ -12,9 +12,9 @@
 --                              any database created from an earlier version of
 --                              this script. Back up the database first.
 --
--- Each part is separated by a clearly marked banner below. Highlight the part
--- you need and press Execute, or run the whole file on a NEW database (Part 2
--- is written to be harmless immediately after Part 1).
+-- Each part is separated by a clearly marked banner below. Highlight the
+-- required part and execute it, or run the whole file on a NEW database
+-- (Part 2 is written to be harmless immediately after Part 1).
 --
 -- AFTER RUNNING
 --   Start the app. It verifies the version recorded in dbo.SchemaVersions and
