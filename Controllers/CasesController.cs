@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using SQPortal.Data;
 using SQPortal.Helpers;
@@ -172,20 +173,34 @@ public class CasesController : Controller
         };
 
         // A concurrent create can claim the same MAX+1 number; the unique index
-        // rejects the duplicate and the retry reads a fresh number.
-        for (var attempt = 0; ; attempt++)
+        // rejects the duplicate and the retry reads a fresh number. Only that
+        // collision is retried — any other failure surfaces immediately.
+        const int maxAttempts = 3;
+        var saved = false;
+
+        for (var attempt = 1; attempt <= maxAttempts && !saved; attempt++)
         {
             entity.CaseNumber = _db.NextCaseNumber();
             try
             {
                 _db.Cases.Add(entity);
                 await _db.SaveChangesAsync();
-                break;
+                saved = true;
             }
-            catch (DbUpdateException) when (attempt < 2)
+            catch (DbUpdateException ex) when (IsDuplicateKey(ex))
             {
                 _db.Entry(entity).State = EntityState.Detached;
+                _logger.LogWarning(ex, "Case number {CaseNumber} was taken; retrying (attempt {Attempt})",
+                    entity.CaseNumber, attempt);
             }
+        }
+
+        if (!saved)
+        {
+            ModelState.AddModelError(string.Empty,
+                "The case could not be saved because another case was created at the same moment. Please try again.");
+            vm.AssignedPartner = partner;
+            return View(vm);
         }
 
         await _audit.LogAsync("Case created", $"Case #{entity.CaseNumber} for {entity.CustomerName} at {entity.Branch}", entity.Id);
@@ -373,6 +388,22 @@ public class CasesController : Controller
         var branches = await _db.Branches.AsNoTracking().OrderBy(b => b.Name).Select(b => b.Name).ToListAsync();
         var partners = await _db.Partners.AsNoTracking().OrderBy(p => p.Name).Select(p => p.Name).ToListAsync();
         return (branches, partners);
+    }
+
+    /// <summary>
+    /// True for a unique-index violation (SQL Server errors 2601 and 2627),
+    /// which here means the case number was taken between reading and saving.
+    /// </summary>
+    private static bool IsDuplicateKey(DbUpdateException ex)
+    {
+        for (Exception? inner = ex.InnerException; inner != null; inner = inner.InnerException)
+        {
+            if (inner is SqlException sql && (sql.Number == 2601 || sql.Number == 2627))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static string GenerateId()

@@ -329,7 +329,7 @@ public class SettingsController : Controller
         await _db.SaveChangesAsync();
         await tx.CommitAsync();
 
-        var keptCases = await _db.Cases.CountAsync(c => c.BusinessPartner == oldTrim);
+        var keptCases = await _db.Cases.IgnoreQueryFilters().CountAsync(c => c.BusinessPartner == oldTrim);
         var kept = keptCases == 0
             ? string.Empty
             : $" {keptCases} past case{(keptCases == 1 ? "" : "s")} stay with \"{oldTrim}\".";
@@ -360,7 +360,7 @@ public class SettingsController : Controller
         }
 
         // Past cases keep the handler's name; the branches become unassigned.
-        var caseCount = await _db.Cases.CountAsync(c => c.BusinessPartner == trim);
+        var caseCount = await _db.Cases.IgnoreQueryFilters().CountAsync(c => c.BusinessPartner == trim);
 
         var assignments = await _db.BranchAssignments.Where(a => a.AssignedPartner == trim).ToListAsync();
         _db.BranchAssignments.RemoveRange(assignments);
@@ -502,10 +502,16 @@ public class SettingsController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        var caseCount = await _db.Cases.CountAsync(c => c.Branch == trim);
-        if (caseCount > 0)
+        // Soft-deleted cases still name the branch and can be restored, so they
+        // count as references even though they are hidden everywhere else.
+        var liveCount = await _db.Cases.CountAsync(c => c.Branch == trim);
+        var totalCount = await _db.Cases.IgnoreQueryFilters().CountAsync(c => c.Branch == trim);
+
+        if (totalCount > 0)
         {
-            TempData["StatusMessage"] = $"Cannot delete \"{trim}\": {caseCount} case{(caseCount == 1 ? "" : "s")} reference it. Reassign or delete those cases first.";
+            TempData["StatusMessage"] = liveCount > 0
+                ? $"Cannot delete \"{trim}\": {liveCount} case{(liveCount == 1 ? "" : "s")} reference it. Reassign or delete those cases first."
+                : $"Cannot delete \"{trim}\": {totalCount} deleted case{(totalCount == 1 ? "" : "s")} still reference it.";
             return RedirectToAction(nameof(Index));
         }
 

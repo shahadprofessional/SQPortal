@@ -57,6 +57,11 @@ environment.
 
 ## 5. Hosting
 
+- Sign-in attempts are rate limited to 5 per minute per client address. Behind a
+  reverse proxy or load balancer every request carries the proxy's address, so
+  the whole site would share one budget — configure forwarded headers on the
+  proxy, or raise the limit in `Program.cs`, if one is introduced.
+
 - IIS: dedicated app pool ("No Managed Code"), app-pool identity granted write
   access to the keys and Logs folders; note the default app-pool recycle
   schedule is fine once keys are persisted.

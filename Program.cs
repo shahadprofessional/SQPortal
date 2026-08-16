@@ -40,14 +40,31 @@ if (string.IsNullOrWhiteSpace(keysFolder))
 {
     keysFolder = Path.Combine(builder.Environment.ContentRootPath, "keys");
 }
-Directory.CreateDirectory(keysFolder);
-var dataProtection = builder.Services.AddDataProtection()
-    .SetApplicationName("SQPortal")
-    .PersistKeysToFileSystem(new DirectoryInfo(keysFolder));
-if (OperatingSystem.IsWindows())
+
+// An unusable folder must not stop the app from starting: it falls back to the
+// framework default, which costs sessions on restart rather than all service.
+var keysFolderReady = true;
+string? keysFolderError = null;
+try
 {
-    // Encrypts the key files at rest under the service account's identity.
-    dataProtection.ProtectKeysWithDpapi();
+    Directory.CreateDirectory(keysFolder);
+}
+catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+{
+    keysFolderReady = false;
+    keysFolderError = ex.Message;
+}
+
+var dataProtection = builder.Services.AddDataProtection()
+    .SetApplicationName("SQPortal");
+if (keysFolderReady)
+{
+    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keysFolder));
+    if (OperatingSystem.IsWindows())
+    {
+        // Encrypts the key files at rest under the service account's identity.
+        dataProtection.ProtectKeysWithDpapi();
+    }
 }
 
 builder.Services.AddControllersWithViews(options =>
@@ -198,6 +215,15 @@ builder.Services.AddScoped<AnalyticsService>();
 builder.Services.AddScoped<WeeklyReportService>();
 
 var app = builder.Build();
+
+if (!keysFolderReady)
+{
+    app.Logger.LogCritical(
+        "Data-protection keys folder \"{Folder}\" is not usable ({Error}). Sessions and open forms " +
+        "will be invalidated whenever the app restarts. Grant the service account write access, or " +
+        "set Security:DataProtectionKeysFolder to a writable path.",
+        keysFolder, keysFolderError);
+}
 
 // Schema is created manually via Scripts/database.sql; SeedLookups() only inserts
 // default rows into empty lookup tables. The SchemaVersions check catches a
