@@ -1,4 +1,8 @@
 
+IF DB_ID('SQPortal') IS NULL
+    CREATE DATABASE SQPortal;
+GO
+
 USE [SQPortal];
 GO
 
