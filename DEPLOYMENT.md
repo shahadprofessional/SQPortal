@@ -63,6 +63,15 @@ environment.
 
 ## 5. Hosting
 
+Where the site's address comes from, by environment. `Properties/launchSettings.json`
+is a developer-machine file: it is never published and has no effect on a server.
+
+- IIS: the site bindings in IIS Manager decide the address and port; the app
+  does not open a port itself.
+- Windows service / Kestrel: set `ASPNETCORE_URLS` (for example
+  `http://+:8085`), or add a `Kestrel:Endpoints` section to that environment's
+  `appsettings.json`. Endpoints in configuration win over `ASPNETCORE_URLS`.
+
 
 - IIS: dedicated app pool ("No Managed Code"), app-pool identity granted write
   access to the keys and Logs folders; note the default app-pool recycle
