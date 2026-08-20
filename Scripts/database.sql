@@ -24,12 +24,18 @@ CREATE TABLE dbo.Branches
 );
 GO
 
+-- Branch managers are a copy of Active Directory: the sync writes these rows,
+-- the portal never edits them. Nobody is deleted when they stop managing —
+-- IsActive goes to 0 — so past assignments still resolve to a name and address.
 IF OBJECT_ID('dbo.Managers', 'U') IS NULL
 CREATE TABLE dbo.Managers
 (
-    Name      NVARCHAR(40)  NOT NULL,
-    FullName  NVARCHAR(200) NOT NULL,
-    Email     NVARCHAR(200) NOT NULL,
+    Name               NVARCHAR(40)  NOT NULL,
+    UserPrincipalName  NVARCHAR(200) NOT NULL CONSTRAINT DF_Managers_UserPrincipalName DEFAULT (''),
+    FullName           NVARCHAR(200) NOT NULL,
+    Email              NVARCHAR(200) NOT NULL,
+    IsActive           BIT           NOT NULL CONSTRAINT DF_Managers_IsActive DEFAULT (1),
+    LastSyncedUtc      DATETIME2     NULL,
     CONSTRAINT PK_Managers PRIMARY KEY (Name)
 );
 GO
@@ -43,13 +49,24 @@ CREATE TABLE dbo.BranchAssignments
 );
 GO
 
+-- One row per manager per spell running a branch. A move closes the old row
+-- (EffectiveTo = the day before) and opens a new one, so who ran a branch on
+-- any past date stays answerable.
 IF OBJECT_ID('dbo.ManagerAssignments', 'U') IS NULL
 CREATE TABLE dbo.ManagerAssignments
 (
     BranchName       NVARCHAR(100) NOT NULL,
     AssignedManager  NVARCHAR(40)  NOT NULL,
-    CONSTRAINT PK_ManagerAssignments PRIMARY KEY (BranchName)
+    EffectiveFrom    DATE          NOT NULL CONSTRAINT DF_ManagerAssignments_EffectiveFrom DEFAULT ('19000101'),
+    EffectiveTo      DATE          NULL,
+    CONSTRAINT PK_ManagerAssignments PRIMARY KEY (BranchName, AssignedManager, EffectiveFrom)
 );
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ManagerAssignments_BranchName_EffectiveFrom'
+               AND object_id = OBJECT_ID('dbo.ManagerAssignments'))
+CREATE INDEX IX_ManagerAssignments_BranchName_EffectiveFrom
+    ON dbo.ManagerAssignments (BranchName, EffectiveFrom);
 GO
 
 
@@ -175,6 +192,75 @@ BEGIN
 END
 GO
 
+    /* ---- schema 007: branch managers come from Active Directory ---- */
+
+    /* Identity fields the sync copies from AD. */
+IF COL_LENGTH('dbo.Managers', 'UserPrincipalName') IS NULL
+BEGIN
+    ALTER TABLE dbo.Managers
+        ADD UserPrincipalName NVARCHAR(200) NOT NULL
+            CONSTRAINT DF_Managers_UserPrincipalName DEFAULT ('');
+END
+GO
+
+IF COL_LENGTH('dbo.Managers', 'IsActive') IS NULL
+BEGIN
+    ALTER TABLE dbo.Managers
+        ADD IsActive BIT NOT NULL CONSTRAINT DF_Managers_IsActive DEFAULT (1);
+END
+GO
+
+IF COL_LENGTH('dbo.Managers', 'LastSyncedUtc') IS NULL
+BEGIN
+    ALTER TABLE dbo.Managers ADD LastSyncedUtc DATETIME2 NULL;
+END
+GO
+
+    /*
+      Assignments become dated. Rows that already exist are stamped
+      1900-01-01, i.e. "has always been true": every report on a past period
+      keeps naming the manager it named before this upgrade. From here on a
+      manager's move closes their old branch's row and opens the new one.
+    */
+IF COL_LENGTH('dbo.ManagerAssignments', 'EffectiveFrom') IS NULL
+BEGIN
+    ALTER TABLE dbo.ManagerAssignments
+        ADD EffectiveFrom DATE NOT NULL
+                CONSTRAINT DF_ManagerAssignments_EffectiveFrom DEFAULT ('19000101'),
+            EffectiveTo   DATE NULL;
+END
+GO
+
+    /* The key becomes (branch, manager, start date) so a branch can hold history. */
+IF NOT EXISTS (SELECT 1
+               FROM sys.indexes i
+               JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+               JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+               WHERE i.object_id = OBJECT_ID('dbo.ManagerAssignments')
+                 AND i.is_primary_key = 1
+                 AND c.name = 'EffectiveFrom')
+BEGIN
+    IF EXISTS (SELECT 1 FROM sys.key_constraints
+               WHERE name = 'PK_ManagerAssignments'
+                 AND parent_object_id = OBJECT_ID('dbo.ManagerAssignments'))
+    BEGIN
+        ALTER TABLE dbo.ManagerAssignments DROP CONSTRAINT PK_ManagerAssignments;
+    END
+
+    ALTER TABLE dbo.ManagerAssignments
+        ADD CONSTRAINT PK_ManagerAssignments
+            PRIMARY KEY (BranchName, AssignedManager, EffectiveFrom);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ManagerAssignments_BranchName_EffectiveFrom'
+               AND object_id = OBJECT_ID('dbo.ManagerAssignments'))
+BEGIN
+    CREATE INDEX IX_ManagerAssignments_BranchName_EffectiveFrom
+        ON dbo.ManagerAssignments (BranchName, EffectiveFrom);
+END
+GO
+
 IF COL_LENGTH('dbo.Cases', 'IsDeleted') IS NULL
 BEGIN
     ALTER TABLE dbo.Cases ADD IsDeleted BIT NOT NULL CONSTRAINT DF_Cases_IsDeleted DEFAULT (0);
@@ -277,6 +363,23 @@ ELSE
 BEGIN
     PRINT '!! Schema version NOT recorded — a step above did not complete.';
     PRINT '!! Read the messages printed by Part 2 and re-run it.';
+END
+GO
+
+    /* 007 lands only once the AD-linked manager columns are really there. */
+IF COL_LENGTH('dbo.ManagerAssignments', 'EffectiveFrom') IS NOT NULL
+   AND COL_LENGTH('dbo.Managers', 'UserPrincipalName') IS NOT NULL
+   AND COL_LENGTH('dbo.Managers', 'IsActive') IS NOT NULL
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM dbo.SchemaVersions WHERE Version = '007')
+        INSERT INTO dbo.SchemaVersions (Version) VALUES ('007');
+
+    PRINT 'SQPortal database is at schema version 007.';
+END
+ELSE
+BEGIN
+    PRINT '!! Schema version 007 NOT recorded — the branch-manager columns are missing.';
+    PRINT '!! Re-run Part 2; the app logs a critical line and refuses to seed until this is done.';
 END
 GO
 

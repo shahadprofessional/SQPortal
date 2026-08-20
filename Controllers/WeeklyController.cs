@@ -6,7 +6,6 @@ namespace SQPortal.Controllers;
 public class WeeklyController : Controller
 {
     private readonly WeeklyReportService _service;
-    private readonly ManagerAssignmentService _managers;
     private readonly EmailService _email;
     private readonly SlaService _sla;
     private readonly AuditService _audit;
@@ -14,14 +13,12 @@ public class WeeklyController : Controller
 
     public WeeklyController(
         WeeklyReportService service,
-        ManagerAssignmentService managers,
         EmailService email,
         SlaService sla,
         AuditService audit,
         ILogger<WeeklyController> logger)
     {
         _service = service;
-        _managers = managers;
         _email = email;
         _sla = sla;
         _audit = audit;
@@ -30,9 +27,9 @@ public class WeeklyController : Controller
 
     public async Task<IActionResult> Index(string? range)
     {
-        // Ensure every branch has a manager assignment before resolving recipients.
-        await _managers.EnsureEveryBranchHasManagerAsync();
-
+        // Recipients come from the AD-sourced assignments as they stood over
+        // the reported period; a branch AD names nobody for simply has no
+        // recipient here.
         var vm = await _service.BuildAsync(range, _sla.Today);
         return View(vm);
     }
@@ -54,7 +51,9 @@ public class WeeklyController : Controller
         }
         else if (!item.CanSend)
         {
-            TempData["StatusMessage"] = $"\"{item.Branch}\" has no manager email on file — add one in Settings.";
+            TempData["StatusMessage"] = item.HasManager
+                ? $"Active Directory has no email address for {item.ManagerNames}, so \"{item.Branch}\" cannot be sent to."
+                : $"Active Directory names no branch manager for \"{item.Branch}\".";
         }
         else
         {
@@ -74,7 +73,7 @@ public class WeeklyController : Controller
 
         if (string.IsNullOrEmpty(vm.CombinedRecipients))
         {
-            TempData["StatusMessage"] = "Nothing to send — no cases in this period, or no manager has an email on file.";
+            TempData["StatusMessage"] = "Nothing to send — no cases in this period, or Active Directory has no email for any of these branches' managers.";
         }
         else
         {

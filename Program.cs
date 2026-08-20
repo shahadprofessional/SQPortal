@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using SQPortal.Data;
 using SQPortal.Helpers;
 using SQPortal.Services;
+using SQPortal.Services.Ad;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -170,6 +171,26 @@ builder.Services.AddScoped<EmailService>();
 // SLA clock: business time zone and weekend days come from the "Sla" section.
 builder.Services.Configure<SlaSettings>(builder.Configuration.GetSection(SlaSettings.SectionName));
 
+// Branch managers come from Active Directory: who they are, their email, and
+// which branch each one runs. The portal only reflects what AD says — it never
+// edits identities, and nothing in the UI writes to this roster.
+builder.Services.Configure<AdSettings>(builder.Configuration.GetSection(AdSettings.SectionName));
+builder.Services.AddSingleton<AdSyncState>();
+builder.Services.AddScoped<AdManagerSyncService>();
+builder.Services.AddHostedService<AdSyncHostedService>();
+
+/////////remove when you want to link AD\\\\\\\\\\
+// The real directory reader; see Services/Ad/LdapDirectoryReader.cs for the
+// three other lines to uncomment. It replaces the disabled reader below.
+//
+// builder.Services.AddSingleton<IAdDirectoryReader, LdapDirectoryReader>();
+/////////end of AD code\\\\\\\\\\
+
+///////// remove this line when AD is linked \\\\\\\\\\
+// Until then every lookup fails loudly: the sync reports "not linked" and
+// leaves the stored roster alone rather than inventing managers.
+builder.Services.AddSingleton<IAdDirectoryReader, DisabledAdDirectoryReader>();
+
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AuditService>();
 
@@ -195,7 +216,7 @@ if (!keysFolderReady)
 // Schema is created manually via Scripts/database.sql; SeedLookups() only inserts
 // default rows into empty lookup tables. The SchemaVersions check catches a
 // database that has not had the latest script applied.
-const string requiredSchemaVersion = "006";
+const string requiredSchemaVersion = "007";
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<SQPortalDbContext>();

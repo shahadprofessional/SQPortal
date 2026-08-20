@@ -56,6 +56,14 @@ public class SQPortalDbContext : DbContext
         modelBuilder.Entity<FeedbackCase>()
             .HasIndex(c => c.Branch);
 
+        // A branch keeps one row per manager per spell in charge, so the
+        // manager who ran it on any past date can still be resolved.
+        modelBuilder.Entity<BranchManagerAssignment>()
+            .HasKey(a => new { a.BranchName, a.AssignedManager, a.EffectiveFrom });
+
+        modelBuilder.Entity<BranchManagerAssignment>()
+            .HasIndex(a => new { a.BranchName, a.EffectiveFrom });
+
         modelBuilder.Entity<AuditEntry>()
             .HasIndex(a => a.TimestampUtc);
 

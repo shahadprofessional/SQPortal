@@ -14,10 +14,13 @@ public class WeeklyReportViewModel
     public string CombinedSubject { get; set; } = string.Empty;
     public string CombinedRecipients { get; set; } = string.Empty;
 
-    /// <summary>False when the manager roster is empty and the report has no possible recipient.</summary>
+    /// <summary>False when Active Directory has given the portal no manager at all, so nothing can be sent.</summary>
     public bool HasManagers => ManagerCount > 0;
 
+    /// <summary>Branch managers currently in the AD groups.</summary>
     public int ManagerCount { get; set; }
+
+    /// <summary>Branches that had a manager over the reported period.</summary>
     public int AssignmentCount { get; set; }
 }
 

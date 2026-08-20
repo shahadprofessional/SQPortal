@@ -37,6 +37,14 @@ environment.
 - [ ] `Sla:TimeZone` — the business time zone (e.g. `Arabian Standard Time`);
       required on servers running UTC, or SLA dates shift.
 - [ ] `Sla:WeekendDays` — confirm the non-working days.
+- [ ] `Ad` — the branch-manager groups. Branch managers are read-only in the
+      portal and come from Active Directory, so this section is what decides
+      who they are. Get the group names from IT Security (about six, named
+      alphabetically), map each one to the branch its members manage, set
+      `Ad:UsernameSuffix` to the real username suffix, and set `Ad:Enabled` to
+      `true`. Until then the managers panel says AD is not linked and the
+      portal keeps whatever was last recorded. See section 4 for the code
+      markers that have to be uncommented first.
 - [ ] `Mail` — real `FromAddress` (replacing the placeholder), `SmtpHost`,
       port/TLS, and credentials via environment variables
       (`Mail__SmtpUsername`, `Mail__SmtpPassword`), not in the JSON file.
@@ -61,6 +69,31 @@ environment.
       `SQPortal.csproj`, set `Auth:AllowedAdGroup`, and delete the test-only
       blocks they list. On IIS also enable Windows Authentication for the site.
 
+## 4b. Branch managers from Active Directory
+
+Branch managers cannot be added, renamed or given an email address in the
+portal — those are identity data and belong in AD. The portal reads the groups
+and reflects them, and that is all it ever does with them.
+
+- [ ] Uncomment the `System.DirectoryServices.Protocols` package reference in
+      `SQPortal.csproj` (same AD marker) and restore.
+- [ ] Uncomment the class body in `Services/Ad/LdapDirectoryReader.cs` and the
+      `LdapDirectoryReader` registration in `Program.cs`, then delete the line
+      registering `DisabledAdDirectoryReader`. Instructions are at the top of
+      that file.
+- [ ] Fill in the `Ad` section (section 3) and grant the app's service account
+      read access to those groups. It needs nothing else: no write rights, and
+      no directory password is stored anywhere in the app.
+- [ ] Check the branch names in `Ad:BranchGroups` match the branch names in
+      Settings exactly. Mismatches are listed on the Settings page after a
+      sync, along with managers AD has no email address for.
+- [ ] Renaming a branch in Settings later means updating its entry here too.
+- [ ] A move is made in AD, never here: take the manager out of the old
+      branch's group and put them in the new one. The next sync closes their
+      old branch's assignment the day before and opens the new one from that
+      day, so reports on earlier periods keep naming the manager who actually
+      ran that branch then.
+
 ## 5. Hosting
 
 
@@ -77,8 +110,11 @@ environment.
 
 - [ ] Start the app and read `Logs/sqportal-<date>.log`: a critical line about
       the schema version means a database script was missed.
-- [ ] The portal starts with no branches or staff — enter the real rosters in
-      Settings before the first case is logged.
+- [ ] The portal starts with no branches or staff — enter the real branches and
+      SQ staff in Settings before the first case is logged. Branch managers are
+      not entered: they arrive from Active Directory once section 4b is done,
+      and "Sync from AD now" in Settings fetches them without waiting for the
+      timer.
 - [ ] Sign in, create a test case, edit it, check its history section, export
       CSV, then delete the test case.
 
@@ -90,3 +126,5 @@ environment.
   requires modern auth (OAuth), `Services/EmailService.cs` is the single place
   to change.
 - No automated retention/purge of customer data yet.
+- SQ staff (the internal team) are still entered by hand in Settings; only
+  branch managers are linked to Active Directory.

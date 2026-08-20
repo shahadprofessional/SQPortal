@@ -5,6 +5,7 @@ using SQPortal.Helpers;
 using SQPortal.Models.Entities;
 using SQPortal.Models.ViewModels.Settings;
 using SQPortal.Services;
+using SQPortal.Services.Ad;
 
 namespace SQPortal.Controllers;
 
@@ -12,215 +13,118 @@ public class SettingsController : Controller
 {
     private readonly SQPortalDbContext _db;
     private readonly ManagerAssignmentService _managerAssignments;
+    private readonly AdManagerSyncService _adSync;
+    private readonly SlaService _sla;
     private readonly AuditService _audit;
 
-    public SettingsController(SQPortalDbContext db, ManagerAssignmentService managerAssignments, AuditService audit)
+    public SettingsController(
+        SQPortalDbContext db,
+        ManagerAssignmentService managerAssignments,
+        AdManagerSyncService adSync,
+        SlaService sla,
+        AuditService audit)
     {
         _db = db;
         _managerAssignments = managerAssignments;
+        _adSync = adSync;
+        _sla = sla;
         _audit = audit;
     }
 
     public async Task<IActionResult> Index()
     {
-        await _managerAssignments.EnsureEveryBranchHasManagerAsync();
-
         var partners = await _db.Partners.AsNoTracking().OrderBy(p => p.Name).ToListAsync();
         var managers = await _db.Managers.AsNoTracking().OrderBy(m => m.Name).ToListAsync();
         var branchNames = await _db.Branches.AsNoTracking().OrderBy(b => b.Name).Select(b => b.Name).ToListAsync();
 
         var partnerOf = await _db.BranchAssignments.AsNoTracking()
             .ToDictionaryAsync(a => a.BranchName, a => a.AssignedPartner);
-        var managerOf = await _db.ManagerAssignments.AsNoTracking()
-            .ToDictionaryAsync(a => a.BranchName, a => a.AssignedManager);
+
+        // Today's managers, from the dated assignments the AD sync writes.
+        var managersOf = await _managerAssignments.GetManagersAsOfAsync(_sla.Today);
 
         var branchRows = branchNames
             .Select(b => new BranchRow
             {
                 Name = b,
-                Manager = managerOf.TryGetValue(b, out var m) ? m : string.Empty,
+                Managers = managersOf.TryGetValue(b, out var m)
+                    ? m.Select(c => c.DisplayName).ToList()
+                    : new List<string>(),
                 Partner = partnerOf.TryGetValue(b, out var p) ? p : string.Empty
             })
             .ToList();
 
+        var branchesOf = managersOf
+            .SelectMany(kvp => kvp.Value.Select(c => new { Branch = kvp.Key, c.Username }))
+            .GroupBy(x => x.Username, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(x => x.Branch).OrderBy(b => b, StringComparer.Ordinal).ToList(),
+                StringComparer.OrdinalIgnoreCase);
+
         var vm = new SettingsViewModel
         {
             Branches = branchRows,
-            Managers = managers.Select(m => new PartnerRow { Name = m.Name, FullName = m.FullName, Email = m.Email }).ToList(),
-            Partners = partners.Select(p => new PartnerRow { Name = p.Name, FullName = p.FullName, Email = p.Email }).ToList()
+            Managers = managers
+                .Select(m => new ManagerRow
+                {
+                    Username = m.Name,
+                    UserPrincipalName = m.UserPrincipalName,
+                    FullName = m.FullName,
+                    Email = m.Email,
+                    IsActive = m.IsActive,
+                    LastSyncedUtc = m.LastSyncedUtc,
+                    Branches = branchesOf.TryGetValue(m.Name, out var b) ? b : new List<string>()
+                })
+                .ToList(),
+            Partners = partners.Select(p => new PartnerRow { Name = p.Name, FullName = p.FullName, Email = p.Email }).ToList(),
+            Ad = BuildAdStatus()
         };
 
         return View(vm);
     }
 
     // ---------- Branch managers ----------
+    // There is deliberately no add, edit or delete here. Branch-manager
+    // identities and the branch each one runs come from Active Directory; the
+    // only action the portal offers is asking for the copy to be refreshed.
 
+    /// <summary>Re-reads the AD groups now, instead of waiting for the timer.</summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> AddManager(string name, string fullName, string email)
+    public async Task<IActionResult> SyncManagers()
     {
-        var trimmed = (name ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(trimmed))
-        {
-            TempData["StatusMessage"] = "Manager key cannot be empty.";
-            return RedirectToAction(nameof(Index));
-        }
+        var result = await _adSync.SyncAsync();
 
-        var newFullName = (fullName ?? string.Empty).Trim();
-        var newEmail = (email ?? string.Empty).Trim();
-        if (!ValidatePersonFields(trimmed, newFullName, newEmail, out var problem))
-        {
-            TempData["StatusMessage"] = problem;
-            return RedirectToAction(nameof(Index));
-        }
+        TempData["StatusMessage"] = result.Succeeded
+            ? $"Branch managers refreshed from Active Directory — {result.Message}"
+            : result.Message;
 
-        if (await _db.Managers.AnyAsync(m => m.Name == trimmed))
-        {
-            TempData["StatusMessage"] = $"Manager \"{trimmed}\" already exists.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        _db.Managers.Add(new BranchManager
-        {
-            Name = trimmed,
-            FullName = newFullName,
-            Email = newEmail
-        });
-        await _db.SaveChangesAsync();
-
-        var assigned = await _managerAssignments.EnsureEveryBranchHasManagerAsync();
-        var note = assigned == 0
-            ? string.Empty
-            : $" {assigned} branch{(assigned == 1 ? "" : "es")} assigned to them.";
-
-        await _audit.LogAsync("Settings", $"Manager \"{trimmed}\" added");
-        TempData["StatusMessage"] = $"Manager \"{trimmed}\" added.{note}";
         return RedirectToAction(nameof(Index));
     }
 
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateManager(string name, string newName, string fullName, string email)
+    private AdRosterStatus BuildAdStatus()
     {
-        var oldTrim = (name ?? string.Empty).Trim();
-        var newTrim = (newName ?? string.Empty).Trim();
-
-        if (string.IsNullOrWhiteSpace(oldTrim) || string.IsNullOrWhiteSpace(newTrim))
+        var last = _adSync.LastResult;
+        if (last == null)
         {
-            TempData["StatusMessage"] = "Manager key cannot be empty.";
-            return RedirectToAction(nameof(Index));
+            return new AdRosterStatus
+            {
+                Message = "Active Directory has not been read yet in this session."
+            };
         }
 
-        var manager = await _db.Managers.FirstOrDefaultAsync(m => m.Name == oldTrim);
-        if (manager == null)
+        return new AdRosterStatus
         {
-            TempData["StatusMessage"] = $"Manager \"{oldTrim}\" not found.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        var newFullName = (fullName ?? string.Empty).Trim();
-        var newEmail = (email ?? string.Empty).Trim();
-        if (!ValidatePersonFields(newTrim, newFullName, newEmail, out var problem))
-        {
-            TempData["StatusMessage"] = problem;
-            return RedirectToAction(nameof(Index));
-        }
-
-        if (oldTrim == newTrim)
-        {
-            manager.FullName = newFullName;
-            manager.Email = newEmail;
-            _audit.Log("Settings", $"Manager \"{oldTrim}\" updated");
-            await _db.SaveChangesAsync();
-
-            TempData["StatusMessage"] = $"\"{oldTrim}\" updated.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        if (await _db.Managers.AnyAsync(m => m.Name == newTrim))
-        {
-            TempData["StatusMessage"] = $"Manager \"{newTrim}\" already exists.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        // Name is the primary key, so a rename is a remove + insert;
-        // assignments follow the new name.
-        await using var tx = await _db.Database.BeginTransactionAsync();
-
-        _db.Managers.Remove(manager);
-        await _db.SaveChangesAsync();
-
-        _db.Managers.Add(new BranchManager
-        {
-            Name = newTrim,
-            FullName = newFullName,
-            Email = newEmail
-        });
-        await _db.SaveChangesAsync();
-
-        var assignments = await _db.ManagerAssignments.Where(a => a.AssignedManager == oldTrim).ToListAsync();
-        foreach (var a in assignments) a.AssignedManager = newTrim;
-
-        await _db.SaveChangesAsync();
-        await tx.CommitAsync();
-
-        await _audit.LogAsync("Settings", $"Manager renamed \"{oldTrim}\" to \"{newTrim}\"");
-        TempData["StatusMessage"] =
-            $"Renamed \"{oldTrim}\" to \"{newTrim}\" — " +
-            $"{assignments.Count} branch{(assignments.Count == 1 ? "" : "es")} now run by them.";
-        return RedirectToAction(nameof(Index));
+            HasRun = true,
+            Linked = last.Linked,
+            Succeeded = last.Succeeded,
+            Message = last.Message,
+            // Only a run that actually read the directory is worth dating.
+            LastRun = last.Succeeded ? _sla.ToBusinessTime(last.RanAtUtc).ToString("yyyy-MM-dd HH:mm") : string.Empty,
+            Warnings = last.Warnings.ToList()
+        };
     }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteManager(string name)
-    {
-        var trim = (name ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(trim))
-        {
-            TempData["StatusMessage"] = "Manager key required.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        var manager = await _db.Managers.FirstOrDefaultAsync(m => m.Name == trim);
-        if (manager == null)
-        {
-            TempData["StatusMessage"] = $"Manager \"{trim}\" not found.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        // Reassign this manager's branches to the remaining roster; with no
-        // successor the assignment rows are removed.
-        var assignments = await _db.ManagerAssignments.Where(a => a.AssignedManager == trim).ToListAsync();
-        var successor = await _db.Managers.AsNoTracking()
-            .Where(m => m.Name != trim)
-            .OrderBy(m => m.Name)
-            .Select(m => m.Name)
-            .FirstOrDefaultAsync();
-
-        if (string.IsNullOrEmpty(successor))
-        {
-            _db.ManagerAssignments.RemoveRange(assignments);
-        }
-        else
-        {
-            foreach (var a in assignments) a.AssignedManager = successor;
-        }
-
-        _db.Managers.Remove(manager);
-        _audit.Log("Settings", $"Manager \"{trim}\" removed");
-        await _db.SaveChangesAsync();
-
-        var handover = assignments.Count == 0
-            ? string.Empty
-            : string.IsNullOrEmpty(successor)
-                ? $" {assignments.Count} branch{(assignments.Count == 1 ? " is" : "es are")} now without a manager — add one to reassign."
-                : $" {assignments.Count} branch{(assignments.Count == 1 ? "" : "es")} handed to \"{successor}\".";
-
-        TempData["StatusMessage"] = $"Removed \"{trim}\".{handover}";
-        return RedirectToAction(nameof(Index));
-    }
-
 
     // ---------- SQ staff ----------
 
@@ -383,7 +287,7 @@ public class SettingsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> AddBranch(string name, string? manager, string? partner)
+    public async Task<IActionResult> AddBranch(string name, string? partner)
     {
         var trimmed = (name ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(trimmed))
@@ -407,18 +311,22 @@ public class SettingsController : Controller
         _db.Branches.Add(new Branch { Name = trimmed });
         await _db.SaveChangesAsync();
 
-        await SetManagerAssignmentAsync(trimmed, await ResolveManagerAsync(manager));
         await SetPartnerAssignmentAsync(trimmed, await ResolvePartnerAsync(partner));
         _audit.Log("Settings", $"Branch \"{trimmed}\" added");
         await _db.SaveChangesAsync();
-        TempData["StatusMessage"] = $"Branch \"{trimmed}\" added.";
+
+        // Its manager arrives with the next AD sync, once the branch's group is
+        // listed in Ad:BranchGroups.
+        TempData["StatusMessage"] =
+            $"Branch \"{trimmed}\" added. Its branch manager comes from Active Directory — " +
+            "map the branch's AD group in Ad:BranchGroups if it is not there yet.";
         return RedirectToAction(nameof(Index));
     }
 
-    /// <summary>Saves a branch row: name, manager and SQ owner in one submit.</summary>
+    /// <summary>Saves a branch row: name and SQ owner. The manager comes from AD.</summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateBranch(string oldName, string newName, string? manager, string? partner)
+    public async Task<IActionResult> UpdateBranch(string oldName, string newName, string? partner)
     {
         var oldTrim = (oldName ?? string.Empty).Trim();
         var newTrim = (newName ?? string.Empty).Trim();
@@ -449,7 +357,6 @@ public class SettingsController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        var chosenManager = await ResolveManagerAsync(manager);
         var chosenPartner = await ResolvePartnerAsync(partner);
         var caseCount = 0;
 
@@ -473,20 +380,32 @@ public class SettingsController : Controller
             var oldPartnerRow = await _db.BranchAssignments.FirstOrDefaultAsync(a => a.BranchName == oldTrim);
             if (oldPartnerRow != null) _db.BranchAssignments.Remove(oldPartnerRow);
 
-            var oldManagerRow = await _db.ManagerAssignments.FirstOrDefaultAsync(a => a.BranchName == oldTrim);
-            if (oldManagerRow != null) _db.ManagerAssignments.Remove(oldManagerRow);
+            // The manager history moves with the branch, all of it: who ran it
+            // in the past is a fact about the branch, not about its name. The
+            // branch name is part of the key, so each row is re-keyed.
+            var managerRows = await _db.ManagerAssignments.Where(a => a.BranchName == oldTrim).ToListAsync();
+            _db.ManagerAssignments.RemoveRange(managerRows);
+            await _db.SaveChangesAsync();
+
+            _db.ManagerAssignments.AddRange(managerRows.Select(a => new BranchManagerAssignment
+            {
+                BranchName = newTrim,
+                AssignedManager = a.AssignedManager,
+                EffectiveFrom = a.EffectiveFrom,
+                EffectiveTo = a.EffectiveTo
+            }));
 
             await _db.SaveChangesAsync();
         }
 
-        await SetManagerAssignmentAsync(newTrim, chosenManager);
         await SetPartnerAssignmentAsync(newTrim, chosenPartner);
         _audit.Log("Settings", renaming ? $"Branch renamed \"{oldTrim}\" to \"{newTrim}\"" : $"Branch \"{newTrim}\" saved");
         await _db.SaveChangesAsync();
         await tx.CommitAsync();
 
         TempData["StatusMessage"] = renaming
-            ? $"Renamed \"{oldTrim}\" to \"{newTrim}\" ({caseCount} case{(caseCount == 1 ? "" : "s")} updated)."
+            ? $"Renamed \"{oldTrim}\" to \"{newTrim}\" ({caseCount} case{(caseCount == 1 ? "" : "s")} updated). " +
+              "Update the branch's name in Ad:BranchGroups too, or the next AD sync will not find it."
             : $"\"{newTrim}\" saved.";
         return RedirectToAction(nameof(Index));
     }
@@ -525,8 +444,10 @@ public class SettingsController : Controller
         var assignment = await _db.BranchAssignments.FirstOrDefaultAsync(a => a.BranchName == trim);
         if (assignment != null) _db.BranchAssignments.Remove(assignment);
 
-        var managerAssignment = await _db.ManagerAssignments.FirstOrDefaultAsync(a => a.BranchName == trim);
-        if (managerAssignment != null) _db.ManagerAssignments.Remove(managerAssignment);
+        // No case can reference the branch at this point, so its manager
+        // history has nothing left to explain and goes with it.
+        var managerAssignments = await _db.ManagerAssignments.Where(a => a.BranchName == trim).ToListAsync();
+        _db.ManagerAssignments.RemoveRange(managerAssignments);
 
         _db.Branches.Remove(branch);
         _audit.Log("Settings", $"Branch \"{trim}\" deleted");
@@ -567,16 +488,6 @@ public class SettingsController : Controller
         return true;
     }
 
-    /// <summary>The named manager if they exist, otherwise the first on the roster.</summary>
-    private async Task<string> ResolveManagerAsync(string? candidate)
-    {
-        var trim = (candidate ?? string.Empty).Trim();
-        if (trim.Length > 0 && await _db.Managers.AnyAsync(m => m.Name == trim)) return trim;
-
-        return await _db.Managers.AsNoTracking().OrderBy(m => m.Name).Select(m => m.Name).FirstOrDefaultAsync()
-            ?? string.Empty;
-    }
-
     /// <summary>The named SQ staff member if they exist, otherwise the first on file.</summary>
     private async Task<string> ResolvePartnerAsync(string? candidate)
     {
@@ -585,27 +496,6 @@ public class SettingsController : Controller
 
         return await _db.Partners.AsNoTracking().OrderBy(p => p.Name).Select(p => p.Name).FirstOrDefaultAsync()
             ?? string.Empty;
-    }
-
-    /// <summary>Upserts the manager assignment, or drops it when there is nobody to assign.</summary>
-    private async Task SetManagerAssignmentAsync(string branch, string manager)
-    {
-        var row = await _db.ManagerAssignments.FirstOrDefaultAsync(a => a.BranchName == branch);
-
-        if (string.IsNullOrEmpty(manager))
-        {
-            if (row != null) _db.ManagerAssignments.Remove(row);
-            return;
-        }
-
-        if (row == null)
-        {
-            _db.ManagerAssignments.Add(new BranchManagerAssignment { BranchName = branch, AssignedManager = manager });
-        }
-        else
-        {
-            row.AssignedManager = manager;
-        }
     }
 
     /// <summary>Upserts the SQ-staff assignment, or drops it when there is nobody to assign.</summary>

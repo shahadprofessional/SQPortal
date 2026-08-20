@@ -63,15 +63,16 @@
     }
 </div>
 <div class="sq-weekly-note">
-    Auto-generated from cases rated 1–2★ that are completed and validated · sent to branch managers
-    · @Model.ManagerCount manager@(Model.ManagerCount == 1 ? "" : "s") on file, @Model.AssignmentCount branch assignment@(Model.AssignmentCount == 1 ? "" : "s")
+    Auto-generated from cases rated 1–2★ that are completed and validated · sent to the branch managers Active Directory
+    named for this period · @Model.ManagerCount manager@(Model.ManagerCount == 1 ? "" : "s") in the AD groups,
+    @Model.AssignmentCount branch@(Model.AssignmentCount == 1 ? "" : "es") with a manager
 </div>
 
 @if (!Model.HasManagers)
 {
     <div class="alert alert-warning py-2 mt-2 mb-0">
-        No branch managers on file, so there is nobody to send to.
-        <a asp-controller="Settings" asp-action="Index">Add a manager in Settings</a> and they will be assigned to every branch.
+        No branch managers have come across from Active Directory, so there is nobody to send to.
+        <a asp-controller="Settings" asp-action="Index">Check the Active Directory link in Settings</a>.
     </div>
 }
 
@@ -103,17 +104,23 @@ else
                 <div>
                     <div class="sq-branch-name">@b.Branch</div>
                     <div class="sq-branch-sub">
-                        @if (string.IsNullOrEmpty(b.Manager))
+                        @if (!b.HasManager)
                         {
-                            <span>No branch manager on file — add one in Settings</span>
+                            <span>No branch manager in Active Directory for this branch</span>
                         }
                         else if (string.IsNullOrEmpty(b.ManagerEmail))
                         {
-                            <span>Branch manager: <strong>@b.Manager</strong> · no email on file</span>
+                            <span>Branch manager: <strong>@b.ManagerNames</strong> · no email in Active Directory</span>
                         }
                         else
                         {
-                            <span>Branch manager: <strong>@b.Manager</strong> · @b.ManagerEmail</span>
+                            <span>Branch manager: <strong>@b.ManagerNames</strong> · @b.ManagerEmail</span>
+                        }
+                        @if (b.HasFormerManager)
+                        {
+                            <span title="They ran this branch over the reported period but are no longer in the AD groups">
+                                · no longer a branch manager in AD
+                            </span>
                         }
                     </div>
                 </div>
@@ -131,9 +138,9 @@ else
                     }
                     else
                     {
-                        var why = string.IsNullOrEmpty(b.Manager)
-                            ? "No branch manager on file — add one in Settings"
-                            : $"{b.Manager} has no email address — add one in Settings";
+                        var why = !b.HasManager
+                            ? "No branch manager in Active Directory for this branch"
+                            : $"Active Directory has no email address for {b.ManagerNames}";
                         <button class="btn btn-sm btn-outline-secondary" type="button" disabled title="@why">Send report</button>
                     }
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#@previewId">Preview</button>

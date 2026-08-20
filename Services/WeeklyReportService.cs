@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using SQPortal.Data;
+using SQPortal.Models;
 using SQPortal.Models.Entities;
 using SQPortal.Models.Enums;
 using SQPortal.Models.ViewModels.Weekly;
@@ -18,27 +19,24 @@ public class WeeklyReportService
     };
 
     private readonly SQPortalDbContext _db;
+    private readonly ManagerAssignmentService _managers;
 
-    public WeeklyReportService(SQPortalDbContext db)
+    public WeeklyReportService(SQPortalDbContext db, ManagerAssignmentService managers)
     {
         _db = db;
+        _managers = managers;
     }
 
     public async Task<WeeklyReportViewModel> BuildAsync(string? range, DateOnly today)
     {
         var (start, end, normalizedRange) = ResolveRange(range, today);
 
-        // Recipients are branch managers, never the SQ staff who handled the cases.
-        var managers = await _db.Managers.AsNoTracking().OrderBy(m => m.Name).ToListAsync();
-        var managerEmails = managers.ToDictionary(m => m.Name, m => m.Email);
-        var managerFullNames = managers.ToDictionary(m => m.Name, m => m.FullName);
-        var assignments = await _db.ManagerAssignments
-            .AsNoTracking()
-            .ToDictionaryAsync(a => a.BranchName, a => a.AssignedManager);
-
-        // The assignment table can miss a branch (e.g. a case naming a deleted
-        // branch); falling back to the roster keeps the report sendable.
-        var fallbackManager = managers.FirstOrDefault()?.Name ?? string.Empty;
+        // Recipients are branch managers, never the SQ staff who handled the
+        // cases — and the managers of the period being reported, not of today.
+        // A report on a fortnight a manager has since moved away from still
+        // names the person who ran the branch then.
+        var managersOf = await _managers.GetManagersAsOfAsync(end);
+        var activeManagerCount = await _db.Managers.AsNoTracking().CountAsync(m => m.IsActive);
 
         // Only completed, validated cases reach the branch report.
         var poorCases = await _db.Cases
@@ -59,11 +57,11 @@ public class WeeklyReportService
             .OrderByDescending(g => g.Count())
             .Select(g =>
             {
-                var manager = assignments.TryGetValue(g.Key, out var m) && !string.IsNullOrWhiteSpace(m)
+                // No stand-in when AD names nobody: a report must not address
+                // someone the directory never made responsible for the branch.
+                var managers = managersOf.TryGetValue(g.Key, out var m)
                     ? m
-                    : fallbackManager;
-                var managerEmail = managerEmails.TryGetValue(manager, out var e) ? e : string.Empty;
-                var managerFullName = managerFullNames.TryGetValue(manager, out var fn) ? fn : string.Empty;
+                    : Array.Empty<BranchManagerContact>();
                 var cases = g.ToList();
                 var staff = cases
                     .Select(c => (c.StaffName ?? string.Empty).Trim())
@@ -73,9 +71,7 @@ public class WeeklyReportService
                 var item = new BranchReportItemViewModel
                 {
                     Branch = g.Key,
-                    Manager = manager,
-                    ManagerFullName = managerFullName,
-                    ManagerEmail = managerEmail,
+                    Managers = managers,
                     Cases = cases,
                     StaffMentioned = staff,
                     BranchFeedbackCount = cases.Count(c => c.BranchRating > 0 && c.BranchRating <= 2),
@@ -97,8 +93,9 @@ public class WeeklyReportService
 
         // Every manager in this report, each address once.
         var combinedRecipients = string.Join(",", byBranch
-            .Select(b => b.ManagerEmail)
-            .Where(e => !string.IsNullOrWhiteSpace(e))
+            .SelectMany(b => b.Managers)
+            .Where(m => m.HasEmail)
+            .Select(m => m.Email)
             .Distinct(StringComparer.OrdinalIgnoreCase));
 
         return new WeeklyReportViewModel
@@ -108,8 +105,8 @@ public class WeeklyReportService
             End = end,
             Branches = byBranch,
             TotalPoorCases = filtered.Count,
-            ManagerCount = managers.Count,
-            AssignmentCount = assignments.Count,
+            ManagerCount = activeManagerCount,
+            AssignmentCount = managersOf.Count,
             RangeOptions = Ranges,
             CombinedPreviewText = combinedBody,
             CombinedSubject = combinedSubject,
@@ -139,9 +136,9 @@ public class WeeklyReportService
 
         if (asFullEmail)
         {
-            var greeting = string.IsNullOrWhiteSpace(item.ManagerFullName)
+            var greeting = string.IsNullOrWhiteSpace(item.ManagerDisplayNames)
                 ? "Branch Manager"
-                : item.ManagerFullName;
+                : item.ManagerDisplayNames;
             sb.AppendLine($"Dear {greeting},");
             sb.AppendLine();
             sb.AppendLine("Customers receive a feedback message after each branch visit. Customers giving low ratings (1-2 stars) are contacted directly by the SQ team.");

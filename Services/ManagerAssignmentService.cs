@@ -1,10 +1,17 @@
 using Microsoft.EntityFrameworkCore;
 using SQPortal.Data;
-using SQPortal.Models.Entities;
+using SQPortal.Models;
 
 namespace SQPortal.Services;
 
-/// <summary>Keeps the rule "every branch has a branch manager" true in the data.</summary>
+/// <summary>
+/// Answers "who ran this branch on this date" from the dated assignment rows
+/// the AD sync writes.
+///
+/// Read-only on purpose: a branch without a manager in AD stays without one
+/// here. Handing it to whoever happens to be first on the roster would put a
+/// name on a report that Active Directory never said was responsible.
+/// </summary>
 public class ManagerAssignmentService
 {
     private readonly SQPortalDbContext _db;
@@ -15,47 +22,40 @@ public class ManagerAssignmentService
     }
 
     /// <summary>
-    /// Gives every branch an assignment row and repairs rows pointing at a
-    /// deleted manager. Idempotent; no-op while the manager roster is empty.
+    /// Every branch that had a manager on <paramref name="date"/>, with the
+    /// people who ran it then. Branches with nobody are absent from the map.
     /// </summary>
-    /// <returns>How many branches were filled in or repaired.</returns>
-    public async Task<int> EnsureEveryBranchHasManagerAsync()
+    public async Task<IReadOnlyDictionary<string, IReadOnlyList<BranchManagerContact>>> GetManagersAsOfAsync(DateOnly date)
     {
-        var managers = await _db.Managers
+        var rows = await _db.ManagerAssignments
             .AsNoTracking()
-            .OrderBy(m => m.Name)
-            .Select(m => m.Name)
+            .Where(a => a.EffectiveFrom <= date && (a.EffectiveTo == null || a.EffectiveTo >= date))
+            .Select(a => new { a.BranchName, a.AssignedManager })
             .ToListAsync();
 
-        if (managers.Count == 0) return 0;
-
-        var fallback = managers[0];
-        var known = new HashSet<string>(managers, StringComparer.Ordinal);
-
-        var branches = await _db.Branches.AsNoTracking().Select(b => b.Name).ToListAsync();
-        var rows = await _db.ManagerAssignments.ToListAsync();
-        var byBranch = rows.ToDictionary(a => a.BranchName, StringComparer.Ordinal);
-
-        var touched = 0;
-        foreach (var branch in branches)
+        if (rows.Count == 0)
         {
-            if (!byBranch.TryGetValue(branch, out var row))
-            {
-                _db.ManagerAssignments.Add(new BranchManagerAssignment
-                {
-                    BranchName = branch,
-                    AssignedManager = fallback
-                });
-                touched++;
-            }
-            else if (!known.Contains(row.AssignedManager))
-            {
-                row.AssignedManager = fallback;
-                touched++;
-            }
+            return new Dictionary<string, IReadOnlyList<BranchManagerContact>>(StringComparer.Ordinal);
         }
 
-        if (touched > 0) await _db.SaveChangesAsync();
-        return touched;
+        var usernames = rows.Select(r => r.AssignedManager).Distinct(StringComparer.Ordinal).ToList();
+        var people = await _db.Managers
+            .AsNoTracking()
+            .Where(m => usernames.Contains(m.Name))
+            .ToDictionaryAsync(m => m.Name, StringComparer.Ordinal);
+
+        return rows
+            .GroupBy(r => r.BranchName, StringComparer.Ordinal)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<BranchManagerContact>)g
+                    .Select(r => people.TryGetValue(r.AssignedManager, out var person)
+                        ? new BranchManagerContact(person.Name, person.FullName, person.Email, person.IsActive)
+                        // The roster row is gone but the history says they ran
+                        // the branch; the username is still the honest answer.
+                        : new BranchManagerContact(r.AssignedManager, string.Empty, string.Empty, false))
+                    .OrderBy(c => c.Username, StringComparer.Ordinal)
+                    .ToList(),
+                StringComparer.Ordinal);
     }
 }

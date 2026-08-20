@@ -5,8 +5,8 @@
     string SelectedOrFirst(string current, IEnumerable<string> options) =>
         !string.IsNullOrEmpty(current) ? current : (options.FirstOrDefault() ?? string.Empty);
 
-    var managerNames = Model.Managers.Select(m => m.Name).ToList();
     var partnerNames = Model.Partners.Select(p => p.Name).ToList();
+    var activeManagers = Model.Managers.Count(m => m.IsActive);
 }
 
 <div class="sq-page-head">
@@ -15,7 +15,7 @@
         <h1 class="sq-title">Settings</h1>
     </div>
     <div class="sq-page-meta">
-        @Model.Branches.Count branches · @Model.Managers.Count managers · @Model.Partners.Count SQ staff
+        @Model.Branches.Count branches · @activeManagers branch manager@(activeManagers == 1 ? "" : "s") from AD · @Model.Partners.Count SQ staff
     </div>
 </div>
 
@@ -23,18 +23,13 @@
 <div class="sq-panel sq-frame mb-4">
     <div class="sq-panel-head">
         <h2>Branches</h2>
-        <span class="sq-panel-note">Name, manager and SQ owner — one row each. Save applies all three.</span>
+        <span class="sq-panel-note">Name and SQ owner — one row each. The branch manager column is what Active Directory says; it is not editable here.</span>
     </div>
 
     <form asp-action="AddBranch" method="post" class="sq-branch-row sq-branch-add">
         @Html.AntiForgeryToken()
         <input class="form-control form-control-sm" name="name" placeholder="New branch name" required maxlength="100" aria-label="New branch name" />
-        <select class="form-select form-select-sm" name="manager" aria-label="Branch manager">
-            @foreach (var m in managerNames)
-            {
-                <option value="@m">@m</option>
-            }
-        </select>
+        <span class="sq-cell-muted">From AD</span>
         <select class="form-select form-select-sm" name="partner" aria-label="SQ staff">
             @foreach (var p in partnerNames)
             {
@@ -59,7 +54,6 @@
 
         @foreach (var b in Model.Branches)
         {
-            var selectedManager = SelectedOrFirst(b.Manager, managerNames);
             var selectedPartner = SelectedOrFirst(b.Partner, partnerNames);
 
             <form asp-action="UpdateBranch" method="post" class="sq-branch-row">
@@ -70,23 +64,15 @@
 
                 <input class="form-control form-control-sm" name="newName" value="@b.Name" required maxlength="100" aria-label="Branch name" />
 
-                <select class="form-select form-select-sm" name="manager" aria-label="Branch manager">
-                    @if (!managerNames.Any())
-                    {
-                        <option value="">— none on file —</option>
-                    }
-                    @foreach (var m in managerNames)
-                    {
-                        if (m == selectedManager)
-                        {
-                            <option value="@m" selected>@m</option>
-                        }
-                        else
-                        {
-                            <option value="@m">@m</option>
-                        }
-                    }
-                </select>
+                @* Read-only: which branch someone manages is decided in AD. *@
+                @if (b.Managers.Any())
+                {
+                    <span title="From Active Directory">@string.Join(", ", b.Managers)</span>
+                }
+                else
+                {
+                    <span class="sq-cell-muted" title="No Active Directory group names a manager for this branch">— none in AD —</span>
+                }
 
                 <select class="form-select form-select-sm" name="partner" aria-label="SQ staff">
                     @if (!partnerNames.Any())
@@ -120,53 +106,108 @@
     </div>
 </div>
 
-<!-- ============ Managers ============ -->
+<!-- ============ Branch managers: read-only copy of Active Directory ============ -->
 <div class="sq-panel sq-frame mb-4">
     <div class="sq-panel-head">
-        <h2>Managers staff</h2>
-        <span class="sq-panel-note">Every field is editable. Renaming or removing someone moves their branches only.</span>
+        <h2>Branch managers</h2>
+        <span class="sq-panel-note">
+            From Active Directory and read-only. Who is a branch manager, their name and email, and which branch they run
+            are decided in AD; the portal copies them. Moves and leavers arrive with the next sync.
+        </span>
     </div>
 
-    <form asp-action="AddManager" method="post" class="row g-3 mb-3">
-        @Html.AntiForgeryToken()
-        <div class="col-md-2">
-            <input class="form-control" name="name" placeholder="Key" required maxlength="40" />
+    <div class="d-flex gap-3 align-items-center flex-wrap mb-3">
+        <form asp-action="SyncManagers" method="post" class="m-0">
+            @Html.AntiForgeryToken()
+            <button class="btn btn-sm btn-primary" type="submit">Sync from AD now</button>
+        </form>
+        <span class="sq-panel-note">
+            @if (!string.IsNullOrEmpty(Model.Ad.LastRun))
+            {
+                <text>Last read @Model.Ad.LastRun · </text>
+            }
+            @Model.Ad.Message
+        </span>
+    </div>
+
+    @if (Model.Ad.HasRun && !Model.Ad.Linked)
+    {
+        <div class="alert alert-warning py-2">
+            Active Directory is not linked yet, so this list is whatever was last recorded. Nobody can be added or edited here —
+            fill in the <code>Ad</code> section of <code>appsettings.json</code> with the branch-manager groups.
         </div>
-        <div class="col-md-4">
-            <input class="form-control" name="fullName" placeholder="Full name" maxlength="200" />
+    }
+    else if (Model.Ad.HasRun && !Model.Ad.Succeeded)
+    {
+        <div class="alert alert-danger py-2">@Model.Ad.Message</div>
+    }
+
+    @if (Model.Ad.Warnings.Any())
+    {
+        <div class="alert alert-warning py-2">
+            <div class="fw-semibold mb-1">Active Directory and the portal do not line up:</div>
+            <ul class="mb-0 ps-3">
+                @foreach (var warning in Model.Ad.Warnings)
+                {
+                    <li>@warning</li>
+                }
+            </ul>
         </div>
-        <div class="col-md-4">
-            <input class="form-control" name="email" type="email" placeholder="Email" maxlength="200" />
-        </div>
-        <div class="col-md-2 d-grid">
-            <button class="btn btn-primary" type="submit">Add manager</button>
-        </div>
-    </form>
+    }
 
     <div class="sq-staff-grid">
         <div class="sq-staff-head">
-            <div>Key</div>
+            <div>Username</div>
             <div>Full name</div>
             <div>Email</div>
-            <div></div>
+            <div>Branch</div>
         </div>
+
+        @if (!Model.Managers.Any())
+        {
+            <div class="sq-panel-note py-3">No branch managers on file — they appear here after the first sync with Active Directory.</div>
+        }
+
         @foreach (var m in Model.Managers)
         {
-            <form asp-action="UpdateManager" method="post" class="sq-staff-row">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="name" value="@m.Name" />
-                <input class="form-control form-control-sm" name="newName" value="@m.Name" required maxlength="40" aria-label="Key" />
-                <input class="form-control form-control-sm" name="fullName" value="@m.FullName" maxlength="200" aria-label="Full name" />
-                <input class="form-control form-control-sm" name="email" type="email" value="@m.Email" maxlength="200" aria-label="Email" />
-                <div class="sq-staff-actions">
-                    <button class="btn btn-sm btn-primary" type="submit">Save</button>
-                    <button class="btn btn-sm btn-outline-danger" type="submit" formnovalidate
-                            formaction="@Url.Action("DeleteManager", "Settings")"
-                            data-confirm='Remove "@m.Name" from the managers? Their branches pass to whoever is left.'>
-                        Delete
-                    </button>
+            var lastSeen = m.LastSyncedUtc == null
+                ? "Not seen in a sync yet"
+                : $"Last seen in AD {m.LastSyncedUtc:yyyy-MM-dd HH:mm} UTC";
+
+            <div class="sq-staff-row">
+                <div>
+                    <div title="@lastSeen">@m.Username</div>
+                    @if (!string.IsNullOrEmpty(m.UserPrincipalName))
+                    {
+                        <div class="sq-cell-muted">@m.UserPrincipalName</div>
+                    }
                 </div>
-            </form>
+                <div>@(string.IsNullOrEmpty(m.FullName) ? "—" : m.FullName)</div>
+                <div>
+                    @if (string.IsNullOrEmpty(m.Email))
+                    {
+                        <span class="sq-cell-muted" title="AD has no email for them, so their report cannot be sent">— none in AD —</span>
+                    }
+                    else
+                    {
+                        @m.Email
+                    }
+                </div>
+                <div>
+                    @if (m.Branches.Any())
+                    {
+                        @string.Join(", ", m.Branches)
+                    }
+                    else if (m.IsActive)
+                    {
+                        <span class="sq-cell-muted">no branch</span>
+                    }
+                    else
+                    {
+                        <span class="sq-cell-muted" title="In none of the branch-manager groups any more; kept so past reports still resolve">no longer managing</span>
+                    }
+                </div>
+            </div>
         }
     </div>
 </div>
